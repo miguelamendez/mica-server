@@ -1,0 +1,82 @@
+{
+  "schema": 1,
+  "owner": "miguelamendez",
+  "catalog_repo": "miguelamendez/mica-server-catalog",
+  "policy": {
+    "licenses": ["Apache-2.0", "MIT"],
+    "commercial_use_required": true,
+    "adopt_existing_quant_before_converting": true,
+    "publish_only_after_real_smoke_inference": true
+  },
+  "models": [
+    {
+      "id": "spark-x25-4b",
+      "modality": "text",
+      "source": "XHToken/Spark-X2.5-4B",
+      "license": "Apache-2.0",
+      "draft": {
+        "kind": "classic-speculative-candidate",
+        "source": "XHToken/Spark-X2.5-1.7B",
+        "note": "Smaller sibling, not a vendor-published MTP drafter; disabled until speed and acceptance tests pass."
+      },
+      "mirrors": {
+        "mlx": "miguelamendez/mica-spark-x25-4b-mlx",
+        "gguf": "miguelamendez/mica-spark-x25-4b-gguf"
+      },
+      "candidates": {
+        "mlx_q4": "abenzerps/Spark-X2.5-4B-MLX-4bit",
+        "mlx_q8": "abenzerps/Spark-X2.5-4B-MLX-8bit",
+        "gguf_q4_q8": "abenzerps/Spark-X2.5-4B-GGUF"
+      }
+    },
+    {
+      "id": "granite-speech-5",
+      "modality": "asr",
+      "source": "ibm-granite/granite-speech-5.0-470m-turboctc",
+      "license": "Apache-2.0",
+      "mirrors": {
+        "mlx": "miguelamendez/mica-granite-speech-5-mlx",
+        "gguf": "miguelamendez/mica-granite-speech-5-gguf"
+      },
+      "candidates": {
+        "mlx_q4": "iky1e/granite-speech-5.0-470m-turboctc-mlx-q4",
+        "mlx_q8": "iky1e/granite-speech-5.0-470m-turboctc-mlx-q8",
+        "gguf_q4": "handy-computer/granite-speech-5.0-470m-turboctc-gguf",
+        "gguf_q8": "audio-cpp/audio.cpp-gguf"
+      }
+    },
+    {
+      "id": "audio8-tts-06b",
+      "modality": "tts",
+      "source": "Audio8/Audio8-TTS-Preview-0.6b",
+      "license": "Apache-2.0",
+      "mirrors": {
+        "mlx": "miguelamendez/mica-audio8-tts-06b-mlx",
+        "gguf": "miguelamendez/mica-audio8-tts-06b-gguf"
+      },
+      "candidates": {
+        "mlx_q4": null,
+        "mlx_q8": "vanch007/Audio8-TTS-MLX-8bit",
+        "gguf_q4": null,
+        "gguf_q8": "js-byte/Audio8-TTS-Preview-0.6b-GGUF"
+      },
+      "fallback": "Convert missing Q4 variants from the pinned official checkpoint."
+    },
+    {
+      "id": "minicpm-v46-thinking",
+      "modality": "multimodal",
+      "source": "openbmb/MiniCPM-V-4.6-Thinking",
+      "license": "Apache-2.0",
+      "mirrors": {
+        "mlx": "miguelamendez/mica-minicpm-v46-thinking-mlx",
+        "gguf": "miguelamendez/mica-minicpm-v46-thinking-gguf"
+      },
+      "candidates": {
+        "mlx_q4": null,
+        "mlx_q8": null,
+        "gguf_q4_q8": "openbmb/MiniCPM-V-4.6-Thinking-gguf"
+      },
+      "fallback": "Convert MLX Q4/Q8 from official BF16; the released checkpoint has no mtp.* tensors to extract."
+    }
+  ]
+}
