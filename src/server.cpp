@@ -200,7 +200,10 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
   if (worker.backend == Backend::mlx) {
     const auto python = (root / "environment-mlx/bin/python").string();
     if (worker.model->capability == "text") {
-      return {python, "-m", "mlx_lm.server", "--model", worker.artifact_path.string(),
+      const auto server = worker.model->mlx_converter == "mlx_vlm.convert"
+                              ? "mlx_vlm.server"
+                              : "mlx_lm.server";
+      return {python, "-m", server, "--model", worker.artifact_path.string(),
               "--host", "127.0.0.1", "--port", port};
     }
     if (worker.model->capability == "vision") {

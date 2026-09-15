@@ -50,6 +50,8 @@ struct ModelDefinition {
   std::string description;
   std::vector<std::string> tags;
   std::string source_repo;
+  std::string mlx_converter;
+  bool mlx_extract_mtp{false};
   std::map<Backend, std::string> repositories;
   int startup_priority{100};
   bool required{false};

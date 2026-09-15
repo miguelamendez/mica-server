@@ -19,7 +19,9 @@ struct AddModelOptions {
 
 struct QuantizeModelOptions {
   std::filesystem::path root;
+  std::filesystem::path config_directory;
   std::string id;
+  std::string source_revision;
   Backend backend{Backend::gguf};
   Quantization quantization{Quantization::q4};
   int group_size{64};
@@ -36,7 +38,7 @@ struct ConfigureVllmModelOptions {
 std::string normalize_modality(const std::string& value);
 std::string modality_capability(const std::string& modality);
 std::string add_custom_model(const AddModelOptions& options);
-void quantize_custom_model(const QuantizeModelOptions& options);
+void quantize_model(const QuantizeModelOptions& options);
 void configure_vllm_custom_model(const ConfigureVllmModelOptions& options);
 void merge_custom_models(Registry& registry, const std::filesystem::path& root);
 

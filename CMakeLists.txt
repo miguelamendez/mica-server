@@ -97,6 +97,16 @@ if(MICA_SERVER_BUILD_TESTS)
     PASS_REGULAR_EXPRESSION "audiocpp_gguf.*--type q8_0"
   )
   add_test(
+    NAME mica-server-builtin-quantize-plan
+    COMMAND $<TARGET_FILE:mica-server> quantize --model spark-x25-4b --backend mlx
+            --quant q4 --revision 0bcb35678590218655dff3765b9e61c83b35e9c4
+            --dry-run --root ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/custom-root
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+  )
+  set_tests_properties(mica-server-builtin-quantize-plan PROPERTIES
+    PASS_REGULAR_EXPRESSION "hf download XHToken/Spark-X2.5-4B.*mlx_vlm.convert.*staging/spark-x25-4b/0bcb356"
+  )
+  add_test(
     NAME mica-server-reject-both-serve
     COMMAND $<TARGET_FILE:mica-server> serve --backend both --root
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/custom-root

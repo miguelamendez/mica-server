@@ -14,6 +14,7 @@
 #include <nlohmann/json.hpp>
 
 #include "mica_server/command.hpp"
+#include "mica_server/config.hpp"
 
 namespace mica {
 namespace {
@@ -120,15 +121,41 @@ bool commercial_license_allowed(std::string license) {
   return allowed.contains(license);
 }
 
-json fetch_metadata(const std::string& repo) {
+json fetch_metadata(const std::string& repo, const std::string& revision = {}) {
+  auto url = "https://huggingface.co/api/models/" + repo;
+  if (!revision.empty()) url += "/revision/" + revision;
   const auto result = run_command(
       {"curl", "--location", "--fail", "--silent", "--show-error",
-       "https://huggingface.co/api/models/" + repo},
+       url},
       true);
   if (result.exit_code != 0) {
     throw std::runtime_error("cannot read Hugging Face model metadata: " + result.output);
   }
   return json::parse(result.output);
+}
+
+std::string capability_modality(const std::string& capability) {
+  if (capability == "text") return "text-to-text";
+  if (capability == "vision") return "img-text-to-text";
+  if (capability == "tts" || capability == "asr") return capability;
+  throw std::runtime_error("unsupported model capability for quantization: " + capability);
+}
+
+std::string default_mlx_converter(const std::string& modality) {
+  if (modality == "text-to-text") return "mlx_lm.convert";
+  if (modality == "img-text-to-text") return "mlx_vlm.convert";
+  return "mlx_audio.convert";
+}
+
+void write_json_atomically(const std::filesystem::path& path, const json& value) {
+  std::filesystem::create_directories(path.parent_path());
+  const auto temporary = path.string() + ".tmp";
+  std::ofstream output(temporary, std::ios::trunc);
+  if (!output) throw std::runtime_error("cannot write " + path.string());
+  output << std::setw(2) << value << '\n';
+  output.close();
+  if (!output) throw std::runtime_error("failed writing " + path.string());
+  std::filesystem::rename(temporary, path);
 }
 
 json read_runtime(const std::filesystem::path& root) {
@@ -139,7 +166,9 @@ json read_runtime(const std::filesystem::path& root) {
 
 void record_runtime_variant(const std::filesystem::path& root, const std::string& id,
                             Backend backend, Quantization quantization,
-                            const std::filesystem::path& artifact) {
+                            const std::filesystem::path& artifact,
+                            const std::string& source_repo,
+                            const std::string& source_revision) {
   const auto path = root / "mica-server/runtime.json";
   std::ifstream input(path);
   auto runtime = json::parse(input);
@@ -157,6 +186,7 @@ void record_runtime_variant(const std::filesystem::path& root, const std::string
   runtime["downloads"][key] = {
       {"model", id}, {"backend", to_string(backend)}, {"quantization", quant},
       {"artifact", artifact.string()}, {"source", "local-quantization"},
+      {"source_repo", source_repo}, {"source_revision", source_revision},
       {"downloaded", true}, {"smoke_validated", false}};
   const auto temporary = path.string() + ".tmp";
   std::ofstream output(temporary, std::ios::trunc);
@@ -284,7 +314,7 @@ std::string add_custom_model(const AddModelOptions& options) {
   return id;
 }
 
-void quantize_custom_model(const QuantizeModelOptions& options) {
+void quantize_model(const QuantizeModelOptions& options) {
   if (options.group_size <= 0) throw std::invalid_argument("group size must be positive");
   if (options.backend == Backend::vllm) {
     throw std::invalid_argument(
@@ -295,49 +325,111 @@ void quantize_custom_model(const QuantizeModelOptions& options) {
     throw std::invalid_argument("native is only valid for a vLLM source repository");
   }
   auto catalog = read_catalog(options.root);
-  if (!catalog["models"].contains(options.id)) {
-    throw std::runtime_error("custom model is not registered: " + options.id);
+  const bool custom = catalog["models"].contains(options.id);
+  json* custom_model = custom ? &catalog["models"][options.id] : nullptr;
+  std::string source_repo;
+  std::string modality;
+  std::string mlx_converter;
+  bool mlx_extract_mtp = false;
+  if (custom) {
+    source_repo = custom_model->at("source_repo").get<std::string>();
+    modality = custom_model->at("modality").get<std::string>();
+    mlx_converter = default_mlx_converter(modality);
+  } else {
+    if (options.config_directory.empty()) {
+      throw std::invalid_argument("config directory is required for a built-in model");
+    }
+    const auto registry = load_registry(options.config_directory);
+    const auto& definition = registry.model(options.id);
+    source_repo = definition.source_repo;
+    modality = capability_modality(definition.capability);
+    mlx_converter = definition.mlx_converter.empty()
+                        ? default_mlx_converter(modality)
+                        : definition.mlx_converter;
+    mlx_extract_mtp = definition.mlx_extract_mtp;
+  }
+  if (source_repo.empty()) {
+    throw std::runtime_error("model has no original Hugging Face source repository: " +
+                             options.id);
   }
   const auto runtime = read_runtime(options.root);
   if (!backend_installed(runtime, options.backend)) {
     throw std::runtime_error("requested quantization backend is not installed: " +
                              to_string(options.backend));
   }
-  auto& model = catalog["models"][options.id];
   const auto backend_name = to_string(options.backend);
   const auto quant_name = to_string(options.quantization);
-  if (model.contains("variants") && model["variants"].contains(backend_name) &&
-      model["variants"][backend_name].contains(quant_name) &&
-      model["variants"][backend_name][quant_name].value("status", "") == "ready") {
+  if (custom && custom_model->contains("variants") &&
+      (*custom_model)["variants"].contains(backend_name) &&
+      (*custom_model)["variants"][backend_name].contains(quant_name) &&
+      (*custom_model)["variants"][backend_name][quant_name].value("status", "") ==
+          "ready") {
     throw std::runtime_error("quantized variant already exists: " + options.id + "@" +
                              backend_name + ":" + quant_name);
   }
-  const auto source_repo = model.at("source_repo").get<std::string>();
-  const auto modality = model.at("modality").get<std::string>();
   const int bits = options.quantization == Quantization::q4 ? 4 : 8;
   const auto output_root = options.root / "checkpoints" / to_string(options.backend) /
                            options.id;
-  const auto staging = options.root / "staging" / options.id;
+  const auto marker = output_root / (".mica-complete-" + quant_name);
+  if (std::filesystem::exists(marker)) {
+    throw std::runtime_error("quantized variant already exists: " + options.id + "@" +
+                             backend_name + ":" + quant_name);
+  }
+
+  json metadata;
+  auto source_revision = options.source_revision;
+  std::string license;
+  if (!options.dry_run) {
+    metadata = fetch_metadata(source_repo, source_revision);
+    license = model_license(metadata);
+    if (!commercial_license_allowed(license)) {
+      throw std::runtime_error(
+          "source license is missing or not on the commercial-use allowlist: " +
+          (license.empty() ? std::string("unknown") : license));
+    }
+    source_revision = metadata.value("sha", source_revision);
+    if (source_revision.empty()) {
+      throw std::runtime_error("Hugging Face did not return an immutable source revision");
+    }
+  } else if (source_revision.empty()) {
+    source_revision = "resolved-revision";
+  }
+  const auto staging = options.root / "staging" / options.id / source_revision;
+  const auto source = staging / "source";
+  const auto hf = (options.root / "environment-tools/bin/hf").string();
+  run_or_print({hf, "download", source_repo, "--revision", source_revision,
+                "--local-dir", source.string()},
+               options.dry_run);
+  if (!options.dry_run) {
+    write_json_atomically(
+        staging / "source-provenance.json",
+        {{"schema", 1},
+         {"model", options.id},
+         {"source_repo", source_repo},
+         {"source_revision", source_revision},
+         {"source_url", "https://huggingface.co/" + source_repo + "/tree/" +
+                            source_revision},
+         {"license", license},
+         {"snapshot_bytes", directory_size(source)}});
+  }
   std::filesystem::path artifact;
   std::filesystem::path projector;
+  std::filesystem::path drafter;
 
   if (options.backend == Backend::mlx) {
     artifact = output_root / to_string(options.quantization);
     const auto python = (options.root / "environment-mlx/bin/python").string();
-    std::string module;
-    if (modality == "text-to-text") module = "mlx_lm.convert";
-    else if (modality == "img-text-to-text") module = "mlx_vlm.convert";
-    else module = "mlx_audio.convert";
-    run_or_print({python, "-m", module, "--hf-path", source_repo, "--mlx-path",
-                  artifact.string(), "--quantize", "--q-bits", std::to_string(bits),
-                  "--q-group-size", std::to_string(options.group_size)},
-                 options.dry_run);
+    std::vector<std::string> command = {
+        python, "-m", mlx_converter, "--hf-path", source.string(), "--mlx-path",
+        artifact.string(), "--quantize", "--q-bits", std::to_string(bits),
+        "--q-group-size", std::to_string(options.group_size)};
+    if (mlx_extract_mtp) {
+      drafter = output_root / ("mtp-" + quant_name);
+      command.insert(command.end(), {"--mtp", "--mtp-output", drafter.string()});
+    }
+    run_or_print(command, options.dry_run);
   } else {
-    const auto hf = (options.root / "environment-tools/bin/hf").string();
     const auto python = (options.root / "environment-tools/bin/python").string();
-    const auto source = staging / "source";
-    run_or_print({hf, "download", source_repo, "--local-dir", source.string()},
-                 options.dry_run);
     if (modality == "tts" || modality == "asr") {
       artifact = output_root /
                  (options.id + "-" +
@@ -388,9 +480,12 @@ void quantize_custom_model(const QuantizeModelOptions& options) {
   if (!std::filesystem::exists(artifact)) {
     throw std::runtime_error("quantizer completed without output: " + artifact.string());
   }
-  const auto marker = output_root / (".mica-complete-" + to_string(options.quantization));
+  if (mlx_extract_mtp && !std::filesystem::exists(drafter)) {
+    throw std::runtime_error("source declares MTP but converter produced no drafter: " +
+                             drafter.string());
+  }
   std::ofstream marker_file(marker, std::ios::trunc);
-  marker_file << source_repo << '\n';
+  marker_file << source_repo << '@' << source_revision << '\n';
   marker_file.close();
   const auto relative = std::filesystem::relative(artifact, output_root).string();
   json variant = {{"status", "ready"}, {"artifact", relative},
@@ -400,10 +495,15 @@ void quantize_custom_model(const QuantizeModelOptions& options) {
   if (!projector.empty()) {
     variant["projector"] = std::filesystem::relative(projector, output_root).string();
   }
-  model["variants"][to_string(options.backend)][to_string(options.quantization)] = variant;
-  write_catalog(options.root, catalog);
+  if (!drafter.empty()) {
+    variant["drafter"] = std::filesystem::relative(drafter, output_root).string();
+  }
+  if (custom) {
+    (*custom_model)["variants"][backend_name][quant_name] = variant;
+    write_catalog(options.root, catalog);
+  }
   record_runtime_variant(options.root, options.id, options.backend, options.quantization,
-                         artifact);
+                         artifact, source_repo, source_revision);
   std::cout << "Quantized " << options.id << " for " << to_string(options.backend) << "/"
             << to_string(options.quantization) << " at " << artifact << '\n';
 }

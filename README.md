@@ -129,7 +129,8 @@ unknown or non-commercial license; the current allowlist is Apache-2.0, MIT,
 BSD-2-Clause, BSD-3-Clause, BSD, and ISC. Custom model definitions and their
 variants are stored in `~/models/mica-server/custom-models.json`.
 
-Quantize a registered model for an installed conversion backend:
+Quantize either a registered custom model or a built-in Lua catalog model for
+an installed conversion backend:
 
 ```sh
 ./build/mica-server quantize --model my-model --backend mlx --quant q4
@@ -137,6 +138,22 @@ Quantize a registered model for an installed conversion backend:
 ./build/mica-server quantize --model my-model --backend gguf --quant q4
 ./build/mica-server quantize --model my-model --backend gguf --quant q8
 ```
+
+For a reproducible run, pass the immutable source commit. Without `--revision`,
+the command resolves the repository's current commit before downloading:
+
+```sh
+./build/mica-server quantize \
+  --model spark-x25-4b --backend mlx --quant q4 \
+  --revision 0bcb35678590218655dff3765b9e61c83b35e9c4
+```
+
+Every run first downloads the complete original snapshot to
+`~/models/staging/<model>/<revision>/source`, verifies its current model-card
+license against the commercial-use allowlist, and writes
+`source-provenance.json`. Conversion always reads that local pinned snapshot.
+The source is retained until the Q4/Q8 artifacts have passed inference,
+publishing, and clean re-download checks.
 
 Registration and one quantization can be combined:
 
@@ -163,8 +180,12 @@ The repository is downloaded only when the model is first requested. Text,
 image-to-text, and supported ASR architectures can use this path. TTS is
 rejected for now because it requires a separate vLLM-Omni runtime adapter.
 
-The converter is selected by modality. MLX dispatches to `mlx_lm.convert`,
-`mlx_vlm.convert`, or `mlx_audio.convert`. GGUF dispatches text/vision through
+The converter is selected by modality, with an optional `mlx_converter`
+override in Lua for models such as Spark that use the MLX-VLM architecture
+registry despite being text-only. MLX dispatches to `mlx_lm.convert`,
+`mlx_vlm.convert`, or `mlx_audio.convert`. A model with `mlx_extract_mtp = true`
+must also produce a standalone, equally quantized MTP drafter or the conversion
+is rejected. GGUF dispatches text/vision through
 llama.cpp conversion plus `llama-quantize`, and audio through `audiocpp_gguf`.
 Architecture compatibility is still enforced by those runtimes: a failed or
 unsupported conversion is not recorded as ready. GGUF vision models must also

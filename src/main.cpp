@@ -54,6 +54,8 @@ Custom model options:
   --backend mlx|gguf        Quantization backend (must be installed)
   --quant q4|q8             Quantization size
   --group-size N            MLX affine group size (default 64)
+  --revision REVISION       Pin the original Hugging Face source revision
+  --config-dir PATH         Lua model registry (required for built-in models)
   --backend vllm            Register the HF repository for lazy vLLM loading
   --model-memory-gib N      Required vLLM scheduler reservation for that model
 
@@ -229,14 +231,20 @@ int main(int argc, char** argv) {
         mica::configure_vllm_custom_model(
             {options.root, added_id, model_memory_gib, false});
       } else if (quant_backend && !options.dry_run) {
-        mica::quantize_custom_model({options.root, added_id,
-                                     *quant_backend, *quantization, group_size, false});
+        mica::QuantizeModelOptions quantize;
+        quantize.root = options.root;
+        quantize.id = added_id;
+        quantize.backend = *quant_backend;
+        quantize.quantization = *quantization;
+        quantize.group_size = group_size;
+        mica::quantize_model(quantize);
       }
       return 0;
     }
     if (args[1] == "quantize") {
       mica::QuantizeModelOptions options;
       options.root = default_root();
+      options.config_directory = default_config();
       bool has_backend = false;
       bool has_quantization = false;
       for (std::size_t i = 2; i < args.size(); ++i) {
@@ -250,13 +258,15 @@ int main(int argc, char** argv) {
         } else if (args[i] == "--group-size") {
           options.group_size = std::stoi(value_after(args, i));
         } else if (args[i] == "--root") options.root = value_after(args, i);
+        else if (args[i] == "--config-dir") options.config_directory = value_after(args, i);
+        else if (args[i] == "--revision") options.source_revision = value_after(args, i);
         else if (args[i] == "--dry-run") options.dry_run = true;
         else throw std::invalid_argument("unknown option: " + args[i]);
       }
       if (options.id.empty() || !has_backend || !has_quantization) {
         throw std::invalid_argument("quantize requires --model, --backend, and --quant");
       }
-      mica::quantize_custom_model(options);
+      mica::quantize_model(options);
       return 0;
     }
     if (args[1] == "serve") {
