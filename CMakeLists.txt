@@ -83,6 +83,7 @@ add_executable(mica-server src/main.cpp src/server.cpp)
 target_link_libraries(mica-server PRIVATE mica_server_core)
 
 if(MICA_SERVER_BUILD_TESTS)
+  find_package(Python3 COMPONENTS Interpreter REQUIRED)
   enable_testing()
   add_executable(mica-server-tests tests/test_scheduler.cpp)
   target_link_libraries(mica-server-tests PRIVATE mica_server_core)
@@ -107,6 +108,36 @@ if(MICA_SERVER_BUILD_TESTS)
     PASS_REGULAR_EXPRESSION "hf download XHToken/Spark-X2.5-4B.*mlx_vlm.convert.*staging/spark-x25-4b/0bcb356"
   )
   add_test(
+    NAME mica-server-granite-quantize-plan
+    COMMAND $<TARGET_FILE:mica-server> quantize --model granite-speech-5 --backend mlx
+            --quant q4 --revision 6c14d3d052a602d850f1bc4aa017f25f4adf6aa0
+            --dry-run --root ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/custom-root
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+  )
+  set_tests_properties(mica-server-granite-quantize-plan PROPERTIES
+    PASS_REGULAR_EXPRESSION "mlx_audio_convert.py.*--profile granite-speech5-quality.*mlx_audio_profiles.json.*--q-bits 4.*--q-group-size 64.*--source-repo ibm-granite/granite-speech-5.0-470m-turboctc"
+  )
+  add_test(
+    NAME mica-server-audio-profile-metadata
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/mlx_audio_convert.py
+            --profile audio8-quality
+            --profile-config ${CMAKE_CURRENT_SOURCE_DIR}/config/mlx_audio_profiles.json
+            --describe-profile
+  )
+  set_tests_properties(mica-server-audio-profile-metadata PROPERTIES
+    PASS_REGULAR_EXPRESSION "model.fast_output.*codec"
+  )
+  add_test(
+    NAME mica-server-audio8-quantize-plan
+    COMMAND $<TARGET_FILE:mica-server> quantize --model audio8-tts-06b --backend mlx
+            --quant q4 --revision f07040f3d151f1ba0253bfb92cb2f5dd38b44594
+            --dry-run --root ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/custom-root
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+  )
+  set_tests_properties(mica-server-audio8-quantize-plan PROPERTIES
+    PASS_REGULAR_EXPRESSION "--profile audio8-quality.*mlx_audio_profiles.json.*--source-repo Audio8/Audio8-TTS-Preview-0.6b"
+  )
+  add_test(
     NAME mica-server-reject-both-serve
     COMMAND $<TARGET_FILE:mica-server> serve --backend both --root
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/custom-root
@@ -118,3 +149,5 @@ endif()
 
 install(TARGETS mica-server RUNTIME DESTINATION bin)
 install(DIRECTORY config/ DESTINATION share/mica-server/config)
+install(DIRECTORY scripts/ DESTINATION share/mica-server/scripts
+        FILES_MATCHING PATTERN "*.py")

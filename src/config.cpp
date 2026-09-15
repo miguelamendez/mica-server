@@ -88,6 +88,8 @@ int register_model(lua_State* state) {
   model.tags = string_array_field(state, 1, "tags");
   model.source_repo = string_field(state, 1, "source_repo");
   model.mlx_converter = string_field(state, 1, "mlx_converter");
+  model.mlx_quantization_profile =
+      string_field(state, 1, "mlx_quantization_profile");
   model.mlx_extract_mtp = bool_field(state, 1, "mlx_extract_mtp", false);
   model.repositories[Backend::mlx] = string_field(state, 1, "mlx_repo");
   model.repositories[Backend::gguf] = string_field(state, 1, "gguf_repo");

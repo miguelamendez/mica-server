@@ -330,6 +330,7 @@ void quantize_model(const QuantizeModelOptions& options) {
   std::string source_repo;
   std::string modality;
   std::string mlx_converter;
+  std::string mlx_quantization_profile;
   bool mlx_extract_mtp = false;
   if (custom) {
     source_repo = custom_model->at("source_repo").get<std::string>();
@@ -346,6 +347,7 @@ void quantize_model(const QuantizeModelOptions& options) {
     mlx_converter = definition.mlx_converter.empty()
                         ? default_mlx_converter(modality)
                         : definition.mlx_converter;
+    mlx_quantization_profile = definition.mlx_quantization_profile;
     mlx_extract_mtp = definition.mlx_extract_mtp;
   }
   if (source_repo.empty()) {
@@ -419,10 +421,33 @@ void quantize_model(const QuantizeModelOptions& options) {
   if (options.backend == Backend::mlx) {
     artifact = output_root / to_string(options.quantization);
     const auto python = (options.root / "environment-mlx/bin/python").string();
-    std::vector<std::string> command = {
-        python, "-m", mlx_converter, "--hf-path", source.string(), "--mlx-path",
-        artifact.string(), "--quantize", "--q-bits", std::to_string(bits),
-        "--q-group-size", std::to_string(options.group_size)};
+    std::vector<std::string> command;
+    if (!mlx_quantization_profile.empty()) {
+      const auto script = options.config_directory.parent_path() /
+                          "scripts/mlx_audio_convert.py";
+      const auto profile_config = options.config_directory /
+                                  "mlx_audio_profiles.json";
+      if (!options.dry_run && !std::filesystem::exists(script)) {
+        throw std::runtime_error("missing MLX-audio profile converter: " +
+                                 script.string());
+      }
+      if (!options.dry_run && !std::filesystem::exists(profile_config)) {
+        throw std::runtime_error("missing MLX-audio profile definitions: " +
+                                 profile_config.string());
+      }
+      command = {python, script.string(), "--profile", mlx_quantization_profile,
+                 "--profile-config", profile_config.string(),
+                 "--hf-path", source.string(), "--mlx-path", artifact.string(),
+                 "--q-bits", std::to_string(bits), "--q-group-size",
+                 std::to_string(options.group_size), "--model-id", options.id,
+                 "--source-repo", source_repo, "--source-revision", source_revision,
+                 "--source-license", license.empty() ? "unknown" : license};
+    } else {
+      command = {python, "-m", mlx_converter, "--hf-path", source.string(),
+                 "--mlx-path", artifact.string(), "--quantize", "--q-bits",
+                 std::to_string(bits), "--q-group-size",
+                 std::to_string(options.group_size)};
+    }
     if (mlx_extract_mtp) {
       drafter = output_root / ("mtp-" + quant_name);
       command.insert(command.end(), {"--mtp", "--mtp-output", drafter.string()});

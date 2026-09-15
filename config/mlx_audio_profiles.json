@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "profiles": {
+    "granite-speech5-quality": {
+      "model_family": "Granite Speech 5 TurboCTC",
+      "status": "architecture-guided and smoke-validated as a group; individual exclusions have not been ablated",
+      "preserve_prefixes": [
+        "encoder.input_linear",
+        "encoder.out",
+        "encoder.out_mid"
+      ],
+      "reasons": [
+        "encoder.input_linear is the sole learned boundary from stacked log-mel and delta features into all 16 encoder blocks.",
+        "encoder.out is shared by the midpoint self-conditioning logits and the final CTC vocabulary logits.",
+        "encoder.out_mid maps the midpoint 16,384-way token distribution back into hidden space, so its error is fed through the remaining encoder blocks."
+      ],
+      "validation": "Uniform Q4 corrupted the controlled transcript. Selective Q4 and Q8 matched the BF16 transcript exactly on the fixed 8.608-second clip and passed the MLX Audio HTTP endpoint."
+    },
+    "audio8-quality": {
+      "model_family": "Audio8 TTS Preview 0.6B / ArkTTS",
+      "status": "conservative architecture-guided candidate; real-audio validation and per-group ablation are pending",
+      "preserve_prefixes": [
+        "model.embeddings",
+        "model.codebook_embeddings",
+        "model.fast_embeddings",
+        "model.fast_output",
+        "codec"
+      ],
+      "reasons": [
+        "model.embeddings is both the text/semantic input table and the tied full-vocabulary semantic output head.",
+        "model.codebook_embeddings injects the prompt and previously generated acoustic codebooks into the slow autoregressive state.",
+        "model.fast_embeddings and model.fast_output are the input/output boundaries for residual-codebook selection.",
+        "codec contains the learned acoustic encoder, quantizers, and waveform decoder; it stays at source precision until objective and listening tests justify narrower exclusions."
+      ],
+      "validation": "Pending BF16/Q4/Q8 waveform, non-silence, round-trip ASR, and listening comparisons. This profile must not be described as quality-validated yet."
+    }
+  }
+}

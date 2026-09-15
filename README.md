@@ -183,13 +183,27 @@ rejected for now because it requires a separate vLLM-Omni runtime adapter.
 The converter is selected by modality, with an optional `mlx_converter`
 override in Lua for models such as Spark that use the MLX-VLM architecture
 registry despite being text-only. MLX dispatches to `mlx_lm.convert`,
-`mlx_vlm.convert`, or `mlx_audio.convert`. A model with `mlx_extract_mtp = true`
+`mlx_vlm.convert`, or `mlx_audio.convert`. A catalog entry may also select a
+tested `mlx_quantization_profile`; Granite Speech 5 uses the
+`granite-speech5-quality` profile to retain its input and output projection
+layers at full precision while quantizing the remaining eligible layers. A
+model with `mlx_extract_mtp = true`
 must also produce a standalone, equally quantized MTP drafter or the conversion
 is rejected. GGUF dispatches text/vision through
 llama.cpp conversion plus `llama-quantize`, and audio through `audiocpp_gguf`.
 Architecture compatibility is still enforced by those runtimes: a failed or
 unsupported conversion is not recorded as ready. GGUF vision models must also
 produce a valid `mmproj` artifact.
+
+Audio profile definitions live in
+[`config/mlx_audio_profiles.json`](config/mlx_audio_profiles.json). Each profile
+names every protected module prefix, records the architectural rationale, and
+states whether the policy is only a conservative candidate or has passed real
+inference. The converter embeds the same metadata in `config.json` and writes
+an artifact `README.md`, so a published model card cannot silently omit which
+parts remained at source precision. Audio8 starts conservatively with its tied
+semantic table, acoustic-codebook boundaries, and waveform codec protected;
+those exclusions may be narrowed only after BF16/Q4/Q8 ablation tests.
 
 vLLM is a serving backend, not a generic Q4/Q8 converter. It consumes model
 formats it supports (for example MLX checkpoints through vLLM-Metal, or

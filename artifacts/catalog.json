@@ -38,6 +38,11 @@
         "mlx": "miguelamendez/mica-granite-speech-5-mlx",
         "gguf": "miguelamendez/mica-granite-speech-5-gguf"
       },
+      "mlx_quantization_policy": {
+        "profile": "granite-speech5-quality",
+        "preserve": ["encoder.input_linear", "encoder.out", "encoder.out_mid"],
+        "status": "group-validated; individual exclusions not yet ablated"
+      },
       "candidates": {
         "mlx_q4": "iky1e/granite-speech-5.0-470m-turboctc-mlx-q4",
         "mlx_q8": "iky1e/granite-speech-5.0-470m-turboctc-mlx-q8",
@@ -53,6 +58,17 @@
       "mirrors": {
         "mlx": "miguelamendez/mica-audio8-tts-06b-mlx",
         "gguf": "miguelamendez/mica-audio8-tts-06b-gguf"
+      },
+      "mlx_quantization_policy": {
+        "profile": "audio8-quality",
+        "preserve": [
+          "model.embeddings",
+          "model.codebook_embeddings",
+          "model.fast_embeddings",
+          "model.fast_output",
+          "codec"
+        ],
+        "status": "conservative architecture-guided candidate; validation pending"
       },
       "candidates": {
         "mlx_q4": null,
