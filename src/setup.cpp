@@ -80,6 +80,30 @@ void install_download_environment(const ResolvedSetup& setup) {
   }
 }
 
+std::string trim(std::string value) {
+  const auto first = value.find_first_not_of(" \t\r\n");
+  if (first == std::string::npos) return {};
+  const auto last = value.find_last_not_of(" \t\r\n");
+  return value.substr(first, last - first + 1);
+}
+
+int version_major(const std::string& version) {
+  try {
+    return std::stoi(version.substr(0, version.find('.')));
+  } catch (...) {
+    return 0;
+  }
+}
+
+std::string fetch_text(const std::string& url) {
+  const auto result = run_command(
+      {"curl", "--location", "--fail", "--silent", "--show-error", url}, true);
+  if (result.exit_code != 0) {
+    throw std::runtime_error("cannot resolve vLLM package metadata: " + result.output);
+  }
+  return result.output;
+}
+
 void update_source_tree(const std::filesystem::path& source, const std::string& url,
                         const std::string& revision, bool refresh, bool dry_run) {
   if (!std::filesystem::exists(source / ".git")) {
@@ -132,6 +156,104 @@ void install_native_gguf_runtimes(const Registry& registry, const ResolvedSetup&
   execute_or_print({"cmake", "--build", audio_build.string(), "--config", "Release",
                     "--target", "audiocpp_server", "audiocpp_gguf", "-j"},
                    setup.options.dry_run);
+}
+
+void install_vllm_metal(const ResolvedSetup& setup,
+                        const std::filesystem::path& environment) {
+  if (setup.options.dry_run) {
+    std::cout << "[plan] resolve and install the latest compatible stable vLLM + "
+                 "vllm-metal release wheels\n";
+    return;
+  }
+  const auto release = json::parse(fetch_text(
+      "https://api.github.com/repos/vllm-project/vllm-metal/releases/latest"));
+  const auto release_tag = release.value("tag_name", std::string());
+  std::string metal_wheel;
+  for (const auto& asset : release.value("assets", json::array())) {
+    const auto name = asset.value("name", std::string());
+    if (name.ends_with(".whl") && name.find("macosx_15_0_arm64") != std::string::npos) {
+      metal_wheel = asset.value("browser_download_url", std::string());
+      break;
+    }
+  }
+  if (release_tag.empty() || metal_wheel.empty()) {
+    throw std::runtime_error("latest vllm-metal release has no macOS arm64 wheel");
+  }
+  const auto vllm_tag = trim(fetch_text(
+      "https://raw.githubusercontent.com/vllm-project/vllm-metal/" + release_tag +
+      "/.github/vllm-release-tag.commit"));
+  if (vllm_tag.size() < 2 || vllm_tag.front() != 'v') {
+    throw std::runtime_error("vllm-metal release has invalid compatible vLLM metadata");
+  }
+  const auto version = vllm_tag.substr(1);
+  const auto vllm_wheel =
+      "https://github.com/vllm-project/vllm/releases/download/" + vllm_tag +
+      "/vllm-" + version + "%2Bcpu-cp312-cp312-macosx_11_0_arm64.whl";
+  execute_or_print({"uv", "pip", "install", "--python",
+                    (environment / "bin/python").string(), "--upgrade", vllm_wheel,
+                    "vllm-metal[stt] @ " + metal_wheel}, false);
+}
+
+void install_vllm_environment(const ResolvedSetup& setup) {
+  const auto environment = setup.options.root / "environment-vllm";
+  const auto device_marker = environment / ".mica-device";
+  std::string installed_device;
+  if (std::filesystem::exists(device_marker)) {
+    std::ifstream marker_file(device_marker);
+    std::getline(marker_file, installed_device);
+  }
+  const bool device_changed = installed_device != to_string(setup.vllm_device);
+  const bool install_packages = setup.options.refresh || device_changed ||
+                                !std::filesystem::exists(environment / "bin/python");
+  if (install_packages) {
+    std::vector<std::string> command = {"uv", "venv", environment.string(),
+                                        "--python", "3.12"};
+    if (setup.options.refresh || device_changed) command.emplace_back("--clear");
+    execute_or_print(command, setup.options.dry_run);
+  }
+  if (!install_packages) return;
+
+  const auto mark_installed = [&] {
+    if (setup.options.dry_run) return;
+    std::ofstream marker_file(device_marker, std::ios::trunc);
+    marker_file << to_string(setup.vllm_device) << '\n';
+  };
+
+  if (setup.vllm_device == VllmDevice::metal) {
+    install_vllm_metal(setup, environment);
+    mark_installed();
+    return;
+  }
+  if (setup.vllm_device == VllmDevice::cuda) {
+    execute_or_print({"uv", "pip", "install", "--python",
+                      (environment / "bin/python").string(), "--upgrade", "vllm",
+                     "--torch-backend", "auto"},
+                     setup.options.dry_run);
+    mark_installed();
+    return;
+  }
+  if (setup.hardware.os == "macos") {
+    const auto source = setup.options.root / "runtime/vllm";
+    update_source_tree(source, "https://github.com/vllm-project/vllm.git", "latest",
+                       setup.options.refresh, setup.options.dry_run);
+    execute_or_print({"uv", "pip", "install", "--python",
+                      (environment / "bin/python").string(), "-r",
+                      (source / "requirements/cpu.txt").string(), "--extra-index-url",
+                      "https://download.pytorch.org/whl/cpu"},
+                     setup.options.dry_run);
+    execute_or_print({"env", "VLLM_TARGET_DEVICE=cpu", "uv", "pip", "install",
+                      "--python", (environment / "bin/python").string(), source.string(),
+                      "--no-build-isolation"},
+                     setup.options.dry_run);
+    mark_installed();
+    return;
+  }
+  execute_or_print({"uv", "pip", "install", "--python",
+                    (environment / "bin/python").string(), "--upgrade", "vllm",
+                    "--extra-index-url", "https://wheels.vllm.ai/nightly/cpu",
+                    "--index-strategy", "first-index", "--torch-backend", "cpu"},
+                   setup.options.dry_run);
+  mark_installed();
 }
 
 std::string resolved_git_revision(const std::filesystem::path& source) {
@@ -202,7 +324,7 @@ void write_runtime_state(const Registry& registry, const ResolvedSetup& setup) {
     configured_models[id] = {{"enabled", true}, {"variants", variants}};
   }
   json state = {
-      {"schema", 2},
+      {"schema", 3},
       {"installed_backends", installed_backends},
       {"quantizations", selected_quantizations},
       {"default_quantization", to_string(setup.options.quantizations.front())},
@@ -212,16 +334,19 @@ void write_runtime_state(const Registry& registry, const ResolvedSetup& setup) {
       {"hf_repo", setup.options.hf_repo},
       {"max_ram_gib", setup.options.max_ram_gib},
       {"max_vram_gib", setup.options.max_vram_gib},
+      {"vllm_device", to_string(setup.vllm_device)},
       {"api_key_file", key_path.string()},
       {"config_directory", setup.options.config_directory.string()},
       {"downloads", downloads},
       {"hardware", {{"os", setup.hardware.os},
                     {"arch", setup.hardware.arch},
                     {"ram_gib", setup.hardware.ram_gib},
-                    {"nvidia", setup.hardware.nvidia_detected}}},
+                    {"nvidia", setup.hardware.nvidia_detected},
+                    {"nvidia_vram_gib", setup.hardware.nvidia_vram_gib}}},
       {"resolved", {{"llama_cpp", resolved_git_revision(setup.options.root / "runtime/llama.cpp")},
                     {"audio_cpp", resolved_git_revision(setup.options.root / "runtime/audio.cpp")},
                     {"mlx_packages", resolved_packages(setup.options.root / "environment-mlx")},
+                    {"vllm_packages", resolved_packages(setup.options.root / "environment-vllm")},
                     {"download_packages", resolved_packages(setup.options.root /
                                                              "environment-tools")}}},
   };
@@ -244,6 +369,34 @@ ResolvedSetup resolve_setup(const Registry& registry, SetupOptions options) {
     }
     if (backend == Backend::gguf && !resolved.hardware.supports_gguf()) {
       throw std::runtime_error("GGUF runtime supports macOS, Linux, and Windows through WSL");
+    }
+    if (backend == Backend::vllm && !resolved.hardware.supports_vllm()) {
+      throw std::runtime_error(
+          "vLLM supports Linux/WSL and Apple Silicon macOS in this installer");
+    }
+  }
+  resolved.vllm_device = options.vllm_device == VllmDevice::automatic
+                              ? resolved.hardware.recommended_vllm_device()
+                              : options.vllm_device;
+  if (std::find(options.backends.begin(), options.backends.end(), Backend::vllm) !=
+      options.backends.end()) {
+    if (resolved.vllm_device == VllmDevice::metal && !resolved.hardware.supports_mlx()) {
+      throw std::runtime_error("vLLM Metal requires Apple Silicon macOS");
+    }
+    if (resolved.vllm_device == VllmDevice::metal &&
+        version_major(resolved.hardware.os_version) < 15) {
+      throw std::runtime_error("vLLM Metal requires macOS 15 or newer");
+    }
+    if (resolved.vllm_device == VllmDevice::cpu && resolved.hardware.os == "macos" &&
+        version_major(resolved.hardware.os_version) < 14) {
+      throw std::runtime_error("native vLLM CPU requires macOS 14 or newer");
+    }
+    if (resolved.vllm_device == VllmDevice::cuda && !resolved.hardware.nvidia_detected) {
+      throw std::runtime_error("vLLM CUDA requires a detected NVIDIA GPU");
+    }
+    if (resolved.vllm_device == VllmDevice::cuda && options.max_vram_gib == 0) {
+      options.max_vram_gib = *std::max_element(resolved.hardware.nvidia_vram_gib.begin(),
+                                               resolved.hardware.nvidia_vram_gib.end());
     }
   }
   if (options.max_ram_gib <= 0 ||
@@ -274,9 +427,14 @@ ResolvedSetup resolve_setup(const Registry& registry, SetupOptions options) {
   const auto& profile = registry.profile(resolved.options.profile);
   for (const auto backend : resolved.backends) {
     for (const auto quantization : resolved.options.quantizations) {
+      double admission_budget = resolved.options.max_ram_gib;
+      if (backend == Backend::vllm && resolved.vllm_device == VllmDevice::cuda &&
+          resolved.options.max_vram_gib > 0) {
+        admission_budget = std::min(admission_budget, resolved.options.max_vram_gib);
+      }
       resolved.startups[backend][quantization] =
           plan_startup(registry, profile, backend, quantization,
-                       resolved.options.max_ram_gib);
+                       admission_budget);
     }
   }
   return resolved;
@@ -301,7 +459,8 @@ void execute_setup(const Registry& registry, const ResolvedSetup& setup) {
   install_download_environment(setup);
   for (const auto backend : setup.backends) {
     if (backend == Backend::mlx) install_mlx_environment(setup);
-    else install_native_gguf_runtimes(registry, setup);
+    else if (backend == Backend::gguf) install_native_gguf_runtimes(registry, setup);
+    else install_vllm_environment(setup);
   }
   write_runtime_state(registry, setup);
 }

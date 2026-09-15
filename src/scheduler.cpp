@@ -13,8 +13,10 @@ StartupPlan plan_startup(const Registry& registry, const Profile& profile,
   std::vector<const ModelDefinition*> selected;
   selected.reserve(profile.models.size());
   for (const auto& id : profile.models) selected.push_back(&registry.model(id));
-  std::stable_sort(selected.begin(), selected.end(), [](const auto* left, const auto* right) {
-    if (left->required != right->required) return left->required > right->required;
+  std::stable_sort(selected.begin(), selected.end(), [backend](const auto* left, const auto* right) {
+    if (left->required_for(backend) != right->required_for(backend)) {
+      return left->required_for(backend) > right->required_for(backend);
+    }
     if (left->startup_priority != right->startup_priority) {
       return left->startup_priority < right->startup_priority;
     }
@@ -24,7 +26,7 @@ StartupPlan plan_startup(const Registry& registry, const Profile& profile,
   for (const auto* model : selected) {
     const auto backend_it = model->artifacts.find(backend);
     if (backend_it == model->artifacts.end()) {
-      if (model->required) plan.error = model->id + ": backend is not declared";
+      if (model->required_for(backend)) plan.error = model->id + ": backend is not declared";
       else plan.skipped.push_back(model->id);
       if (plan.error) return plan;
       continue;
@@ -34,14 +36,14 @@ StartupPlan plan_startup(const Registry& registry, const Profile& profile,
       const std::string reason = artifact_it == backend_it->second.end()
                                      ? "quantization is not declared"
                                      : artifact_it->second.reason;
-      if (model->required) plan.error = model->id + ": " + reason;
+      if (model->required_for(backend)) plan.error = model->id + ": " + reason;
       else plan.skipped.push_back(model->id);
       if (plan.error) return plan;
       continue;
     }
     const double reservation = artifact_it->second.reservation_gib;
     if (reservation <= 0) {
-      if (model->required) plan.error = model->id + ": missing measured reservation";
+      if (model->required_for(backend)) plan.error = model->id + ": missing measured reservation";
       else plan.skipped.push_back(model->id);
       if (plan.error) return plan;
       continue;
@@ -49,7 +51,7 @@ StartupPlan plan_startup(const Registry& registry, const Profile& profile,
     if (plan.reserved_gib + reservation <= max_ram_gib + 1e-9) {
       plan.admitted.push_back(model->id);
       plan.reserved_gib += reservation;
-    } else if (model->required) {
+    } else if (model->required_for(backend)) {
       const double deficit = plan.reserved_gib + reservation - max_ram_gib;
       plan.error = model->id + ": required startup baseline exceeds RAM budget by " +
                    std::to_string(std::ceil(deficit * 10.0) / 10.0) + " GiB";
@@ -80,4 +82,3 @@ std::vector<ResidentModel> rank_eviction_candidates(
 }
 
 }  // namespace mica
-

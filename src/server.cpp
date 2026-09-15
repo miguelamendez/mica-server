@@ -42,6 +42,8 @@ struct RuntimeState {
   std::string profile;
   double max_ram_gib{8};
   double max_vram_gib{0};
+  double largest_nvidia_vram_gib{0};
+  VllmDevice vllm_device{VllmDevice::automatic};
   std::filesystem::path api_key_file;
 };
 
@@ -112,6 +114,13 @@ RuntimeState load_runtime_state(const std::filesystem::path& root) {
   result.profile = state.at("profile").get<std::string>();
   result.max_ram_gib = state.at("max_ram_gib").get<double>();
   result.max_vram_gib = state.value("max_vram_gib", 0.0);
+  if (state.contains("hardware") && state["hardware"].contains("nvidia_vram_gib")) {
+    for (const auto& value : state["hardware"]["nvidia_vram_gib"]) {
+      result.largest_nvidia_vram_gib =
+          std::max(result.largest_nvidia_vram_gib, value.get<double>());
+    }
+  }
+  result.vllm_device = parse_vllm_device(state.value("vllm_device", "auto"));
   result.api_key_file = state.at("api_key_file").get<std::string>();
   return result;
 }
@@ -200,6 +209,22 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
     }
     return {python, "-m", "mlx_audio.server", "--host", "127.0.0.1", "--port", port};
   }
+  if (worker.backend == Backend::vllm) {
+    std::vector<std::string> command = {
+        (root / "environment-vllm/bin/vllm").string(), "serve",
+        worker.artifact_path.string(), "--served-model-name", worker.model->id,
+        "--host", "127.0.0.1", "--port", port};
+    if (state.vllm_device == VllmDevice::cuda && state.max_vram_gib > 0 &&
+        state.largest_nvidia_vram_gib > 0) {
+      const auto utilization = std::min(
+          0.95, std::min(worker.artifact.reservation_gib, state.max_vram_gib) /
+                    state.largest_nvidia_vram_gib);
+      std::ostringstream value;
+      value << std::fixed << std::setprecision(3) << utilization;
+      command.insert(command.end(), {"--gpu-memory-utilization", value.str()});
+    }
+    return command;
+  }
   if (worker.model->capability == "text" || worker.model->capability == "vision") {
     std::vector<std::string> command = {
         (root / "runtime/llama.cpp/build-mica/bin/llama-server").string(),
@@ -276,8 +301,10 @@ class WorkerManager {
         const auto backend = active_backends_[backend_index];
         std::vector<const ModelDefinition*> ordered;
         for (const auto& id : profile.models) ordered.push_back(&registry_.model(id));
-        std::stable_sort(ordered.begin(), ordered.end(), [](const auto* left, const auto* right) {
-          if (left->required != right->required) return left->required > right->required;
+        std::stable_sort(ordered.begin(), ordered.end(), [backend](const auto* left, const auto* right) {
+          if (left->required_for(backend) != right->required_for(backend)) {
+            return left->required_for(backend) > right->required_for(backend);
+          }
           if (left->startup_priority != right->startup_priority) {
             return left->startup_priority < right->startup_priority;
           }
@@ -293,8 +320,9 @@ class WorkerManager {
                                              ? selected_quantizations.front()
                                              : state_.default_quantization;
           const auto artifact = model->artifacts.at(backend).at(warm_quantization);
-          const bool required_baseline = backend_index == 0 && model->required;
-          if (!artifact.supported || planned + artifact.reservation_gib > state_.max_ram_gib) {
+          const bool required_baseline =
+              backend_index == 0 && model->required_for(backend);
+          if (!artifact.supported || planned + artifact.reservation_gib > residency_limit()) {
             if (required_baseline) {
               throw std::runtime_error(model->id +
                                        ": required startup baseline exceeds RAM budget");
@@ -394,6 +422,10 @@ class WorkerManager {
       for (const auto backend : active_backends_) {
         const auto selected_quantizations = quantizations_for(id, backend);
         for (const auto quantization : selected_quantizations) {
+          const auto backend_it = definition.artifacts.find(backend);
+          if (backend_it == definition.artifacts.end()) continue;
+          const auto artifact_it = backend_it->second.find(quantization);
+          if (artifact_it == backend_it->second.end() || !artifact_it->second.supported) continue;
           const auto key = worker_key(id, backend, quantization);
           const auto loaded = workers_.find(key);
           const auto unambiguous = selected_quantizations.size() == 1;
@@ -426,7 +458,10 @@ class WorkerManager {
     for (const auto backend : active_backends_) active.push_back(to_string(backend));
     return {{"ready", ready()}, {"active_backends", active},
             {"reserved_ram_gib", reserved_gib_},
-            {"max_ram_gib", state_.max_ram_gib}, {"workers", workers}};
+            {"max_ram_gib", state_.max_ram_gib},
+            {"max_vram_gib", state_.max_vram_gib},
+            {"effective_residency_limit_gib", residency_limit()},
+            {"vllm_device", to_string(state_.vllm_device)}, {"workers", workers}};
   }
 
  private:
@@ -455,7 +490,10 @@ class WorkerManager {
     std::filesystem::create_directories(base);
     std::vector<std::string> command = {
         (root_ / "environment-tools/bin/hf").string(), "download", repository_it->second};
-    if (std::filesystem::path(worker.artifact.pattern).extension().empty()) {
+    if (worker.backend == Backend::vllm &&
+        worker.quantization == Quantization::native) {
+      command.insert(command.end(), {"--local-dir", worker.artifact_path.string()});
+    } else if (std::filesystem::path(worker.artifact.pattern).extension().empty()) {
       command.insert(command.end(), {"--include", worker.artifact.pattern + "/*"});
     } else {
       command.push_back(worker.artifact.pattern);
@@ -463,7 +501,10 @@ class WorkerManager {
     if (!worker.artifact.projector_pattern.empty()) {
       command.push_back(worker.artifact.projector_pattern);
     }
-    command.insert(command.end(), {"--local-dir", base.string()});
+    if (!(worker.backend == Backend::vllm &&
+          worker.quantization == Quantization::native)) {
+      command.insert(command.end(), {"--local-dir", base.string()});
+    }
     const auto result = run_command(command, true);
     if (result.exit_code != 0) {
       throw std::runtime_error("lazy Hugging Face download failed for " + worker.model->id +
@@ -642,7 +683,7 @@ class WorkerManager {
   }
 
   void make_room(double requested) {
-    if (reserved_gib_ + requested <= state_.max_ram_gib + 1e-9) return;
+    if (reserved_gib_ + requested <= residency_limit() + 1e-9) return;
     std::vector<ResidentModel> candidates;
     const auto now = monotonic_ns();
     for (const auto& [id, worker] : workers_) {
@@ -658,9 +699,17 @@ class WorkerManager {
       reserved_gib_ -= found->second->artifact.reservation_gib;
       stop_worker(found->second);
       workers_.erase(found);
-      if (reserved_gib_ + requested <= state_.max_ram_gib + 1e-9) return;
+      if (reserved_gib_ + requested <= residency_limit() + 1e-9) return;
     }
     throw std::runtime_error("model_memory_budget_exceeded");
+  }
+
+  double residency_limit() const {
+    if (active_backends_.size() == 1 && active_backends_.front() == Backend::vllm &&
+        state_.vllm_device == VllmDevice::cuda && state_.max_vram_gib > 0) {
+      return std::min(state_.max_ram_gib, state_.max_vram_gib);
+    }
+    return state_.max_ram_gib;
   }
 
   void sweep_idle() {
@@ -785,7 +834,7 @@ int run_server(const Registry& registry, const ServerOptions& options) {
   if (!options.active_backend) {
     if (state.installed_backends.size() != 1) {
       throw std::runtime_error(
-          "multiple backends are installed; start with --backend mlx or gguf");
+          "multiple backends are installed; start with --backend mlx, gguf, or vllm");
     }
     active_backends = state.installed_backends;
   } else {

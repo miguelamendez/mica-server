@@ -8,16 +8,20 @@
 
 namespace mica {
 
-enum class Backend { mlx, gguf };
-enum class Quantization { q4, q8 };
+enum class Backend { mlx, gguf, vllm };
+enum class Quantization { q4, q8, native };
+enum class VllmDevice { automatic, cpu, cuda, metal };
 
 std::string to_string(Backend value);
 std::string to_string(Quantization value);
 Backend parse_backend(const std::string& value);
 Quantization parse_quantization(const std::string& value);
+std::string to_string(VllmDevice value);
+VllmDevice parse_vllm_device(const std::string& value);
 
 struct HardwareInfo {
   std::string os;
+  std::string os_version;
   std::string arch;
   bool apple_silicon{false};
   bool wsl{false};
@@ -27,7 +31,9 @@ struct HardwareInfo {
 
   [[nodiscard]] bool supports_mlx() const;
   [[nodiscard]] bool supports_gguf() const;
+  [[nodiscard]] bool supports_vllm() const;
   [[nodiscard]] Backend recommended_backend() const;
+  [[nodiscard]] VllmDevice recommended_vllm_device() const;
 };
 
 struct Artifact {
@@ -47,7 +53,13 @@ struct ModelDefinition {
   std::map<Backend, std::string> repositories;
   int startup_priority{100};
   bool required{false};
+  std::map<Backend, bool> required_by_backend;
   std::map<Backend, std::map<Quantization, Artifact>> artifacts;
+
+  [[nodiscard]] bool required_for(Backend backend) const {
+    const auto found = required_by_backend.find(backend);
+    return found == required_by_backend.end() ? required : found->second;
+  }
 };
 
 struct Profile {

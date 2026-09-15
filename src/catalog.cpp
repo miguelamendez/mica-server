@@ -165,6 +165,27 @@ void record_runtime_variant(const std::filesystem::path& root, const std::string
   std::filesystem::rename(temporary, path);
 }
 
+void record_runtime_selection(const std::filesystem::path& root, const std::string& id,
+                              Backend backend, Quantization quantization) {
+  const auto path = root / "mica-server/runtime.json";
+  std::ifstream input(path);
+  auto runtime = json::parse(input);
+  auto& model = runtime["configured_models"][id];
+  model["enabled"] = true;
+  auto& selected = model["variants"][to_string(backend)];
+  if (!selected.is_array()) selected = json::array();
+  const auto quant = to_string(quantization);
+  const bool found = std::any_of(selected.begin(), selected.end(), [&](const auto& value) {
+    return value.is_string() && value.template get<std::string>() == quant;
+  });
+  if (!found) selected.push_back(quant);
+  const auto temporary = path.string() + ".tmp";
+  std::ofstream output(temporary, std::ios::trunc);
+  output << std::setw(2) << runtime << '\n';
+  output.close();
+  std::filesystem::rename(temporary, path);
+}
+
 bool backend_installed(const json& runtime, Backend backend) {
   for (const auto& item : runtime.value("installed_backends", json::array())) {
     if (item.is_string() && item.get<std::string>() == to_string(backend)) return true;
@@ -265,6 +286,14 @@ std::string add_custom_model(const AddModelOptions& options) {
 
 void quantize_custom_model(const QuantizeModelOptions& options) {
   if (options.group_size <= 0) throw std::invalid_argument("group size must be positive");
+  if (options.backend == Backend::vllm) {
+    throw std::invalid_argument(
+        "vLLM is a serving backend, not a generic Q4/Q8 converter; quantize with MLX or "
+        "GGUF, or configure a vLLM-supported AWQ/GPTQ/compressed-tensors repository");
+  }
+  if (options.quantization == Quantization::native) {
+    throw std::invalid_argument("native is only valid for a vLLM source repository");
+  }
   auto catalog = read_catalog(options.root);
   if (!catalog["models"].contains(options.id)) {
     throw std::runtime_error("custom model is not registered: " + options.id);
@@ -379,6 +408,44 @@ void quantize_custom_model(const QuantizeModelOptions& options) {
             << to_string(options.quantization) << " at " << artifact << '\n';
 }
 
+void configure_vllm_custom_model(const ConfigureVllmModelOptions& options) {
+  if (options.reservation_gib <= 0) {
+    throw std::invalid_argument("vLLM model memory reservation must be positive");
+  }
+  auto catalog = read_catalog(options.root);
+  if (!catalog["models"].contains(options.id)) {
+    throw std::runtime_error("custom model is not registered: " + options.id);
+  }
+  const auto runtime = read_runtime(options.root);
+  if (!backend_installed(runtime, Backend::vllm)) {
+    throw std::runtime_error("vLLM backend is not installed");
+  }
+  auto& model = catalog["models"][options.id];
+  const auto modality = model.at("modality").get<std::string>();
+  if (modality == "tts") {
+    throw std::runtime_error(
+        "TTS requires a vLLM-Omni worker, which is not installed by this backend yet");
+  }
+  auto& variant = model["variants"]["vllm"]["native"];
+  if (variant.is_object() && variant.value("status", "") == "ready") {
+    throw std::runtime_error("vLLM native variant already exists: " + options.id);
+  }
+  variant = {{"status", "ready"},
+             {"artifact", "model"},
+             {"reservation_gib", options.reservation_gib},
+             {"reservation_source", "user-declared"}};
+  if (options.dry_run) {
+    std::cout << std::setw(2) << variant << '\n';
+    return;
+  }
+  write_catalog(options.root, catalog);
+  record_runtime_selection(options.root, options.id, Backend::vllm,
+                           Quantization::native);
+  std::cout << "Configured " << options.id
+            << " as a lazy vLLM Hugging Face source with a "
+            << options.reservation_gib << " GiB reservation\n";
+}
+
 void merge_custom_models(Registry& registry, const std::filesystem::path& root) {
   const auto catalog = read_catalog(root);
   for (const auto& [id, entry] : catalog["models"].items()) {
@@ -397,9 +464,11 @@ void merge_custom_models(Registry& registry, const std::filesystem::path& root) 
     model.source_repo = entry.at("source_repo").get<std::string>();
     model.repositories[Backend::mlx] = model.source_repo;
     model.repositories[Backend::gguf] = model.source_repo;
+    model.repositories[Backend::vllm] = model.source_repo;
     model.startup_priority = 100;
-    for (const auto backend : {Backend::mlx, Backend::gguf}) {
-      for (const auto quantization : {Quantization::q4, Quantization::q8}) {
+    for (const auto backend : {Backend::mlx, Backend::gguf, Backend::vllm}) {
+      for (const auto quantization :
+           {Quantization::q4, Quantization::q8, Quantization::native}) {
         Artifact artifact;
         artifact.reason = "custom model has not been quantized for " + to_string(backend) + "/" +
                           to_string(quantization);

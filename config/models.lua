@@ -1,5 +1,7 @@
 -- Runtime paths are relative to the model's curated repository in Miguel's HF namespace.
 -- Setup installs runtimes only. The server downloads a selected artifact on first load.
+-- vLLM artifacts are deliberately disabled until each device-specific runtime passes the
+-- same real-inference smoke checks. vLLM is a serving backend, not a generic Q4/Q8 converter.
 mica.settings {
   default_hf_repo = "miguelamendez/mica-server-catalog",
   llama_cpp_revision = "latest",
@@ -25,6 +27,8 @@ mica.model {
   gguf_q4_ram_gib = 3.2,
   gguf_q8_path = "Spark-X2.5-4B-Q8_0.gguf",
   gguf_q8_ram_gib = 5.1,
+  vllm_supported = false,
+  vllm_reason = "Spark-X2.5 has not passed upstream vLLM or vLLM-Metal inference validation",
 }
 
 mica.model {
@@ -46,6 +50,8 @@ mica.model {
   gguf_q4_ram_gib = 0.9,
   gguf_q8_path = "granite-speech-5.0-470m-turboctc-q8_0.gguf",
   gguf_q8_ram_gib = 1.2,
+  vllm_supported = false,
+  vllm_reason = "Granite TurboCTC has not passed a vLLM transcription worker smoke test",
 }
 
 mica.model {
@@ -67,6 +73,8 @@ mica.model {
   gguf_q4_ram_gib = 1.2,
   gguf_q8_path = "audio8-tts-preview-0.6b-q8_0.gguf",
   gguf_q8_ram_gib = 1.8,
+  vllm_supported = false,
+  vllm_reason = "Audio8 TTS is not a validated vLLM or vLLM-Omni speech worker",
 }
 
 mica.model {
@@ -90,6 +98,8 @@ mica.model {
   gguf_q8_path = "MiniCPM-V-4_6-Thinking-Q8_0.gguf",
   gguf_q8_projector = "mmproj-model-f16.gguf",
   gguf_q8_ram_gib = 2.6,
+  vllm_supported = false,
+  vllm_reason = "Upstream vLLM supports MiniCPM-V 4.6, but vLLM-Metal does not list this vision family",
 }
 
 mica.profile {

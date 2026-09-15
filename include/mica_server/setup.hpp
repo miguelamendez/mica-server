@@ -19,6 +19,7 @@ struct SetupOptions {
   std::vector<Quantization> quantizations{Quantization::q4};
   double max_ram_gib{8.0};
   double max_vram_gib{0.0};
+  VllmDevice vllm_device{VllmDevice::automatic};
   bool dry_run{false};
   bool refresh{false};
 };
@@ -26,6 +27,7 @@ struct SetupOptions {
 struct ResolvedSetup {
   HardwareInfo hardware;
   std::vector<Backend> backends;
+  VllmDevice vllm_device{VllmDevice::automatic};
   SetupOptions options;
   std::map<Backend, std::map<Quantization, StartupPlan>> startups;
 };

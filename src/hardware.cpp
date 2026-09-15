@@ -87,8 +87,18 @@ bool HardwareInfo::supports_gguf() const {
   return os == "macos" || os == "linux" || os == "wsl";
 }
 
+bool HardwareInfo::supports_vllm() const {
+  return (os == "macos" && apple_silicon) || os == "linux" || os == "wsl";
+}
+
 Backend HardwareInfo::recommended_backend() const {
   return supports_mlx() ? Backend::mlx : Backend::gguf;
+}
+
+VllmDevice HardwareInfo::recommended_vllm_device() const {
+  if (supports_mlx()) return VllmDevice::metal;
+  if ((os == "linux" || os == "wsl") && nvidia_detected) return VllmDevice::cuda;
+  return VllmDevice::cpu;
 }
 
 HardwareInfo detect_hardware() {
@@ -97,6 +107,10 @@ HardwareInfo detect_hardware() {
   if (uname(&value) == 0) info.arch = value.machine;
 #ifdef __APPLE__
   info.os = "macos";
+  info.os_version = capture("sw_vers -productVersion 2>/dev/null");
+  info.os_version.erase(
+      std::remove(info.os_version.begin(), info.os_version.end(), '\n'),
+      info.os_version.end());
 #elif defined(__linux__)
   info.wsl = detect_wsl();
   info.os = info.wsl ? "wsl" : "linux";

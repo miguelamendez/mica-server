@@ -89,15 +89,25 @@ int register_model(lua_State* state) {
   model.source_repo = string_field(state, 1, "source_repo");
   model.repositories[Backend::mlx] = string_field(state, 1, "mlx_repo");
   model.repositories[Backend::gguf] = string_field(state, 1, "gguf_repo");
+  model.repositories[Backend::vllm] = string_field(state, 1, "vllm_repo");
   model.startup_priority = static_cast<int>(number_field(state, 1, "priority", 100));
   model.required = bool_field(state, 1, "required", false);
+  model.required_by_backend[Backend::mlx] =
+      bool_field(state, 1, "mlx_required", model.required);
+  model.required_by_backend[Backend::gguf] =
+      bool_field(state, 1, "gguf_required", model.required);
+  model.required_by_backend[Backend::vllm] =
+      bool_field(state, 1, "vllm_required", false);
   if (model.id.empty()) return luaL_error(state, "model id is required");
 
   const bool mlx_supported = bool_field(state, 1, "mlx_supported", true);
   const bool gguf_supported = bool_field(state, 1, "gguf_supported", false);
+  const bool vllm_supported = bool_field(state, 1, "vllm_supported", false);
   const auto mlx_reason = string_field(state, 1, "mlx_reason", "MLX artifact unavailable");
   const auto gguf_reason =
       string_field(state, 1, "gguf_reason", "llama.cpp compatibility not validated");
+  const auto vllm_reason = string_field(
+      state, 1, "vllm_reason", "vLLM-compatible artifact is not configured");
   model.artifacts[Backend::mlx][Quantization::q4] =
       artifact_from(state, 1, "mlx_q4", mlx_supported, mlx_reason);
   model.artifacts[Backend::mlx][Quantization::q8] =
@@ -106,6 +116,12 @@ int register_model(lua_State* state) {
       artifact_from(state, 1, "gguf_q4", gguf_supported, gguf_reason);
   model.artifacts[Backend::gguf][Quantization::q8] =
       artifact_from(state, 1, "gguf_q8", gguf_supported, gguf_reason);
+  model.artifacts[Backend::vllm][Quantization::q4] =
+      artifact_from(state, 1, "vllm_q4", vllm_supported, vllm_reason);
+  model.artifacts[Backend::vllm][Quantization::q8] =
+      artifact_from(state, 1, "vllm_q8", vllm_supported, vllm_reason);
+  model.artifacts[Backend::vllm][Quantization::native] =
+      artifact_from(state, 1, "vllm_native", vllm_supported, vllm_reason);
   registry->models.push_back(std::move(model));
   return 0;
 }
@@ -156,23 +172,53 @@ void run_file(lua_State* state, const std::filesystem::path& path) {
 }  // namespace
 
 std::string to_string(Backend value) {
-  return value == Backend::mlx ? "mlx" : "gguf";
+  switch (value) {
+    case Backend::mlx: return "mlx";
+    case Backend::gguf: return "gguf";
+    case Backend::vllm: return "vllm";
+  }
+  throw std::invalid_argument("invalid backend");
 }
 
 std::string to_string(Quantization value) {
-  return value == Quantization::q4 ? "q4" : "q8";
+  switch (value) {
+    case Quantization::q4: return "q4";
+    case Quantization::q8: return "q8";
+    case Quantization::native: return "native";
+  }
+  throw std::invalid_argument("invalid quantization");
 }
 
 Backend parse_backend(const std::string& value) {
   if (value == "mlx") return Backend::mlx;
   if (value == "gguf") return Backend::gguf;
-  throw std::invalid_argument("backend must be mlx or gguf");
+  if (value == "vllm") return Backend::vllm;
+  throw std::invalid_argument("backend must be mlx, gguf, or vllm");
+}
+
+std::string to_string(VllmDevice value) {
+  switch (value) {
+    case VllmDevice::automatic: return "auto";
+    case VllmDevice::cpu: return "cpu";
+    case VllmDevice::cuda: return "cuda";
+    case VllmDevice::metal: return "metal";
+  }
+  throw std::invalid_argument("invalid vLLM device");
+}
+
+VllmDevice parse_vllm_device(const std::string& value) {
+  if (value == "auto") return VllmDevice::automatic;
+  if (value == "cpu") return VllmDevice::cpu;
+  if (value == "cuda") return VllmDevice::cuda;
+  if (value == "metal") return VllmDevice::metal;
+  throw std::invalid_argument("vLLM device must be auto, cpu, cuda, or metal");
 }
 
 Quantization parse_quantization(const std::string& value) {
   if (value == "q4") return Quantization::q4;
   if (value == "q8") return Quantization::q8;
-  throw std::invalid_argument("quantization must be q4 or q8");
+  if (value == "native") return Quantization::native;
+  throw std::invalid_argument("quantization must be q4, q8, or native");
 }
 
 const ModelDefinition& Registry::model(const std::string& id) const {

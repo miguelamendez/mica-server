@@ -26,10 +26,18 @@ struct QuantizeModelOptions {
   bool dry_run{false};
 };
 
+struct ConfigureVllmModelOptions {
+  std::filesystem::path root;
+  std::string id;
+  double reservation_gib{0.0};
+  bool dry_run{false};
+};
+
 std::string normalize_modality(const std::string& value);
 std::string modality_capability(const std::string& modality);
 std::string add_custom_model(const AddModelOptions& options);
 void quantize_custom_model(const QuantizeModelOptions& options);
+void configure_vllm_custom_model(const ConfigureVllmModelOptions& options);
 void merge_custom_models(Registry& registry, const std::filesystem::path& root);
 
 }  // namespace mica
