@@ -30,3 +30,11 @@ returned HTTP 200 and exactly:
 This matches the source BF16 checkpoint and the selective Q4 checkpoint on the
 controlled clip. Broader ASR dataset evaluation remains required before
 publication.
+
+## Warm inference speed
+
+On an Apple M4 MacBook Air with 24 GB RAM, five model-inference runs after one
+warm-up processed the 8.608-second clip with a 0.0635-second median: real-time
+factor 0.00738, or 135.5 times faster than real time. The matching BF16 and Q4
+medians were 0.0599 and 0.0637 seconds. Loading, HTTP, and file decoding time
+are excluded; all three variants returned the same transcript.

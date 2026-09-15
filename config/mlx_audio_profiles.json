@@ -14,7 +14,7 @@
         "encoder.out is shared by the midpoint self-conditioning logits and the final CTC vocabulary logits.",
         "encoder.out_mid maps the midpoint 16,384-way token distribution back into hidden space, so its error is fed through the remaining encoder blocks."
       ],
-      "validation": "Uniform Q4 corrupted the controlled transcript. Selective Q4 and Q8 matched the BF16 transcript exactly on the fixed 8.608-second clip and passed the MLX Audio HTTP endpoint."
+      "validation": "Uniform Q4 corrupted the controlled transcript. Selective Q4 and Q8 matched the BF16 transcript exactly on the fixed 8.608-second clip and passed the MLX Audio HTTP endpoint. On an Apple M4 MacBook Air with 24 GB RAM, five warm runs after one warm-up had median model-inference times of 0.0599 seconds for BF16, 0.0637 seconds for Q4, and 0.0635 seconds for Q8 (143.8x, 135.1x, and 135.5x real time)."
     },
     "audio8-quality": {
       "model_family": "Audio8 TTS Preview 0.6B / ArkTTS",

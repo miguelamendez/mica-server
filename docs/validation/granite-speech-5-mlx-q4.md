@@ -42,3 +42,19 @@ An `mlx_audio.server` process also loaded the selective Q4 directory. A real
 multipart `POST /v1/audio/transcriptions` request returned HTTP 200 and the
 same exact reference transcript, validating the serving path in addition to
 direct model inference.
+
+## Warm inference speed
+
+On an Apple M4 MacBook Air with 24 GB RAM, five model-inference runs after one
+warm-up processed the fixed 8.608-second clip with these wall-clock medians:
+
+| Variant | Median | Real-time factor | Faster than real time |
+|---|---:|---:|---:|
+| BF16 | 0.0599 s | 0.00696 | 143.8x |
+| Selective Q4 | 0.0637 s | 0.00740 | 135.1x |
+| Selective Q8 | 0.0635 s | 0.00738 | 135.5x |
+
+All variants returned the same transcript. For this small model and short
+clip, BF16 was about 6% faster than either quantized variant. The demonstrated
+Q4 advantage is reduced memory, not higher throughput. Loading, HTTP, and file
+decoding time are excluded.
