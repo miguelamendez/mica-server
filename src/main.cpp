@@ -10,6 +10,7 @@
 #include <nlohmann/json.hpp>
 
 #include "mica_server/config.hpp"
+#include "mica_server/catalog.hpp"
 #include "mica_server/hardware.hpp"
 #include "mica_server/server.hpp"
 #include "mica_server/setup.hpp"
@@ -25,7 +26,9 @@ Usage:
   mica-server detect [--config-dir PATH]
   mica-server plan  [setup options]
   mica-server setup [setup options]
-  mica-server serve [--backend mlx|gguf|both] [--root PATH] [--host HOST] [--port PORT]
+  mica-server add-model --url URL --modality MODALITY [--id ID] [quantize options]
+  mica-server quantize --model ID --backend mlx|gguf --quant q4|q8 [options]
+  mica-server serve --backend mlx|gguf [--root PATH] [--host HOST] [--port PORT]
 
 Setup options:
   --backends auto|mlx|gguf|mlx,gguf
@@ -40,9 +43,18 @@ Setup options:
   --dry-run                 Print actions without changing the machine
 
 Serve options:
-  --backend mlx|gguf|both   Select installed backend(s); required when both are installed
+  --backend mlx|gguf        Serve exactly one installed backend
 
-Configured models are downloaded on the first server launch for each active backend.
+Custom model options:
+  --url URL                 Hugging Face model URL or OWNER/REPO
+  --modality VALUE          tts|asr|text-to-text|img-text-to-text
+  --id ID                   Optional stable local id (defaults from repo name)
+  --description TEXT        Optional catalog description
+  --backend mlx|gguf        Quantization backend (must be installed)
+  --quant q4|q8             Quantization size
+  --group-size N            MLX affine group size (default 64)
+
+Configured models are downloaded on the first server launch for the active backend.
 Downloaded backend/quantization variants are recorded in runtime.json.
 )";
 }
@@ -55,6 +67,12 @@ std::string value_after(const std::vector<std::string>& args, std::size_t& index
 std::filesystem::path default_config() {
   if (std::filesystem::exists("config/models.lua")) return "config";
   return std::filesystem::path(__FILE__).parent_path().parent_path() / "config";
+}
+
+std::filesystem::path default_root() {
+  const char* home = std::getenv("HOME");
+  if (!home) throw std::runtime_error("HOME is not set");
+  return std::filesystem::path(home) / "models";
 }
 
 mica::SetupOptions parse_setup(const std::vector<std::string>& args) {
@@ -97,6 +115,7 @@ mica::SetupOptions parse_setup(const std::vector<std::string>& args) {
     else if (args[i] == "--dry-run") options.dry_run = true;
     else throw std::invalid_argument("unknown option: " + args[i]);
   }
+  if (options.root.empty()) options.root = default_root();
   return options;
 }
 
@@ -125,7 +144,8 @@ int main(int argc, char** argv) {
     }
     if (args[1] == "plan" || args[1] == "setup") {
       auto options = parse_setup(args);
-      const auto registry = mica::load_registry(options.config_directory);
+      auto registry = mica::load_registry(options.config_directory);
+      mica::merge_custom_models(registry, options.root);
       auto resolved = mica::resolve_setup(registry, std::move(options));
       json backends = json::array();
       json startups = json::object();
@@ -157,6 +177,62 @@ int main(int argc, char** argv) {
       mica::execute_setup(registry, resolved);
       return 0;
     }
+    if (args[1] == "add-model") {
+      mica::AddModelOptions options;
+      options.root = default_root();
+      std::optional<mica::Backend> quant_backend;
+      std::optional<mica::Quantization> quantization;
+      int group_size = 64;
+      for (std::size_t i = 2; i < args.size(); ++i) {
+        if (args[i] == "--url") options.url = value_after(args, i);
+        else if (args[i] == "--modality") options.modality = value_after(args, i);
+        else if (args[i] == "--id") options.id = value_after(args, i);
+        else if (args[i] == "--description") options.description = value_after(args, i);
+        else if (args[i] == "--root") options.root = value_after(args, i);
+        else if (args[i] == "--backend") quant_backend = mica::parse_backend(value_after(args, i));
+        else if (args[i] == "--quant") quantization = mica::parse_quantization(value_after(args, i));
+        else if (args[i] == "--group-size") group_size = std::stoi(value_after(args, i));
+        else if (args[i] == "--dry-run") options.dry_run = true;
+        else throw std::invalid_argument("unknown option: " + args[i]);
+      }
+      if (options.url.empty() || options.modality.empty()) {
+        throw std::invalid_argument("add-model requires --url and --modality");
+      }
+      if (quant_backend.has_value() != quantization.has_value()) {
+        throw std::invalid_argument("add-model quantization requires both --backend and --quant");
+      }
+      const auto added_id = mica::add_custom_model(options);
+      if (quant_backend && !options.dry_run) {
+        mica::quantize_custom_model({options.root, added_id,
+                                     *quant_backend, *quantization, group_size, false});
+      }
+      return 0;
+    }
+    if (args[1] == "quantize") {
+      mica::QuantizeModelOptions options;
+      options.root = default_root();
+      bool has_backend = false;
+      bool has_quantization = false;
+      for (std::size_t i = 2; i < args.size(); ++i) {
+        if (args[i] == "--model") options.id = value_after(args, i);
+        else if (args[i] == "--backend") {
+          options.backend = mica::parse_backend(value_after(args, i));
+          has_backend = true;
+        } else if (args[i] == "--quant") {
+          options.quantization = mica::parse_quantization(value_after(args, i));
+          has_quantization = true;
+        } else if (args[i] == "--group-size") {
+          options.group_size = std::stoi(value_after(args, i));
+        } else if (args[i] == "--root") options.root = value_after(args, i);
+        else if (args[i] == "--dry-run") options.dry_run = true;
+        else throw std::invalid_argument("unknown option: " + args[i]);
+      }
+      if (options.id.empty() || !has_backend || !has_quantization) {
+        throw std::invalid_argument("quantize requires --model, --backend, and --quant");
+      }
+      mica::quantize_custom_model(options);
+      return 0;
+    }
     if (args[1] == "serve") {
       mica::ServerOptions options;
       options.config_directory = default_config();
@@ -167,20 +243,13 @@ int main(int argc, char** argv) {
         else if (args[i] == "--port") options.port = std::stoi(value_after(args, i));
         else if (args[i] == "--backend") {
           const auto selected = value_after(args, i);
-          if (selected == "both") {
-            options.active_backends = {mica::Backend::mlx, mica::Backend::gguf};
-          } else {
-            options.active_backends = {mica::parse_backend(selected)};
-          }
+          options.active_backend = mica::parse_backend(selected);
         }
         else throw std::invalid_argument("unknown option: " + args[i]);
       }
-      if (options.root.empty()) {
-        const char* home = std::getenv("HOME");
-        if (!home) throw std::runtime_error("HOME is not set");
-        options.root = std::filesystem::path(home) / "models";
-      }
-      const auto registry = mica::load_registry(options.config_directory);
+      if (options.root.empty()) options.root = default_root();
+      auto registry = mica::load_registry(options.config_directory);
+      mica::merge_custom_models(registry, options.root);
       return mica::run_server(registry, options);
     }
     usage();

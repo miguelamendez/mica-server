@@ -38,6 +38,7 @@ struct RuntimeState {
   std::vector<Backend> installed_backends;
   std::vector<Quantization> quantizations;
   Quantization default_quantization{Quantization::q4};
+  std::map<std::string, std::vector<Quantization>> configured_quantizations;
   std::string profile;
   double max_ram_gib{8};
   double max_vram_gib{0};
@@ -97,6 +98,17 @@ RuntimeState load_runtime_state(const std::filesystem::path& root) {
   if (result.quantizations.empty()) result.quantizations.push_back(Quantization::q4);
   result.default_quantization = parse_quantization(
       state.value("default_quantization", to_string(result.quantizations.front())));
+  if (state.contains("configured_models") && state["configured_models"].is_object()) {
+    for (const auto& [id, model] : state["configured_models"].items()) {
+      if (!model.value("enabled", true) || !model.contains("variants")) continue;
+      for (const auto& [backend, quantizations] : model["variants"].items()) {
+        auto& selected = result.configured_quantizations[id + "@" + backend];
+        for (const auto& quantization : quantizations) {
+          selected.push_back(parse_quantization(quantization.get<std::string>()));
+        }
+      }
+    }
+  }
   result.profile = state.at("profile").get<std::string>();
   result.max_ram_gib = state.at("max_ram_gib").get<double>();
   result.max_vram_gib = state.value("max_vram_gib", 0.0);
@@ -239,13 +251,12 @@ class WorkerManager {
   void prewarm() {
     try {
       const auto& profile = registry_.profile(state_.profile);
-      // Backend selection controls artifact installation independently of residency.
-      // With both backends active this downloads both families once, then markers make
-      // subsequent launches no-ops.
+      // Setup may install both stacks, but one server activates one backend. Completion
+      // markers make subsequent launches reuse that backend's configured artifacts.
       for (const auto backend : active_backends_) {
         for (const auto& id : profile.models) {
           const auto& model = registry_.model(id);
-          for (const auto quantization : state_.quantizations) {
+          for (const auto quantization : quantizations_for(id, backend)) {
             const auto artifact = model.artifacts.at(backend).at(quantization);
             if (!artifact.supported) continue;
             Worker candidate;
@@ -273,7 +284,15 @@ class WorkerManager {
           return left->id < right->id;
         });
         for (const auto* model : ordered) {
-          const auto artifact = model->artifacts.at(backend).at(state_.default_quantization);
+          const auto selected_quantizations = quantizations_for(model->id, backend);
+          if (selected_quantizations.empty()) continue;
+          const auto default_found = std::find(selected_quantizations.begin(),
+                                               selected_quantizations.end(),
+                                               state_.default_quantization);
+          const auto warm_quantization = default_found == selected_quantizations.end()
+                                             ? selected_quantizations.front()
+                                             : state_.default_quantization;
+          const auto artifact = model->artifacts.at(backend).at(warm_quantization);
           const bool required_baseline = backend_index == 0 && model->required;
           if (!artifact.supported || planned + artifact.reservation_gib > state_.max_ram_gib) {
             if (required_baseline) {
@@ -282,7 +301,7 @@ class WorkerManager {
             }
             continue;
           }
-          auto lease = acquire(model->id, backend, state_.default_quantization);
+          auto lease = acquire(model->id, backend, warm_quantization);
           release(lease);
           planned += artifact.reservation_gib;
         }
@@ -308,8 +327,9 @@ class WorkerManager {
         active_backends_.end()) {
       throw std::runtime_error("backend is not active: " + to_string(backend));
     }
-    if (std::find(state_.quantizations.begin(), state_.quantizations.end(), quantization) ==
-        state_.quantizations.end()) {
+    const auto selected_quantizations = quantizations_for(id, backend);
+    if (std::find(selected_quantizations.begin(), selected_quantizations.end(), quantization) ==
+        selected_quantizations.end()) {
       throw std::runtime_error("quantization is not configured: " + to_string(quantization));
     }
     const auto key = worker_key(id, backend, quantization);
@@ -372,11 +392,11 @@ class WorkerManager {
     for (const auto& id : profile.models) {
       const auto& definition = registry_.model(id);
       for (const auto backend : active_backends_) {
-        for (const auto quantization : state_.quantizations) {
+        const auto selected_quantizations = quantizations_for(id, backend);
+        for (const auto quantization : selected_quantizations) {
           const auto key = worker_key(id, backend, quantization);
           const auto loaded = workers_.find(key);
-          const auto unambiguous = active_backends_.size() == 1 &&
-                                   state_.quantizations.size() == 1;
+          const auto unambiguous = selected_quantizations.size() == 1;
           const auto public_id = unambiguous ? id : key;
           data.push_back({{"id", public_id}, {"object", "model"}, {"owned_by", "local"},
                           {"capability", definition.capability},
@@ -410,6 +430,13 @@ class WorkerManager {
   }
 
  private:
+  std::vector<Quantization> quantizations_for(const std::string& id,
+                                               Backend backend) const {
+    const auto found = state_.configured_quantizations.find(id + "@" + to_string(backend));
+    if (found != state_.configured_quantizations.end()) return found->second;
+    return state_.quantizations;
+  }
+
   static std::string worker_key(const std::string& id, Backend backend,
                                 Quantization quantization) {
     return id + "@" + to_string(backend) + ":" + to_string(quantization);
@@ -723,34 +750,46 @@ ResolvedModelRequest resolve_model_request(
     const std::string& requested, const std::vector<Backend>& active_backends,
     const RuntimeState& state) {
   const auto separator = requested.rfind('@');
+  auto default_for = [&](const std::string& id, Backend backend) {
+    const auto found = state.configured_quantizations.find(id + "@" + to_string(backend));
+    if (found == state.configured_quantizations.end() || found->second.empty()) {
+      return state.default_quantization;
+    }
+    if (std::find(found->second.begin(), found->second.end(), state.default_quantization) !=
+        found->second.end()) return state.default_quantization;
+    return found->second.front();
+  };
   if (separator != std::string::npos) {
     const auto selector = requested.substr(separator + 1);
     const auto quant_separator = selector.find(':');
     const auto backend = parse_backend(selector.substr(0, quant_separator));
+    const auto model_id = requested.substr(0, separator);
     const auto quantization = quant_separator == std::string::npos
-                                  ? state.default_quantization
+                                  ? default_for(model_id, backend)
                                   : parse_quantization(selector.substr(quant_separator + 1));
     if (std::find(active_backends.begin(), active_backends.end(), backend) ==
         active_backends.end()) {
       throw std::runtime_error("requested backend is not active: " + to_string(backend));
     }
-    return {requested.substr(0, separator), backend, quantization};
+    return {model_id, backend, quantization};
   }
   if (active_backends.empty()) throw std::runtime_error("no active backend");
-  return {requested, active_backends.front(), state.default_quantization};
+  return {requested, active_backends.front(), default_for(requested, active_backends.front())};
 }
 
 }  // namespace
 
 int run_server(const Registry& registry, const ServerOptions& options) {
   const auto state = load_runtime_state(options.root);
-  auto active_backends = options.active_backends;
-  if (active_backends.empty()) {
+  std::vector<Backend> active_backends;
+  if (!options.active_backend) {
     if (state.installed_backends.size() != 1) {
       throw std::runtime_error(
-          "multiple backends are installed; start with --backend mlx, gguf, or both");
+          "multiple backends are installed; start with --backend mlx or gguf");
     }
     active_backends = state.installed_backends;
+  } else {
+    active_backends = {*options.active_backend};
   }
   for (const auto backend : active_backends) {
     if (std::find(state.installed_backends.begin(), state.installed_backends.end(), backend) ==

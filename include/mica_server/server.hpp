@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -13,7 +14,7 @@ struct ServerOptions {
   int port{8080};
   std::filesystem::path root;
   std::filesystem::path config_directory;
-  std::vector<Backend> active_backends;
+  std::optional<Backend> active_backend;
 };
 
 int run_server(const Registry& registry, const ServerOptions& options);

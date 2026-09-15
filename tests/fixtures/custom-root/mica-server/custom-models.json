@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "models": {
+    "fixture-asr": {
+      "id": "fixture-asr",
+      "source_repo": "owner/fixture-asr",
+      "source_url": "https://huggingface.co/owner/fixture-asr",
+      "modality": "asr",
+      "capability": "asr",
+      "license": "apache-2.0",
+      "description": "CLI quantization fixture",
+      "enabled": true,
+      "variants": {}
+    }
+  }
+}

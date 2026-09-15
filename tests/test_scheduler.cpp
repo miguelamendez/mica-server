@@ -1,6 +1,10 @@
 #include <cassert>
+#include <fstream>
 #include <iostream>
 
+#include <unistd.h>
+
+#include "mica_server/catalog.hpp"
 #include "mica_server/config.hpp"
 #include "mica_server/scheduler.hpp"
 
@@ -15,6 +19,24 @@ int main() {
          "miguelamendez/mica-spark-x25-4b-gguf");
   assert(!spark.description.empty());
   assert(!spark.tags.empty());
+  assert(mica::normalize_modality("tts") == "tts");
+  assert(mica::modality_capability("text-to-text") == "text");
+  assert(mica::modality_capability("img-text-to-text") == "vision");
+
+  const auto custom_root = std::filesystem::temp_directory_path() /
+                           ("mica-server-test-" + std::to_string(getpid()));
+  std::filesystem::create_directories(custom_root / "mica-server");
+  {
+    std::ofstream custom(custom_root / "mica-server/custom-models.json");
+    custom << R"({"schema":1,"models":{"tiny-custom":{"id":"tiny-custom","source_repo":"owner/repo","source_url":"https://huggingface.co/owner/repo","modality":"text-to-text","capability":"text","license":"apache-2.0","description":"test","enabled":true,"variants":{"mlx":{"q4":{"status":"ready","artifact":"q4","reservation_gib":0.5}}}}}})";
+  }
+  auto with_custom = mica::load_registry(config);
+  mica::merge_custom_models(with_custom, custom_root);
+  assert(with_custom.model("tiny-custom").capability == "text");
+  assert(with_custom.model("tiny-custom").artifacts.at(mica::Backend::mlx)
+             .at(mica::Quantization::q4).supported);
+  assert(with_custom.profile("all").models.back() == "tiny-custom");
+  std::filesystem::remove_all(custom_root);
 
   const auto fits = mica::plan_startup(registry, all, mica::Backend::mlx,
                                        mica::Quantization::q4, 8.0);

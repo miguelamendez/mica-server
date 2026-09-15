@@ -48,6 +48,7 @@ if(NOT MICA_HTTPLIB_INCLUDE_DIR)
 endif()
 
 add_library(mica_server_core
+  src/catalog.cpp
   src/command.cpp
   src/config.cpp
   src/hardware.cpp
@@ -86,6 +87,23 @@ if(MICA_SERVER_BUILD_TESTS)
   add_executable(mica-server-tests tests/test_scheduler.cpp)
   target_link_libraries(mica-server-tests PRIVATE mica_server_core)
   add_test(NAME mica-server-tests COMMAND mica-server-tests)
+  add_test(
+    NAME mica-server-quantize-plan
+    COMMAND $<TARGET_FILE:mica-server> quantize --model fixture-asr --backend gguf
+            --quant q8 --dry-run --root
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/custom-root
+  )
+  set_tests_properties(mica-server-quantize-plan PROPERTIES
+    PASS_REGULAR_EXPRESSION "audiocpp_gguf.*--type q8_0"
+  )
+  add_test(
+    NAME mica-server-reject-both-serve
+    COMMAND $<TARGET_FILE:mica-server> serve --backend both --root
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/custom-root
+  )
+  set_tests_properties(mica-server-reject-both-serve PROPERTIES
+    WILL_FAIL TRUE
+  )
 endif()
 
 install(TARGETS mica-server RUNTIME DESTINATION bin)

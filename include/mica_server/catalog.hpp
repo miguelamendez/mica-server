@@ -1,0 +1,35 @@
+#pragma once
+
+#include <filesystem>
+#include <optional>
+#include <string>
+
+#include "mica_server/types.hpp"
+
+namespace mica {
+
+struct AddModelOptions {
+  std::filesystem::path root;
+  std::string url;
+  std::string id;
+  std::string modality;
+  std::string description;
+  bool dry_run{false};
+};
+
+struct QuantizeModelOptions {
+  std::filesystem::path root;
+  std::string id;
+  Backend backend{Backend::gguf};
+  Quantization quantization{Quantization::q4};
+  int group_size{64};
+  bool dry_run{false};
+};
+
+std::string normalize_modality(const std::string& value);
+std::string modality_capability(const std::string& modality);
+std::string add_custom_model(const AddModelOptions& options);
+void quantize_custom_model(const QuantizeModelOptions& options);
+void merge_custom_models(Registry& registry, const std::filesystem::path& root);
+
+}  // namespace mica
