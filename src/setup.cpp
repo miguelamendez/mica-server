@@ -279,6 +279,92 @@ std::vector<std::string> resolved_packages(const std::filesystem::path& environm
   return packages;
 }
 
+json validate_command(const std::string& name, const std::vector<std::string>& command,
+                      bool dry_run) {
+  std::cout << (dry_run ? "[plan] validate " : "[test] validate ") << name << ": "
+            << display_command(command) << '\n';
+  if (dry_run) {
+    return {{"status", "planned"}, {"command", command}};
+  }
+  const auto result = run_command(command, true);
+  if (result.exit_code != 0) {
+    throw std::runtime_error("setup acceptance failed for " + name + ":\n" +
+                             result.output);
+  }
+  return {{"status", "passed"},
+          {"command", command},
+          {"output", trim(result.output)}};
+}
+
+json validate_setup(const ResolvedSetup& setup) {
+  json acceptance = {
+      {"hardware",
+       {{"os", setup.hardware.os},
+        {"os_version", setup.hardware.os_version},
+        {"arch", setup.hardware.arch},
+        {"ram_gib", setup.hardware.ram_gib},
+        {"nvidia", setup.hardware.nvidia_detected},
+        {"nvidia_vram_gib", setup.hardware.nvidia_vram_gib}}},
+      {"backends", json::object()},
+  };
+  const auto tools_python = (setup.options.root / "environment-tools/bin/python").string();
+  acceptance["loopback"] = validate_command(
+      "loopback bind",
+      {tools_python, "-c",
+       "import socket; s=socket.socket(); s.bind(('127.0.0.1', 0)); "
+       "print(s.getsockname()[1]); s.close()"},
+      setup.options.dry_run);
+  for (const auto backend : setup.backends) {
+    if (backend == Backend::mlx) {
+      const auto python = (setup.options.root / "environment-mlx/bin/python").string();
+      acceptance["backends"]["mlx"] = validate_command(
+          "MLX imports and device",
+          {python, "-c",
+           "import mlx.core as mx; import mlx_lm, mlx_vlm, mlx_audio; "
+           "print(mx.default_device())"},
+          setup.options.dry_run);
+    } else if (backend == Backend::gguf) {
+      json gguf;
+      gguf["llama_cpp"] = validate_command(
+          "llama.cpp runtime",
+          {(setup.options.root / "runtime/llama.cpp/build-mica/bin/llama-server").string(),
+           "--version"},
+          setup.options.dry_run);
+      gguf["audio_cpp"] = validate_command(
+          "audio.cpp runtime",
+          {(setup.options.root / "runtime/audio.cpp/build-mica/bin/audiocpp_server").string(),
+           "--help"},
+          setup.options.dry_run);
+      acceptance["backends"]["gguf"] = std::move(gguf);
+    } else {
+      const auto python = (setup.options.root / "environment-vllm/bin/python").string();
+      acceptance["backends"]["vllm"] = {
+          {"device", to_string(setup.vllm_device)},
+          {"runtime", validate_command(
+                          "vLLM runtime",
+                          {python, "-c",
+                           "import platform, vllm; print(vllm.__version__); "
+                           "print(platform.machine())"},
+                          setup.options.dry_run)}};
+    }
+  }
+  return acceptance;
+}
+
+void write_setup_acceptance(const ResolvedSetup& setup, const json& acceptance) {
+  if (setup.options.dry_run) return;
+  const auto path = setup.options.root / "mica-server/setup-acceptance.json";
+  std::filesystem::create_directories(path.parent_path());
+  std::ofstream file(path, std::ios::trunc);
+  if (!file) {
+    throw std::runtime_error("cannot write setup acceptance evidence: " + path.string());
+  }
+  file << std::setw(2) << acceptance << '\n';
+  if (!file) {
+    throw std::runtime_error("failed writing setup acceptance evidence: " + path.string());
+  }
+}
+
 void write_runtime_state(const Registry& registry, const ResolvedSetup& setup) {
   if (setup.options.dry_run) return;
   const auto state_dir = setup.options.root / "mica-server";
@@ -337,6 +423,8 @@ void write_runtime_state(const Registry& registry, const ResolvedSetup& setup) {
       {"vllm_device", to_string(setup.vllm_device)},
       {"api_key_file", key_path.string()},
       {"config_directory", setup.options.config_directory.string()},
+      {"setup_acceptance_file",
+       (setup.options.root / "mica-server/setup-acceptance.json").string()},
       {"downloads", downloads},
       {"hardware", {{"os", setup.hardware.os},
                     {"arch", setup.hardware.arch},
@@ -462,6 +550,8 @@ void execute_setup(const Registry& registry, const ResolvedSetup& setup) {
     else if (backend == Backend::gguf) install_native_gguf_runtimes(registry, setup);
     else install_vllm_environment(setup);
   }
+  const auto acceptance = validate_setup(setup);
+  write_setup_acceptance(setup, acceptance);
   write_runtime_state(registry, setup);
 }
 
