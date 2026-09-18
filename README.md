@@ -1,8 +1,16 @@
 <p align="center">
-  <img src="apps/mica-logo.svg" width="96" alt="Mica logo">
+  <img src="apps/mica-readme-header.svg" width="100%" alt="Mica Server — local models, one adaptive server">
 </p>
 
 # Mica Server
+
+<p align="center">
+  <strong>Run a useful team of local AI models without keeping every model in memory.</strong>
+</p>
+
+<p align="center">
+  C++20 · Lua 5.4 · MLX · GGUF · vLLM · OpenAI-compatible API
+</p>
 
 Mica is a small local model server: an OpenAI-compatible proxy and load
 balancer for multiple inference backends. Its purpose is to make a collection

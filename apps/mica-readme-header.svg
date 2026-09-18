@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-labelledby="title description">
+  <title id="title">Mica Server</title>
+  <desc id="description">Mica's overlapping diamond symbol beside a geometric Mica wordmark and the phrase Local models, one adaptive server.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#11111b"/>
+      <stop offset=".55" stop-color="#1e1e2e"/>
+      <stop offset="1" stop-color="#252238"/>
+    </linearGradient>
+    <linearGradient id="diamond" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#89b4fa"/>
+      <stop offset=".48" stop-color="#b4befe"/>
+      <stop offset="1" stop-color="#cba6f7"/>
+    </linearGradient>
+    <linearGradient id="wordmark" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#cdd6f4"/>
+      <stop offset="1" stop-color="#b4befe"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop offset="0" stop-color="#cba6f7" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#cba6f7" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft-shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dy="7"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope=".3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="320" rx="34" fill="url(#background)"/>
+  <circle cx="170" cy="160" r="178" fill="url(#glow)"/>
+  <circle cx="1100" cy="35" r="145" fill="url(#glow)" opacity=".48"/>
+  <path d="M0 272C245 212 390 337 626 275s366-47 574 3v42H0Z" fill="#313244" opacity=".27"/>
+
+  <g opacity=".3" fill="#b4befe">
+    <circle cx="49" cy="57" r="2"/>
+    <circle cx="1075" cy="253" r="2"/>
+    <circle cx="1121" cy="224" r="1.5"/>
+    <circle cx="1019" cy="64" r="1.5"/>
+  </g>
+
+  <g filter="url(#soft-shadow)">
+    <path d="M184 40 276 132 184 224 92 132Z" fill="#b4befe" fill-opacity=".07" stroke="url(#diamond)" stroke-width="14" stroke-linejoin="round"/>
+    <path d="M184 96 276 188 184 280 92 188Z" fill="#cba6f7" fill-opacity=".06" stroke="url(#diamond)" stroke-width="14" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Geometric vector wordmark; it does not depend on a remote font. -->
+  <g fill="none" stroke="url(#wordmark)" stroke-width="16" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M356 203V91l47 67 47-67v112"/>
+    <path d="M506 91v112"/>
+    <path d="M652 112c-17-17-47-25-70-12-31 17-35 69-8 91 22 18 57 13 78-7"/>
+    <path d="m699 203 48-112 48 112M718 159h58"/>
+  </g>
+
+  <text x="356" y="254" fill="#a6adc8" font-family="Avenir Next, Inter, Segoe UI, sans-serif" font-size="19" font-weight="600" letter-spacing="4.8">LOCAL MODELS · ONE ADAPTIVE SERVER</text>
+
+  <g transform="translate(908 65)" font-family="Avenir Next, Inter, Segoe UI, sans-serif" font-size="15" font-weight="700" text-anchor="middle">
+    <g>
+      <rect width="74" height="32" rx="16" fill="#89b4fa" fill-opacity=".12" stroke="#89b4fa" stroke-opacity=".4"/>
+      <text x="37" y="21" fill="#89b4fa">MLX</text>
+    </g>
+    <g transform="translate(86)">
+      <rect width="82" height="32" rx="16" fill="#a6e3a1" fill-opacity=".12" stroke="#a6e3a1" stroke-opacity=".4"/>
+      <text x="41" y="21" fill="#a6e3a1">GGUF</text>
+    </g>
+    <g transform="translate(180)">
+      <rect width="86" height="32" rx="16" fill="#fab387" fill-opacity=".12" stroke="#fab387" stroke-opacity=".4"/>
+      <text x="43" y="21" fill="#fab387">vLLM</text>
+    </g>
+  </g>
+</svg>
