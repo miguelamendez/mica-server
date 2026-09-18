@@ -11,6 +11,10 @@ StartupPlan plan_startup(const Registry& registry, const Profile& profile,
                          Backend backend, Quantization quantization,
                          double max_ram_gib);
 
+StartupPlan plan_profile_startup(const Registry& registry, const Profile& profile,
+                                 Backend backend, Quantization quantization,
+                                 double max_ram_gib);
+
 std::vector<ResidentModel> rank_eviction_candidates(
     std::vector<ResidentModel> residents);
 

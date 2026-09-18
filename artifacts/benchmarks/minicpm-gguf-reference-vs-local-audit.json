@@ -2,7 +2,7 @@
   "schema_version": 1,
   "files": [
     {
-      "path": "/Users/miguel/models/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf",
+      "path": "$MICA_ROOT/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf",
       "size_bytes": 529101536,
       "tensor_count": 320,
       "type_counts": {
@@ -2813,7 +2813,7 @@
       }
     },
     {
-      "path": "/Users/miguel/models/comparisons/gguf-local/minicpm-v46-thinking/model-local-Q4_K_M.gguf",
+      "path": "$MICA_ROOT/comparisons/gguf-local/minicpm-v46-thinking/model-local-Q4_K_M.gguf",
       "size_bytes": 529101792,
       "tensor_count": 320,
       "type_counts": {
@@ -5624,7 +5624,7 @@
       }
     },
     {
-      "path": "/Users/miguel/models/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q8_0.gguf",
+      "path": "$MICA_ROOT/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q8_0.gguf",
       "size_bytes": 811591648,
       "tensor_count": 320,
       "type_counts": {
@@ -8431,7 +8431,7 @@
       }
     },
     {
-      "path": "/Users/miguel/models/comparisons/gguf-local/minicpm-v46-thinking/model-local-Q8_0.gguf",
+      "path": "$MICA_ROOT/comparisons/gguf-local/minicpm-v46-thinking/model-local-Q8_0.gguf",
       "size_bytes": 811591904,
       "tensor_count": 320,
       "type_counts": {
@@ -11240,8 +11240,8 @@
   ],
   "comparisons": [
     {
-      "left": "/Users/miguel/models/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf",
-      "right": "/Users/miguel/models/comparisons/gguf-local/minicpm-v46-thinking/model-local-Q4_K_M.gguf",
+      "left": "$MICA_ROOT/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf",
+      "right": "$MICA_ROOT/comparisons/gguf-local/minicpm-v46-thinking/model-local-Q4_K_M.gguf",
       "same_tensor_names": true,
       "same_shapes": true,
       "same_precision_map": true,
@@ -11251,8 +11251,8 @@
       "type_differences": []
     },
     {
-      "left": "/Users/miguel/models/comparisons/gguf-local/minicpm-v46-thinking/model-local-Q4_K_M.gguf",
-      "right": "/Users/miguel/models/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q8_0.gguf",
+      "left": "$MICA_ROOT/comparisons/gguf-local/minicpm-v46-thinking/model-local-Q4_K_M.gguf",
+      "right": "$MICA_ROOT/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q8_0.gguf",
       "same_tensor_names": true,
       "same_shapes": true,
       "same_precision_map": false,
@@ -12198,8 +12198,8 @@
       ]
     },
     {
-      "left": "/Users/miguel/models/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q8_0.gguf",
-      "right": "/Users/miguel/models/comparisons/gguf-local/minicpm-v46-thinking/model-local-Q8_0.gguf",
+      "left": "$MICA_ROOT/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q8_0.gguf",
+      "right": "$MICA_ROOT/comparisons/gguf-local/minicpm-v46-thinking/model-local-Q8_0.gguf",
       "same_tensor_names": true,
       "same_shapes": true,
       "same_precision_map": true,

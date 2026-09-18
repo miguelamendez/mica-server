@@ -15,6 +15,8 @@ tags:
 mica:
   schema: 1
   model_id: granite-speech-5
+  mica_server_repo: https://github.com/miguelamendez/mica-server
+  curated_repo: https://huggingface.co/miguelamendez/mica-granite-speech-5
   source_repo: ibm-granite/granite-speech-5.0-470m-turboctc
   source_revision: 6c14d3d052a602d850f1bc4aa017f25f4adf6aa0
   parameters: 470000000
@@ -35,6 +37,12 @@ Mica runtime artifacts for
 pinned to revision `6c14d3d052a602d850f1bc4aa017f25f4adf6aa0`.
 The selected checkpoint is Apache-2.0; it is not the separate non-commercial
 `-nc` checkpoint.
+
+The runtime configuration, conversion policy, and validation evidence are
+maintained in the [Mica Server repository](https://github.com/miguelamendez/mica-server).
+Validated artifacts are staged for publication together in the
+[`miguelamendez/mica-granite-speech-5`](https://huggingface.co/miguelamendez/mica-granite-speech-5)
+repository; this card does not claim the remote upload has completed.
 
 ## Model facts and provenance
 

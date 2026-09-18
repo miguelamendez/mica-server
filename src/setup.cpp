@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
@@ -13,6 +14,9 @@
 #include <nlohmann/json.hpp>
 
 #include <sys/stat.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
 
 #ifdef __APPLE__
 #include <Security/Security.h>
@@ -52,7 +56,7 @@ void execute_or_print(const std::vector<std::string>& command, bool dry_run) {
   }
 }
 
-void install_mlx_environment(const ResolvedSetup& setup) {
+void install_mlx_environment(const Registry& registry, const ResolvedSetup& setup) {
   const auto environment = setup.options.root / "environment-mlx";
   const bool install_packages = setup.options.refresh ||
                                 !std::filesystem::exists(environment / "bin/python");
@@ -62,11 +66,22 @@ void install_mlx_environment(const ResolvedSetup& setup) {
     execute_or_print(command, setup.options.dry_run);
   }
   if (install_packages) {
-    execute_or_print(
-        {"uv", "pip", "install", "--python", (environment / "bin/python").string(),
-         "--upgrade", "mlx-audio[all,server]>=0.5.1", "mlx-vlm", "mlx-lm",
-         "huggingface_hub[hf_xet]", "torch"},
-        setup.options.dry_run);
+    std::vector<std::string> command = {
+        "uv", "pip", "install", "--python", (environment / "bin/python").string(),
+        "--upgrade", "huggingface_hub[hf_xet]"};
+    const auto& profile = registry.profile(setup.options.profile);
+    bool needs_lm = profile.schema < 2;
+    bool needs_vlm = profile.schema < 2;
+    bool needs_audio = profile.schema < 2;
+    for (const auto& policy : profile.model_policies) {
+      needs_lm = needs_lm || policy.engine == "mlx-lm";
+      needs_vlm = needs_vlm || policy.engine == "mlx-vlm";
+      needs_audio = needs_audio || policy.engine == "mlx-audio";
+    }
+    if (needs_lm) command.emplace_back("mlx-lm");
+    if (needs_vlm) command.emplace_back("mlx-vlm");
+    if (needs_audio) command.emplace_back("mlx-audio[all,server]>=0.5.1");
+    execute_or_print(command, setup.options.dry_run);
   }
 }
 
@@ -130,19 +145,7 @@ HardwareInfo resolve_hardware_profile(const SetupOptions& options) {
   if (!options.hardware_profile.empty()) {
     return load_hardware_profile(options.hardware_profile);
   }
-  const auto detector = options.config_directory.parent_path() /
-                        "scripts/detect_hardware.py";
-  if (!std::filesystem::exists(detector)) return detect_hardware();
-  const auto result = run_command({"python3", detector.string()}, true);
-  if (result.exit_code != 0) {
-    throw std::runtime_error("hardware detector failed: " + result.output);
-  }
-  try {
-    return hardware_from_json(json::parse(result.output));
-  } catch (const std::exception& error) {
-    throw std::runtime_error("hardware detector produced an invalid profile: " +
-                             std::string(error.what()));
-  }
+  return detect_hardware();
 }
 
 void install_native_gguf_runtimes(const Registry& registry, const ResolvedSetup& setup) {
@@ -162,62 +165,95 @@ void install_native_gguf_runtimes(const Registry& registry, const ResolvedSetup&
   const auto llama_build = llama_source / "build-mica";
   const auto audio_source = runtime / "audio.cpp";
   const auto audio_build = audio_source / "build-mica";
+  const auto& profile = registry.profile(setup.options.profile);
+  bool needs_llama = profile.schema < 2;
+  bool needs_audio = profile.schema < 2;
+  std::vector<std::string> audio_families;
+  for (const auto& policy : profile.model_policies) {
+    needs_llama = needs_llama || policy.engine == "llama-cpp";
+    if (policy.engine == "audio-cpp") {
+      needs_audio = true;
+      const auto& family = registry.model(policy.id).gguf_family;
+      if (!family.empty()) audio_families.push_back(family);
+    }
+  }
+  if (profile.schema < 2) audio_families = {"granite5asr", "audio8_tts"};
+  std::vector<std::string> unique_audio_families;
+  for (const auto& family : audio_families) {
+    if (std::find(unique_audio_families.begin(), unique_audio_families.end(), family) ==
+        unique_audio_families.end()) {
+      unique_audio_families.push_back(family);
+    }
+  }
+  audio_families = std::move(unique_audio_families);
+  std::ostringstream audio_model_list;
+  for (std::size_t i = 0; i < audio_families.size(); ++i) {
+    if (i != 0) audio_model_list << ',';
+    audio_model_list << audio_families[i];
+  }
+  const bool llama_ready = !needs_llama ||
+      (std::filesystem::exists(llama_build / "bin/llama-server") &&
+       std::filesystem::exists(llama_build / "bin/llama-quantize"));
+  const bool audio_ready = !needs_audio ||
+      (std::filesystem::exists(audio_build / "bin/audiocpp_server") &&
+       std::filesystem::exists(audio_build / "bin/audiocpp_gguf"));
   if (!setup.options.refresh && !setup.options.dry_run &&
-      std::filesystem::exists(llama_build / "bin/llama-server") &&
-      std::filesystem::exists(llama_build / "bin/llama-quantize") &&
-      std::filesystem::exists(audio_build / "bin/audiocpp_server") &&
-      std::filesystem::exists(audio_build / "bin/audiocpp_gguf")) {
+      llama_ready && audio_ready) {
     std::cout << "Native GGUF runtimes already exist; use --refresh to rebuild.\n";
     return;
   }
-  update_source_tree(llama_source, "https://github.com/ggml-org/llama.cpp.git",
-                     registry.llama_cpp_revision, setup.options.refresh,
-                     setup.options.dry_run);
-  std::vector<std::string> configure = {
-      "cmake", "-S", llama_source.string(), "-B", llama_build.string(),
-      "-DCMAKE_BUILD_TYPE=Release", "-DGGML_NATIVE=ON"};
-  if (setup.hardware.gguf_target == "metal") configure.emplace_back("-DGGML_METAL=ON");
-  else if (setup.hardware.gguf_target == "cuda") configure.emplace_back("-DGGML_CUDA=ON");
-  else if (setup.hardware.gguf_target == "hip") configure.emplace_back("-DGGML_HIP=ON");
-  else if (setup.hardware.gguf_target == "sycl") configure.emplace_back("-DGGML_SYCL=ON");
-  else if (setup.hardware.gguf_target == "vulkan") {
-    configure.emplace_back("-DGGML_VULKAN=ON");
-  }
-  execute_or_print(configure, setup.options.dry_run);
-  execute_or_print({"cmake", "--build", llama_build.string(), "--config", "Release",
-                    "--target", "llama-server", "llama-quantize", "--parallel",
-                    std::to_string(build_parallelism)},
-                   setup.options.dry_run);
-
-  update_source_tree(audio_source, "https://github.com/0xShug0/audio.cpp.git",
-                     registry.audio_cpp_revision, setup.options.refresh,
-                     setup.options.dry_run);
-  std::vector<std::string> audio_configure = {
-      "cmake", "-S", audio_source.string(), "-B", audio_build.string(),
-      "-DCMAKE_BUILD_TYPE=Release", "-DAUDIOCPP_MODEL_SET=custom",
-      "-DAUDIOCPP_MODELS=granite5asr,audio8_tts"};
-  if (setup.hardware.audio_target == "metal") {
-    audio_configure.emplace_back("-DENGINE_ENABLE_METAL=ON");
-    // Homebrew keeps libomp keg-only on Apple Silicon. Passing its stable opt
-    // prefix lets CMake's FindOpenMP locate both the headers and runtime without
-    // requiring callers to mutate global CPPFLAGS/LDFLAGS.
-    const auto homebrew_libomp = std::filesystem::path("/opt/homebrew/opt/libomp");
-    if (std::filesystem::exists(homebrew_libomp)) {
-      audio_configure.emplace_back("-DOpenMP_ROOT=" + homebrew_libomp.string());
+  if (needs_llama) {
+    update_source_tree(llama_source, "https://github.com/ggml-org/llama.cpp.git",
+                       registry.llama_cpp_revision, setup.options.refresh,
+                       setup.options.dry_run);
+    std::vector<std::string> configure = {
+        "cmake", "-S", llama_source.string(), "-B", llama_build.string(),
+        "-DCMAKE_BUILD_TYPE=Release", "-DGGML_NATIVE=ON"};
+    if (setup.hardware.gguf_target == "metal") configure.emplace_back("-DGGML_METAL=ON");
+    else if (setup.hardware.gguf_target == "cuda") configure.emplace_back("-DGGML_CUDA=ON");
+    else if (setup.hardware.gguf_target == "hip") configure.emplace_back("-DGGML_HIP=ON");
+    else if (setup.hardware.gguf_target == "sycl") configure.emplace_back("-DGGML_SYCL=ON");
+    else if (setup.hardware.gguf_target == "vulkan") {
+      configure.emplace_back("-DGGML_VULKAN=ON");
     }
+    execute_or_print(configure, setup.options.dry_run);
+    execute_or_print({"cmake", "--build", llama_build.string(), "--config", "Release",
+                      "--target", "llama-server", "llama-quantize", "--parallel",
+                      std::to_string(build_parallelism)},
+                     setup.options.dry_run);
   }
-  if (setup.hardware.audio_target == "cuda") {
-    audio_configure.emplace_back("-DENGINE_ENABLE_CUDA=ON");
-  } else if (setup.hardware.audio_target == "hip") {
-    audio_configure.emplace_back("-DENGINE_ENABLE_HIP=ON");
-  } else if (setup.hardware.audio_target == "vulkan") {
-    audio_configure.emplace_back("-DENGINE_ENABLE_VULKAN=ON");
+
+  if (needs_audio) {
+    update_source_tree(audio_source, "https://github.com/0xShug0/audio.cpp.git",
+                       registry.audio_cpp_revision, setup.options.refresh,
+                       setup.options.dry_run);
+    std::vector<std::string> audio_configure = {
+        "cmake", "-S", audio_source.string(), "-B", audio_build.string(),
+        "-DCMAKE_BUILD_TYPE=Release", "-DAUDIOCPP_MODEL_SET=custom",
+        "-DAUDIOCPP_MODELS=" + audio_model_list.str()};
+    if (setup.hardware.audio_target == "metal") {
+      audio_configure.emplace_back("-DENGINE_ENABLE_METAL=ON");
+      // Homebrew keeps libomp keg-only on Apple Silicon. Passing its stable opt
+      // prefix lets CMake's FindOpenMP locate both the headers and runtime without
+      // requiring callers to mutate global CPPFLAGS/LDFLAGS.
+      const auto homebrew_libomp = std::filesystem::path("/opt/homebrew/opt/libomp");
+      if (std::filesystem::exists(homebrew_libomp)) {
+        audio_configure.emplace_back("-DOpenMP_ROOT=" + homebrew_libomp.string());
+      }
+    }
+    if (setup.hardware.audio_target == "cuda") {
+      audio_configure.emplace_back("-DENGINE_ENABLE_CUDA=ON");
+    } else if (setup.hardware.audio_target == "hip") {
+      audio_configure.emplace_back("-DENGINE_ENABLE_HIP=ON");
+    } else if (setup.hardware.audio_target == "vulkan") {
+      audio_configure.emplace_back("-DENGINE_ENABLE_VULKAN=ON");
+    }
+    execute_or_print(audio_configure, setup.options.dry_run);
+    execute_or_print({"cmake", "--build", audio_build.string(), "--config", "Release",
+                      "--target", "audiocpp_server", "audiocpp_gguf", "--parallel",
+                      std::to_string(build_parallelism)},
+                     setup.options.dry_run);
   }
-  execute_or_print(audio_configure, setup.options.dry_run);
-  execute_or_print({"cmake", "--build", audio_build.string(), "--config", "Release",
-                    "--target", "audiocpp_server", "audiocpp_gguf", "--parallel",
-                    std::to_string(build_parallelism)},
-                   setup.options.dry_run);
 }
 
 void install_vllm_metal(const ResolvedSetup& setup,
@@ -383,7 +419,24 @@ json validate_command(const std::string& name, const std::vector<std::string>& c
           {"output", trim(result.output)}};
 }
 
-json validate_setup(const ResolvedSetup& setup) {
+json validate_loopback_bind(bool dry_run) {
+  std::cout << (dry_run ? "[plan] validate " : "[test] validate ")
+            << "native loopback bind\n";
+  if (dry_run) return {{"status", "planned"}, {"implementation", "native-cpp"}};
+  const int descriptor = socket(AF_INET, SOCK_STREAM, 0);
+  if (descriptor < 0) throw std::runtime_error("setup acceptance cannot create a socket");
+  sockaddr_in address{};
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  address.sin_port = 0;
+  const bool bound = bind(descriptor, reinterpret_cast<sockaddr*>(&address),
+                          sizeof(address)) == 0;
+  close(descriptor);
+  if (!bound) throw std::runtime_error("setup acceptance cannot bind to loopback");
+  return {{"status", "passed"}, {"implementation", "native-cpp"}};
+}
+
+json validate_setup(const Registry& registry, const ResolvedSetup& setup) {
   json acceptance = {
       {"hardware",
        {{"os", setup.hardware.os},
@@ -394,13 +447,7 @@ json validate_setup(const ResolvedSetup& setup) {
         {"nvidia_vram_gib", setup.hardware.nvidia_vram_gib}}},
       {"backends", json::object()},
   };
-  const auto tools_python = (setup.options.root / "environment-tools/bin/python").string();
-  acceptance["loopback"] = validate_command(
-      "loopback bind",
-      {tools_python, "-c",
-       "import socket; s=socket.socket(); s.bind(('127.0.0.1', 0)); "
-       "print(s.getsockname()[1]); s.close()"},
-      setup.options.dry_run);
+  acceptance["loopback"] = validate_loopback_bind(setup.options.dry_run);
   for (const auto backend : setup.backends) {
     if (backend == Backend::mlx) {
       const auto python = (setup.options.root / "environment-mlx/bin/python").string();
@@ -412,16 +459,27 @@ json validate_setup(const ResolvedSetup& setup) {
           setup.options.dry_run);
     } else if (backend == Backend::gguf) {
       json gguf;
-      gguf["llama_cpp"] = validate_command(
-          "llama.cpp runtime",
-          {(setup.options.root / "runtime/llama.cpp/build-mica/bin/llama-server").string(),
-           "--version"},
-          setup.options.dry_run);
-      gguf["audio_cpp"] = validate_command(
-          "audio.cpp runtime",
-          {(setup.options.root / "runtime/audio.cpp/build-mica/bin/audiocpp_server").string(),
-           "--help"},
-          setup.options.dry_run);
+      const auto& profile = registry.profile(setup.options.profile);
+      bool needs_llama = profile.schema < 2;
+      bool needs_audio = profile.schema < 2;
+      for (const auto& policy : profile.model_policies) {
+        needs_llama = needs_llama || policy.engine == "llama-cpp";
+        needs_audio = needs_audio || policy.engine == "audio-cpp";
+      }
+      if (needs_llama) {
+        gguf["llama_cpp"] = validate_command(
+            "llama.cpp runtime",
+            {(setup.options.root / "runtime/llama.cpp/build-mica/bin/llama-server").string(),
+             "--version"},
+            setup.options.dry_run);
+      }
+      if (needs_audio) {
+        gguf["audio_cpp"] = validate_command(
+            "audio.cpp runtime",
+            {(setup.options.root / "runtime/audio.cpp/build-mica/bin/audiocpp_server").string(),
+             "--help"},
+            setup.options.dry_run);
+      }
       acceptance["backends"]["gguf"] = std::move(gguf);
     } else {
       const auto python = (setup.options.root / "environment-vllm/bin/python").string();
@@ -457,7 +515,28 @@ void write_runtime_state(const Registry& registry, const ResolvedSetup& setup) {
   const auto state_dir = setup.options.root / "mica-server";
   std::filesystem::create_directories(state_dir);
   const auto key_path = state_dir / "api-key";
-  if (!std::filesystem::exists(key_path)) {
+  if (!setup.options.api_key_file.empty()) {
+    std::ifstream source(setup.options.api_key_file);
+    if (!source) {
+      throw std::runtime_error("cannot read --api-key-file: " +
+                               setup.options.api_key_file.string());
+    }
+    std::ostringstream contents;
+    contents << source.rdbuf();
+    const auto key = trim(contents.str());
+    const bool invalid_character = std::any_of(
+        key.begin(), key.end(), [](unsigned char value) { return std::iscntrl(value); });
+    if (key.size() < 16 || key.size() > 512 || invalid_character) {
+      throw std::runtime_error("API token must contain 16 to 512 printable characters");
+    }
+    std::ofstream key_file(key_path, std::ios::trunc);
+    if (!key_file) throw std::runtime_error("cannot write configured API-token file");
+    key_file << key << '\n';
+    key_file.close();
+    chmod(key_path.c_str(), S_IRUSR | S_IWUSR);
+    std::cout << "Imported the local API token into " << key_path
+              << " (the token itself is not printed).\n";
+  } else if (!std::filesystem::exists(key_path)) {
     std::ofstream key_file(key_path, std::ios::trunc);
     key_file << generate_api_key() << '\n';
     key_file.close();
@@ -485,23 +564,50 @@ void write_runtime_state(const Registry& registry, const ResolvedSetup& setup) {
     selected_quantizations.push_back(to_string(quantization));
   }
   json configured_models = json::object();
-  for (const auto& id : registry.profile(setup.options.profile).models) {
-    json variants = json::object();
-    for (const auto backend : setup.backends) {
-      json quants = json::array();
-      for (const auto quantization : setup.options.quantizations) {
-        quants.push_back(to_string(quantization));
-      }
-      variants[to_string(backend)] = quants;
+  const auto& profile = registry.profile(setup.options.profile);
+  if (profile.schema >= 2) {
+    for (const auto& policy : profile.model_policies) {
+      configured_models[policy.id] = {
+          {"enabled", true},
+          {"variants", {{to_string(policy.backend),
+                          json::array({to_string(policy.quantization)})}}},
+          {"engine", policy.engine},
+          {"execution", policy.execution},
+          {"residency", to_string(policy.residency)},
+          {"priority", policy.priority},
+          {"startup", policy.startup},
+          {"idle_seconds", policy.idle_seconds},
+          {"max_input_tokens", policy.max_input_tokens},
+          {"max_output_tokens", policy.max_output_tokens},
+          {"max_total_tokens", policy.max_total_tokens},
+          {"max_concurrent_requests", policy.max_concurrent_requests},
+          {"kv_cache_precision", policy.kv_cache_precision}};
     }
-    configured_models[id] = {{"enabled", true}, {"variants", variants}};
+  } else {
+    for (const auto& id : profile.models) {
+      json variants = json::object();
+      for (const auto backend : setup.backends) {
+        json quants = json::array();
+        for (const auto quantization : setup.options.quantizations) {
+          quants.push_back(to_string(quantization));
+        }
+        variants[to_string(backend)] = quants;
+      }
+      configured_models[id] = {{"enabled", true}, {"variants", variants}};
+    }
   }
   json state = {
-      {"schema", 3},
+      {"schema", 5},
       {"installed_backends", installed_backends},
       {"quantizations", selected_quantizations},
       {"default_quantization", to_string(setup.options.quantizations.front())},
       {"profile", setup.options.profile},
+      {"profile_schema", profile.schema},
+      {"profile_mode", profile.mode},
+      {"profile_maximum_ram_gib", profile.maximum_ram_gib},
+      {"profile_maximum_vram_gib", profile.maximum_vram_gib},
+      {"profile_memory_safety_reserve_gib", profile.memory_safety_reserve_gib},
+      {"profile_maximum_resident_workers", profile.maximum_resident_workers},
       {"configured_models", configured_models},
       {"download_policy", "first_server_start"},
       {"hf_repo", setup.options.hf_repo},
@@ -532,10 +638,42 @@ void write_runtime_state(const Registry& registry, const ResolvedSetup& setup) {
 ResolvedSetup resolve_setup(const Registry& registry, SetupOptions options) {
   ResolvedSetup resolved;
   resolved.hardware = resolve_hardware_profile(options);
-  if (options.backends.empty()) options.backends.push_back(resolved.hardware.recommended_backend());
+  if (options.profile == "auto") {
+    options.profile = resolved.hardware.supports_mlx()
+                          ? "mica-assistant-mlx"
+                          : "mica-assistant-gguf";
+  }
+  const auto& profile = registry.profile(options.profile);
+  if (profile.schema >= 2) {
+    if (options.quantizations_explicit) {
+      throw std::runtime_error(
+          "schema-2 profiles select quantization per model; omit --quant");
+    }
+    options.quantizations.clear();
+    for (const auto& policy : profile.model_policies) {
+      options.quantizations.push_back(policy.quantization);
+    }
+    if (options.backends.empty()) {
+      for (const auto& policy : profile.model_policies) {
+        options.backends.push_back(policy.backend);
+      }
+    }
+  } else if (options.backends.empty()) {
+    options.backends.push_back(resolved.hardware.recommended_backend());
+  }
   std::sort(options.backends.begin(), options.backends.end());
   options.backends.erase(std::unique(options.backends.begin(), options.backends.end()),
                          options.backends.end());
+  if (profile.schema >= 2 && options.backends_explicit) {
+    std::vector<Backend> required;
+    for (const auto& policy : profile.model_policies) required.push_back(policy.backend);
+    std::sort(required.begin(), required.end());
+    required.erase(std::unique(required.begin(), required.end()), required.end());
+    if (required != options.backends) {
+      throw std::runtime_error(
+          "schema-2 profile backends are fixed by its model execution policies");
+    }
+  }
   for (const auto backend : options.backends) {
     if (backend == Backend::mlx && !resolved.hardware.supports_mlx()) {
       throw std::runtime_error("MLX is supported only on Apple Silicon macOS");
@@ -583,6 +721,12 @@ ResolvedSetup resolve_setup(const Registry& registry, SetupOptions options) {
       (resolved.hardware.ram_gib > 0 && options.max_ram_gib > resolved.hardware.ram_gib)) {
     throw std::runtime_error("RAM budget must be positive and no larger than detected RAM");
   }
+  if (profile.maximum_ram_gib > 0) {
+    options.max_ram_gib = std::min(options.max_ram_gib, profile.maximum_ram_gib);
+  }
+  if (profile.maximum_vram_gib > 0 && options.max_vram_gib > 0) {
+    options.max_vram_gib = std::min(options.max_vram_gib, profile.maximum_vram_gib);
+  }
   if (options.max_vram_gib < 0) throw std::runtime_error("VRAM budget cannot be negative");
   if (options.quantizations.empty()) options.quantizations.push_back(Quantization::q4);
   std::sort(options.quantizations.begin(), options.quantizations.end());
@@ -604,7 +748,6 @@ ResolvedSetup resolve_setup(const Registry& registry, SetupOptions options) {
   if (options.hf_repo.empty()) options.hf_repo = registry.default_hf_repo;
   resolved.backends = options.backends;
   resolved.options = std::move(options);
-  const auto& profile = registry.profile(resolved.options.profile);
   if (profile.backend &&
       (resolved.backends.size() != 1 || resolved.backends.front() != *profile.backend)) {
     throw std::runtime_error("profile " + profile.name + " requires backend " +
@@ -620,9 +763,11 @@ ResolvedSetup resolve_setup(const Registry& registry, SetupOptions options) {
           resolved.options.max_vram_gib > 0) {
         admission_budget = std::min(admission_budget, resolved.options.max_vram_gib);
       }
+      admission_budget = std::max(
+          0.0, admission_budget - profile.memory_safety_reserve_gib);
       resolved.startups[backend][quantization] =
-          plan_startup(registry, profile, backend, quantization,
-                       admission_budget);
+          plan_profile_startup(registry, profile, backend, quantization,
+                               admission_budget);
     }
   }
   return resolved;
@@ -633,13 +778,13 @@ void execute_setup(const Registry& registry, const ResolvedSetup& setup) {
   // precisions are cached for on-demand use and may evict default workers, so
   // they must not make setup fail merely because their required pair cannot
   // coexist under the warm-residency budget.
-  const auto default_quantization = setup.options.quantizations.front();
   for (const auto& [backend, quantizations] : setup.startups) {
-    const auto startup = quantizations.find(default_quantization);
-    if (startup != quantizations.end() && startup->second.error) {
-      throw std::runtime_error(to_string(backend) + "/" +
-                               to_string(default_quantization) + ": " +
-                               *startup->second.error);
+    for (const auto& [quantization, startup] : quantizations) {
+      if (startup.error) {
+        throw std::runtime_error(to_string(backend) + "/" +
+                                 to_string(quantization) + ": " +
+                                 *startup.error);
+      }
     }
   }
   if (setup.options.hf_repo.empty() || setup.options.hf_repo.find("YOUR_") != std::string::npos) {
@@ -654,13 +799,16 @@ void execute_setup(const Registry& registry, const ResolvedSetup& setup) {
     std::cout << "[plan] write hardware profile "
               << setup.options.root / "mica-server/hardware-profile.json" << '\n';
   }
-  install_download_environment(setup);
+  const bool needs_python_tools = std::any_of(
+      setup.backends.begin(), setup.backends.end(),
+      [](const auto backend) { return backend != Backend::gguf; });
+  if (needs_python_tools) install_download_environment(setup);
   for (const auto backend : setup.backends) {
-    if (backend == Backend::mlx) install_mlx_environment(setup);
+    if (backend == Backend::mlx) install_mlx_environment(registry, setup);
     else if (backend == Backend::gguf) install_native_gguf_runtimes(registry, setup);
     else install_vllm_environment(setup);
   }
-  const auto acceptance = validate_setup(setup);
+  const auto acceptance = validate_setup(registry, setup);
   write_setup_acceptance(setup, acceptance);
   write_runtime_state(registry, setup);
 }

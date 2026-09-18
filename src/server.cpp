@@ -34,6 +34,7 @@
 
 #include "mica_server/scheduler.hpp"
 #include "mica_server/command.hpp"
+#include "mica_server/catalog.hpp"
 
 namespace mica {
 namespace {
@@ -527,11 +528,18 @@ void rewrite_json_path_prefix(json& value, const std::string& old_prefix,
 }
 
 struct RuntimeState {
+  int schema{0};
   std::vector<Backend> installed_backends;
   std::vector<Quantization> quantizations;
   Quantization default_quantization{Quantization::q4};
   std::map<std::string, std::vector<Quantization>> configured_quantizations;
+  std::map<std::string, json> configured_policies;
   std::string profile;
+  std::string profile_mode;
+  double profile_maximum_ram_gib{-1};
+  double profile_maximum_vram_gib{-1};
+  double profile_memory_safety_reserve_gib{-1};
+  int profile_maximum_resident_workers{-1};
   double max_ram_gib{8};
   double max_vram_gib{0};
   double largest_accelerator_memory_gib{0};
@@ -543,6 +551,7 @@ struct RuntimeState {
 
 struct Worker {
   const ModelDefinition* model{nullptr};
+  const ProfileModel* profile_policy{nullptr};
   Backend backend{Backend::gguf};
   Quantization quantization{Quantization::q4};
   Artifact artifact;
@@ -574,6 +583,7 @@ RuntimeState load_runtime_state(const std::filesystem::path& root) {
   if (!file) throw std::runtime_error("runtime is not configured; run mica-server setup");
   const auto state = json::parse(file);
   RuntimeState result;
+  result.schema = state.value("schema", 1);
   if (state.contains("installed_backends")) {
     for (const auto& item : state.at("installed_backends")) {
       result.installed_backends.push_back(parse_backend(item.get<std::string>()));
@@ -597,6 +607,7 @@ RuntimeState load_runtime_state(const std::filesystem::path& root) {
   if (state.contains("configured_models") && state["configured_models"].is_object()) {
     for (const auto& [id, model] : state["configured_models"].items()) {
       if (!model.value("enabled", true) || !model.contains("variants")) continue;
+      if (model.contains("engine")) result.configured_policies[id] = model;
       for (const auto& [backend, quantizations] : model["variants"].items()) {
         auto& selected = result.configured_quantizations[id + "@" + backend];
         for (const auto& quantization : quantizations) {
@@ -606,6 +617,13 @@ RuntimeState load_runtime_state(const std::filesystem::path& root) {
     }
   }
   result.profile = state.at("profile").get<std::string>();
+  result.profile_mode = state.value("profile_mode", std::string());
+  result.profile_maximum_ram_gib = state.value("profile_maximum_ram_gib", -1.0);
+  result.profile_maximum_vram_gib = state.value("profile_maximum_vram_gib", -1.0);
+  result.profile_memory_safety_reserve_gib =
+      state.value("profile_memory_safety_reserve_gib", -1.0);
+  result.profile_maximum_resident_workers =
+      state.value("profile_maximum_resident_workers", -1);
   result.max_ram_gib = state.at("max_ram_gib").get<double>();
   result.max_vram_gib = state.value("max_vram_gib", 0.0);
   if (state.contains("hardware") && state["hardware"].contains("accelerators")) {
@@ -626,6 +644,49 @@ RuntimeState load_runtime_state(const std::filesystem::path& root) {
   result.vllm_device = parse_vllm_device(state.value("vllm_device", "auto"));
   result.api_key_file = state.at("api_key_file").get<std::string>();
   return result;
+}
+
+void validate_runtime_profile(const RuntimeState& state, const Profile& profile) {
+  if (profile.schema < 2) return;
+  // Schema-4 state written by early schema-2 builds did not always retain the
+  // resolved policy snapshot. Preserve that migration path; schema 5 requires
+  // and verifies the complete snapshot.
+  if (state.schema < 5 && state.configured_policies.empty()) return;
+  auto stale = [&] {
+    throw std::runtime_error(
+        "the active profile changed after setup; rerun mica-server setup --profile " +
+        profile.name);
+  };
+  if (state.configured_policies.size() != profile.model_policies.size()) stale();
+  for (const auto& policy : profile.model_policies) {
+    const auto found = state.configured_policies.find(policy.id);
+    if (found == state.configured_policies.end()) stale();
+    const auto& saved = found->second;
+    if (saved.value("engine", "") != policy.engine ||
+        saved.value("execution", "") != policy.execution ||
+        saved.value("residency", "") != to_string(policy.residency) ||
+        saved.value("priority", -1) != policy.priority ||
+        saved.value("startup", !policy.startup) != policy.startup ||
+        saved.value("idle_seconds", -1) != policy.idle_seconds ||
+        saved.value("max_input_tokens", -1) != policy.max_input_tokens ||
+        saved.value("max_output_tokens", -1) != policy.max_output_tokens ||
+        saved.value("max_total_tokens", -1) != policy.max_total_tokens ||
+        saved.value("max_concurrent_requests", -1) !=
+            policy.max_concurrent_requests ||
+        saved.value("kv_cache_precision", "") != policy.kv_cache_precision) {
+      stale();
+    }
+  }
+  if (state.schema >= 5 &&
+      (state.profile_mode != profile.mode ||
+       state.profile_maximum_ram_gib != profile.maximum_ram_gib ||
+       state.profile_maximum_vram_gib != profile.maximum_vram_gib ||
+       state.profile_memory_safety_reserve_gib !=
+           profile.memory_safety_reserve_gib ||
+       state.profile_maximum_resident_workers !=
+           profile.maximum_resident_workers)) {
+    stale();
+  }
 }
 
 int allocate_port() {
@@ -697,6 +758,14 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
                                         const Profile& profile,
                                         const std::filesystem::path& root) {
   const auto port = std::to_string(worker.port);
+  const auto* model_policy = profile.policy_for(worker.model->id);
+  const int max_total_tokens = model_policy ? model_policy->max_total_tokens
+                                            : profile.max_total_tokens;
+  const int max_concurrent_requests = model_policy
+                                          ? model_policy->max_concurrent_requests
+                                          : profile.max_concurrent_requests;
+  const auto& kv_cache_precision = model_policy ? model_policy->kv_cache_precision
+                                                 : profile.kv_cache_precision;
   if (worker.backend == Backend::mlx) {
     const auto python = (root / "environment-mlx/bin/python").string();
     if (worker.model->capability == "text") {
@@ -724,17 +793,17 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
       value << std::fixed << std::setprecision(3) << *utilization;
       command.insert(command.end(), {"--gpu-memory-utilization", value.str()});
     }
-    command.insert(command.end(), {"--max-model-len", std::to_string(profile.max_total_tokens),
+    command.insert(command.end(), {"--max-model-len", std::to_string(max_total_tokens),
                                    "--max-num-seqs",
-                                   std::to_string(profile.max_concurrent_requests),
+                                   std::to_string(max_concurrent_requests),
                                    "--max-num-batched-tokens",
-                                   std::to_string(profile.max_total_tokens *
-                                                  profile.max_concurrent_requests)});
+                                   std::to_string(max_total_tokens *
+                                                  max_concurrent_requests)});
     return command;
   }
   if (worker.model->capability == "text" || worker.model->capability == "vision") {
-    const auto parallel = profile.max_concurrent_requests;
-    const auto total_context = profile.max_total_tokens * parallel;
+    const auto parallel = max_concurrent_requests;
+    const auto total_context = max_total_tokens * parallel;
     std::vector<std::string> command = {
         (root / "runtime/llama.cpp/build-mica/bin/llama-server").string(),
         "-m", worker.artifact_path.string(), "--host", "127.0.0.1", "--port", port,
@@ -747,8 +816,8 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
     }
     command.insert(command.end(), {"--n-gpu-layers",
                                    state.gguf_target == "cpu" ? "0" : "99"});
-    if (profile.kv_cache_precision == "q4" || profile.kv_cache_precision == "q8") {
-      const auto cache_type = profile.kv_cache_precision == "q4" ? "q4_0" : "q8_0";
+    if (kv_cache_precision == "q4" || kv_cache_precision == "q8") {
+      const auto cache_type = kv_cache_precision == "q4" ? "q4_0" : "q8_0";
       command.insert(command.end(), {"--cache-type-k", cache_type,
                                      "--cache-type-v", cache_type});
     }
@@ -789,6 +858,49 @@ class WorkerManager {
   void prewarm() {
     try {
       const auto& profile = registry_.profile(state_.profile);
+      if (profile.schema >= 2) {
+        for (const auto& policy : profile.model_policies) {
+          const auto& model = registry_.model(policy.id);
+          const auto artifact = model.artifacts.at(policy.backend).at(policy.quantization);
+          Worker candidate;
+          candidate.model = &model;
+          candidate.profile_policy = &policy;
+          candidate.backend = policy.backend;
+          candidate.quantization = policy.quantization;
+          candidate.artifact = artifact;
+          candidate.artifact_path = root_ / "checkpoints" /
+                                    to_string(policy.backend) / model.id /
+                                    artifact.pattern;
+          ensure_artifact(candidate);
+        }
+        std::vector<const ProfileModel*> ordered;
+        for (const auto& policy : profile.model_policies) ordered.push_back(&policy);
+        std::stable_sort(ordered.begin(), ordered.end(), [](const auto* left,
+                                                            const auto* right) {
+          if (left->startup != right->startup) return left->startup > right->startup;
+          if (left->priority != right->priority) return left->priority > right->priority;
+          return left->id < right->id;
+        });
+        for (const auto* policy : ordered) {
+          if (!policy->startup) continue;
+          const auto& model = registry_.model(policy->id);
+          const auto& artifact = model.artifacts.at(policy->backend).at(policy->quantization);
+          const bool worker_limit_reached = profile.maximum_resident_workers > 0 &&
+              workers_.size() >= static_cast<std::size_t>(profile.maximum_resident_workers);
+          if (worker_limit_reached ||
+              reserved_gib_ + artifact.reservation_gib > residency_limit() + 1e-9) {
+            if (policy->residency == Residency::pinned) {
+              throw std::runtime_error(policy->id +
+                                       ": pinned startup model exceeds residency limits");
+            }
+            continue;
+          }
+          auto lease = acquire(policy->id, policy->backend, policy->quantization);
+          release(lease);
+        }
+        ready_.store(true);
+        return;
+      }
       // Setup may install both stacks, but one server activates one backend. Completion
       // markers make subsequent launches reuse that backend's configured artifacts.
       for (const auto backend : active_backends_) {
@@ -883,11 +995,17 @@ class WorkerManager {
     if (std::find(profile.models.begin(), profile.models.end(), id) == profile.models.end()) {
       throw std::runtime_error("model is not in active profile: " + id);
     }
+    const auto* profile_policy = profile.policy_for(id);
+    if (profile_policy && (profile_policy->backend != backend ||
+                           profile_policy->quantization != quantization)) {
+      throw std::runtime_error("model variant is not selected by the active profile: " + id);
+    }
     const auto artifact = model.artifacts.at(backend).at(quantization);
     if (!artifact.supported) throw std::runtime_error(artifact.reason);
     make_room(artifact.reservation_gib);
     auto worker = std::make_shared<Worker>();
     worker->model = &model;
+    worker->profile_policy = profile_policy;
     worker->backend = backend;
     worker->quantization = quantization;
     worker->artifact = artifact;
@@ -924,6 +1042,14 @@ class WorkerManager {
     std::lock_guard lock(mutex_);
     if (worker->in_flight > 0) --worker->in_flight;
     worker->last_used_ns = monotonic_ns();
+    if (worker->in_flight == 0 && worker->profile_policy &&
+        worker->profile_policy->residency == Residency::ephemeral) {
+      const auto key = worker_key(worker->model->id, worker->backend,
+                                  worker->quantization);
+      reserved_gib_ -= worker->artifact.reservation_gib;
+      stop_worker(worker);
+      workers_.erase(key);
+    }
   }
 
   json models_json() const {
@@ -943,13 +1069,20 @@ class WorkerManager {
           const auto loaded = workers_.find(key);
           const auto unambiguous = selected_quantizations.size() == 1;
           const auto public_id = unambiguous ? id : key;
-          data.push_back({{"id", public_id}, {"object", "model"}, {"owned_by", "local"},
+          json item = {{"id", public_id}, {"object", "model"}, {"owned_by", "local"},
                           {"capability", definition.capability},
                           {"description", definition.description}, {"tags", definition.tags},
                           {"backend", to_string(backend)},
                           {"quantization", to_string(quantization)},
                           {"repository", definition.repositories.at(backend)},
-                          {"state", loaded == workers_.end() ? "stopped" : "ready"}});
+                          {"state", loaded == workers_.end() ? "stopped" : "ready"}};
+          if (const auto* policy = profile.policy_for(id)) {
+            item["engine"] = policy->engine;
+            item["residency"] = to_string(policy->residency);
+            item["priority"] = policy->priority;
+            item["startup"] = policy->startup;
+          }
+          data.push_back(std::move(item));
         }
       }
     }
@@ -970,14 +1103,38 @@ class WorkerManager {
     json active = json::array();
     for (const auto backend : active_backends_) active.push_back(to_string(backend));
     const auto& profile = registry_.profile(state_.profile);
+    json policies = json::array();
+    for (const auto& policy : profile.model_policies) {
+      policies.push_back({{"id", policy.id},
+                          {"execution", policy.execution},
+                          {"engine", policy.engine},
+                          {"backend", to_string(policy.backend)},
+                          {"quantization", to_string(policy.quantization)},
+                          {"residency", to_string(policy.residency)},
+                          {"priority", policy.priority},
+                          {"startup", policy.startup},
+                          {"idle_seconds", policy.idle_seconds},
+                          {"max_input_tokens", policy.max_input_tokens},
+                          {"max_output_tokens", policy.max_output_tokens},
+                          {"max_total_tokens", policy.max_total_tokens},
+                          {"max_concurrent_requests", policy.max_concurrent_requests},
+                          {"kv_cache_precision", policy.kv_cache_precision}});
+    }
     return {{"ready", ready()}, {"active_backends", active},
             {"profile", {{"name", profile.name},
+                         {"schema", profile.schema},
+                         {"mode", profile.mode},
                          {"backend", profile.backend ? to_string(*profile.backend) : "any"},
                          {"max_input_tokens", profile.max_input_tokens},
                          {"max_output_tokens", profile.max_output_tokens},
                          {"max_total_tokens", profile.max_total_tokens},
                          {"max_concurrent_requests", profile.max_concurrent_requests},
-                         {"kv_cache_precision", profile.kv_cache_precision}}},
+                         {"kv_cache_precision", profile.kv_cache_precision},
+                         {"maximum_ram_gib", profile.maximum_ram_gib},
+                         {"maximum_vram_gib", profile.maximum_vram_gib},
+                         {"memory_safety_reserve_gib", profile.memory_safety_reserve_gib},
+                         {"maximum_resident_workers", profile.maximum_resident_workers},
+                         {"models", policies}}},
             {"reserved_ram_gib", reserved_gib_},
             {"max_ram_gib", state_.max_ram_gib},
             {"max_vram_gib", state_.max_vram_gib},
@@ -988,6 +1145,11 @@ class WorkerManager {
  private:
   std::vector<Quantization> quantizations_for(const std::string& id,
                                                Backend backend) const {
+    const auto& profile = registry_.profile(state_.profile);
+    if (const auto* policy = profile.policy_for(id)) {
+      if (policy->backend != backend) return {};
+      return {policy->quantization};
+    }
     const auto found = state_.configured_quantizations.find(id + "@" + to_string(backend));
     if (found != state_.configured_quantizations.end()) return found->second;
     return state_.quantizations;
@@ -1015,6 +1177,42 @@ class WorkerManager {
     const auto remote_projector = worker.artifact.projector_repository_pattern.empty()
                                       ? worker.artifact.projector_pattern
                                       : worker.artifact.projector_repository_pattern;
+    const auto revision_it = worker.model->repository_revisions.find(worker.backend);
+    const auto revision = revision_it == worker.model->repository_revisions.end()
+                              ? std::string("main")
+                              : revision_it->second;
+    if (worker.backend == Backend::gguf) {
+      const auto download_file = [&](const std::string& remote,
+                                     const std::filesystem::path& destination) {
+        if (remote.empty()) return;
+        std::filesystem::create_directories(destination.parent_path());
+        const auto temporary = destination.string() + ".part";
+        const auto url = "https://huggingface.co/" + repository_it->second +
+                         "/resolve/" + revision + "/" + remote + "?download=true";
+        const auto result = run_command(
+            {"curl", "--location", "--fail", "--silent", "--show-error",
+             "--retry", "3", "--output", temporary, url},
+            true);
+        if (result.exit_code != 0) {
+          std::filesystem::remove(temporary);
+          throw std::runtime_error("native Hugging Face download failed for " +
+                                   worker.model->id + ": " + result.output);
+        }
+        std::filesystem::rename(temporary, destination);
+      };
+      download_file(remote_pattern, worker.artifact_path);
+      if (!remote_projector.empty()) {
+        const auto local_projector = base / worker.artifact.projector_pattern;
+        if (!std::filesystem::exists(local_projector)) {
+          download_file(remote_projector, local_projector);
+        }
+      }
+      std::ofstream marker_file(marker, std::ios::trunc);
+      marker_file << repository_it->second << '\n';
+      marker_file.close();
+      record_download(worker, repository_it->second);
+      return;
+    }
     const bool remap = remote_pattern != worker.artifact.pattern ||
                        remote_projector != worker.artifact.projector_pattern;
     const auto download_root = remap
@@ -1023,7 +1221,8 @@ class WorkerManager {
                                    : base;
     if (remap) std::filesystem::remove_all(download_root);
     std::vector<std::string> command = {
-        (root_ / "environment-tools/bin/hf").string(), "download", repository_it->second};
+        (root_ / "environment-tools/bin/hf").string(), "download", repository_it->second,
+        "--revision", revision};
     if (worker.backend == Backend::vllm) {
       command.insert(command.end(), {"--local-dir", worker.artifact_path.string()});
     } else if (std::filesystem::path(remote_pattern).extension().empty()) {
@@ -1075,7 +1274,11 @@ class WorkerManager {
     state["downloads"][key] = {
         {"model", worker.model->id}, {"backend", to_string(worker.backend)},
         {"quantization", to_string(worker.quantization)}, {"repository", repository},
-        {"artifact", worker.artifact.pattern}, {"local_path", worker.artifact_path.string()},
+        {"artifact", worker.artifact.pattern},
+        {"revision", worker.model->repository_revisions.contains(worker.backend)
+                         ? worker.model->repository_revisions.at(worker.backend)
+                         : "main"},
+        {"local_path", worker.artifact_path.string()},
         {"downloaded", true}, {"smoke_validated", false}};
     const auto temporary = path.string() + ".tmp";
     std::ofstream output(temporary, std::ios::trunc);
@@ -1238,45 +1441,104 @@ class WorkerManager {
   }
 
   void make_room(double requested) {
-    if (reserved_gib_ + requested <= residency_limit() + 1e-9) return;
-    std::vector<ResidentModel> candidates;
+    const auto& profile = registry_.profile(state_.profile);
+    const auto has_capacity = [&] {
+      const bool memory_ok = reserved_gib_ + requested <= residency_limit() + 1e-9;
+      const bool workers_ok = profile.maximum_resident_workers <= 0 ||
+          workers_.size() < static_cast<std::size_t>(profile.maximum_resident_workers);
+      return memory_ok && workers_ok;
+    };
+    if (has_capacity()) return;
+    std::vector<std::shared_ptr<Worker>> candidates;
     const auto now = monotonic_ns();
-    for (const auto& [id, worker] : workers_) {
-      candidates.push_back({id, worker->artifact.reservation_gib, worker->last_used_ns,
-                            now > worker->last_used_ns +
-                                      static_cast<std::uint64_t>(registry_.policy.idle_ttl_seconds) *
-                                          1000000000ULL,
-                            worker->in_flight});
+    for (const auto& [_, worker] : workers_) {
+      if (worker->in_flight != 0) continue;
+      if (worker->profile_policy &&
+          worker->profile_policy->residency == Residency::pinned) continue;
+      candidates.push_back(worker);
     }
-    for (const auto& candidate : rank_eviction_candidates(std::move(candidates))) {
-      auto found = workers_.find(candidate.id);
+    const auto expired = [now, this](const auto& worker) {
+      const int idle = worker->profile_policy
+                           ? worker->profile_policy->idle_seconds
+                           : registry_.policy.idle_ttl_seconds;
+      return idle == 0 || now > worker->last_used_ns +
+          static_cast<std::uint64_t>(idle) * 1000000000ULL;
+    };
+    const auto residency_rank = [](const auto& worker) {
+      if (!worker->profile_policy) return 2;
+      switch (worker->profile_policy->residency) {
+        case Residency::ephemeral: return 0;
+        case Residency::on_demand: return 1;
+        case Residency::warm: return 2;
+        case Residency::pinned: return 3;
+      }
+      return 3;
+    };
+    std::sort(candidates.begin(), candidates.end(), [&](const auto& left,
+                                                        const auto& right) {
+      if (expired(left) != expired(right)) return expired(left) > expired(right);
+      if (residency_rank(left) != residency_rank(right)) {
+        return residency_rank(left) < residency_rank(right);
+      }
+      const int left_priority = left->profile_policy ? left->profile_policy->priority : 0;
+      const int right_priority = right->profile_policy ? right->profile_policy->priority : 0;
+      if (left_priority != right_priority) return left_priority < right_priority;
+      if (left->last_used_ns != right->last_used_ns) {
+        return left->last_used_ns < right->last_used_ns;
+      }
+      if (left->artifact.reservation_gib != right->artifact.reservation_gib) {
+        return left->artifact.reservation_gib > right->artifact.reservation_gib;
+      }
+      return left->model->id < right->model->id;
+    });
+    for (const auto& candidate : candidates) {
+      const auto key = worker_key(candidate->model->id, candidate->backend,
+                                  candidate->quantization);
+      auto found = workers_.find(key);
       if (found == workers_.end()) continue;
       reserved_gib_ -= found->second->artifact.reservation_gib;
       stop_worker(found->second);
       workers_.erase(found);
-      if (reserved_gib_ + requested <= residency_limit() + 1e-9) return;
+      if (has_capacity()) return;
     }
     throw std::runtime_error("model_memory_budget_exceeded");
   }
 
   double residency_limit() const {
+    const auto& profile = registry_.profile(state_.profile);
+    double ram_limit = state_.max_ram_gib;
+    if (profile.maximum_ram_gib > 0) {
+      ram_limit = std::min(ram_limit, profile.maximum_ram_gib);
+    }
+    ram_limit = std::max(0.0, ram_limit - profile.memory_safety_reserve_gib);
     if (active_backends_.size() == 1 && active_backends_.front() == Backend::vllm &&
         state_.vllm_device != VllmDevice::cpu &&
         state_.vllm_device != VllmDevice::metal &&
         state_.vllm_device != VllmDevice::tpu && state_.max_vram_gib > 0) {
-      return std::min(state_.max_ram_gib, state_.max_vram_gib);
+      double vram_limit = state_.max_vram_gib;
+      if (profile.maximum_vram_gib > 0) {
+        vram_limit = std::min(vram_limit, profile.maximum_vram_gib);
+      }
+      return std::min(ram_limit, vram_limit);
     }
-    return state_.max_ram_gib;
+    return ram_limit;
   }
 
   void sweep_idle() {
     std::lock_guard lock(mutex_);
     const auto now = monotonic_ns();
     for (auto it = workers_.begin(); it != workers_.end();) {
-      const bool expired = it->second->in_flight == 0 &&
-                           now > it->second->last_used_ns +
-                                     static_cast<std::uint64_t>(registry_.policy.idle_ttl_seconds) *
-                                         1000000000ULL;
+      const auto& worker = it->second;
+      const bool pinned = worker->profile_policy &&
+                          worker->profile_policy->residency == Residency::pinned;
+      const int idle_seconds = worker->profile_policy
+                                   ? worker->profile_policy->idle_seconds
+                                   : registry_.policy.idle_ttl_seconds;
+      const bool expired = !pinned && worker->in_flight == 0 &&
+                           (idle_seconds == 0 ||
+                            now > worker->last_used_ns +
+                                      static_cast<std::uint64_t>(idle_seconds) *
+                                          1000000000ULL);
       if (!expired) {
         ++it;
         continue;
@@ -1379,6 +1641,15 @@ std::string worker_model_name(const Worker& worker) {
 std::string rewrite_json_model(const std::string& body, const Worker& worker,
                                const RuntimeState&) {
   auto parsed = json::parse(body);
+  if (worker.profile_policy) {
+    for (const auto* field : {"max_tokens", "max_completion_tokens"}) {
+      if (parsed.contains(field) && parsed[field].is_number_integer() &&
+          parsed[field].get<int>() > worker.profile_policy->max_output_tokens) {
+        throw std::invalid_argument(std::string(field) +
+                                    " exceeds the active model profile limit");
+      }
+    }
+  }
   parsed["model"] = worker_model_name(worker);
   if (parsed.contains("messages") && parsed["messages"].is_array()) {
     for (auto& message : parsed["messages"]) {
@@ -1453,7 +1724,20 @@ ResolvedModelRequest resolve_model_request(
     return {model_id, backend, quantization};
   }
   if (active_backends.empty()) throw std::runtime_error("no active backend");
-  return {requested, active_backends.front(), default_for(requested, active_backends.front())};
+  std::vector<Backend> configured;
+  for (const auto backend : active_backends) {
+    const auto found = state.configured_quantizations.find(
+        requested + "@" + to_string(backend));
+    if (found != state.configured_quantizations.end() && !found->second.empty()) {
+      configured.push_back(backend);
+    }
+  }
+  if (configured.size() > 1) {
+    throw std::runtime_error(
+        "model is configured for multiple backends; use model@backend:quantization");
+  }
+  const auto backend = configured.empty() ? active_backends.front() : configured.front();
+  return {requested, backend, default_for(requested, backend)};
 }
 
 json vlm_tool_schema(const VlmToolDefinition& tool) {
@@ -1517,8 +1801,21 @@ json load_session(const std::filesystem::path& path, const std::string& id) {
 int run_server(const Registry& registry, const ServerOptions& options) {
   const auto state = load_runtime_state(options.root);
   const auto& selected_profile = registry.profile(state.profile);
+  validate_runtime_profile(state, selected_profile);
   std::vector<Backend> active_backends;
-  if (!options.active_backend) {
+  if (selected_profile.schema >= 2) {
+    for (const auto& policy : selected_profile.model_policies) {
+      active_backends.push_back(policy.backend);
+    }
+    std::sort(active_backends.begin(), active_backends.end());
+    active_backends.erase(std::unique(active_backends.begin(), active_backends.end()),
+                          active_backends.end());
+    if (options.active_backend &&
+        (active_backends.size() != 1 || active_backends.front() != *options.active_backend)) {
+      throw std::runtime_error(
+          "--backend cannot override a schema-2 profile's model execution policies");
+    }
+  } else if (!options.active_backend) {
     if (state.installed_backends.size() != 1) {
       throw std::runtime_error(
           "multiple backends are installed; start with --backend mlx, gguf, or vllm");
@@ -1538,11 +1835,25 @@ int run_server(const Registry& registry, const ServerOptions& options) {
     throw std::runtime_error("profile " + selected_profile.name + " requires backend " +
                              to_string(*selected_profile.backend));
   }
-  const auto api_key = read_trimmed(state.api_key_file);
+  const auto api_key_path = options.api_key_file.empty()
+                                ? state.api_key_file
+                                : options.api_key_file;
+  const auto api_key = read_trimmed(api_key_path);
+  if (api_key.size() < 16 || api_key.size() > 512 ||
+      std::any_of(api_key.begin(), api_key.end(),
+                  [](unsigned char value) { return std::iscntrl(value); })) {
+    throw std::runtime_error("API-token file must contain 16 to 512 printable characters");
+  }
   auto manager = std::make_shared<WorkerManager>(registry, state, options.root,
                                                  active_backends);
   manager->start_background();
   std::thread prewarm([manager] { manager->prewarm(); });
+  std::clog << "Mica profile " << selected_profile.name << " is activating ";
+  for (std::size_t index = 0; index < active_backends.size(); ++index) {
+    if (index != 0) std::clog << ',';
+    std::clog << to_string(active_backends[index]);
+  }
+  std::clog << " workers\n";
 
   httplib::Server server;
   server.Get("/health", [](const auto&, auto& response) {
@@ -1566,6 +1877,27 @@ int run_server(const Registry& registry, const ServerOptions& options) {
   server.Get("/v1/models", [manager, require_auth](const auto& request, auto& response) {
     if (!require_auth(request, response)) return;
     response.set_content(manager->models_json().dump(), "application/json");
+  });
+  server.Get("/v1/catalog", [require_auth, &registry](const auto& request,
+                                                       auto& response) {
+    if (!require_auth(request, response)) return;
+    try {
+      std::optional<std::string> capability;
+      std::optional<Backend> backend;
+      if (request.has_param("modality")) {
+        capability = modality_capability(
+            normalize_modality(request.get_param_value("modality")));
+      } else if (request.has_param("capability")) {
+        capability = request.get_param_value("capability");
+      }
+      if (request.has_param("backend")) {
+        backend = parse_backend(request.get_param_value("backend"));
+      }
+      response.set_content(registry_catalog(registry, capability, backend).dump(),
+                           "application/json");
+    } catch (const std::exception& error) {
+      json_error(response, 400, "invalid_catalog_filter", error.what());
+    }
   });
   server.Get("/admin/models", [manager, require_auth](const auto& request, auto& response) {
     if (!require_auth(request, response)) return;
@@ -2097,7 +2429,7 @@ int run_server(const Registry& registry, const ServerOptions& options) {
   *run_agent =
       [invoke_json_model, invoke_asr, invoke_tts, invoke_chat_stream,
        invoke_asr_stream, invoke_tts_stream, session_mutex, &registry,
-       root = options.root, backend = active_backends.front()](
+       root = options.root](
           const httplib::Request& request, const AgentEventEmitter& emit) -> json {
     if (!request.is_multipart_form_data()) {
       throw std::invalid_argument("agent chat requires multipart/form-data");
@@ -2421,7 +2753,7 @@ int run_server(const Registry& registry, const ServerOptions& options) {
       std::string audio_path;
       if (voice_path) {
         transition("tts_generating");
-        const auto default_tts = "audio8-tts-06b@" + to_string(backend) + ":q8";
+        const auto default_tts = "audio8-tts-06b";
         if (emit) {
           std::size_t sequence = 0;
           std::vector<std::string> audio_chunks;
@@ -2645,6 +2977,8 @@ int run_server(const Registry& registry, const ServerOptions& options) {
   active_http_server.store(&server);
   const auto previous_sigint = std::signal(SIGINT, stop_http_server);
   const auto previous_sigterm = std::signal(SIGTERM, stop_http_server);
+  std::clog << "Mica API listening on http://" << options.host << ':'
+            << options.port << '\n';
   const bool listened = server.listen(options.host, options.port);
   active_http_server.store(nullptr);
   std::signal(SIGINT, previous_sigint);

@@ -1,0 +1,113 @@
+{
+  "schema": 1,
+  "profiles": [
+    {
+      "schema": 2,
+      "id": "mica-assistant-mlx",
+      "description": "Complete local assistant for Apple Silicon using only MLX engines and MLX artifacts.",
+      "available": true,
+      "mode": "interactive",
+      "memory": {
+        "maximum_ram_gib": 8,
+        "maximum_vram_gib": 0,
+        "safety_reserve_gib": 0.5,
+        "maximum_resident_workers": 0
+      },
+      "models": [
+        {
+          "id": "spark-x25-4b",
+          "execution": "spark-balanced-single",
+          "residency": "pinned",
+          "priority": 100,
+          "startup": true,
+          "idle_seconds": 0
+        },
+        {
+          "id": "granite-speech-5",
+          "execution": "granite-streaming-single",
+          "residency": "warm",
+          "priority": 90,
+          "startup": true,
+          "idle_seconds": 600
+        },
+        {
+          "id": "audio8-tts-06b",
+          "execution": "audio8-capacity-single",
+          "residency": "warm",
+          "priority": 70,
+          "startup": true,
+          "idle_seconds": 180
+        },
+        {
+          "id": "minicpm-v46-thinking",
+          "execution": "minicpm-vision-capacity",
+          "residency": "on-demand",
+          "priority": 40,
+          "startup": false,
+          "idle_seconds": 30
+        }
+      ]
+    },
+    {
+      "schema": 2,
+      "id": "mica-assistant-gguf",
+      "description": "Complete portable local assistant using only llama.cpp/audio.cpp engines and GGUF artifacts.",
+      "available": true,
+      "mode": "interactive",
+      "memory": {
+        "maximum_ram_gib": 8,
+        "maximum_vram_gib": 0,
+        "safety_reserve_gib": 0.5,
+        "maximum_resident_workers": 0
+      },
+      "models": [
+        {
+          "id": "spark-x25-4b",
+          "execution": "spark-gguf-balanced-single",
+          "residency": "pinned",
+          "priority": 100,
+          "startup": true,
+          "idle_seconds": 0
+        },
+        {
+          "id": "granite-speech-5",
+          "execution": "granite-gguf-streaming-single",
+          "residency": "warm",
+          "priority": 90,
+          "startup": true,
+          "idle_seconds": 600
+        },
+        {
+          "id": "audio8-tts-06b",
+          "execution": "audio8-gguf-capacity-single",
+          "residency": "warm",
+          "priority": 70,
+          "startup": true,
+          "idle_seconds": 180
+        },
+        {
+          "id": "minicpm-v46-thinking",
+          "execution": "minicpm-gguf-vision-capacity",
+          "residency": "on-demand",
+          "priority": 40,
+          "startup": false,
+          "idle_seconds": 30
+        }
+      ]
+    },
+    {
+      "schema": 2,
+      "id": "mica-assistant-gptq",
+      "description": "Target vLLM/GPTQ assistant containing the same text, ASR, TTS, and vision capabilities.",
+      "available": false,
+      "status": "blocked",
+      "reason": "The four GPTQ candidates have not passed native vLLM architecture, modality, and quality certification. The profile remains non-installable until they do.",
+      "target_models": [
+        "spark-x25-4b",
+        "granite-speech-5",
+        "audio8-tts-06b",
+        "minicpm-v46-thinking"
+      ]
+    }
+  ]
+}

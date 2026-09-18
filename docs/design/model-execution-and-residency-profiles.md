@@ -1,12 +1,13 @@
 # Model execution and residency profiles
 
-Status: accepted design; profile catalog proposed; runtime loader not implemented  
-Last updated: 2026-09-17
+Status: accepted; schema-2 loader, scheduler, and profile catalog implemented
+Last updated: 2026-09-18
 
-The proposed machine-readable catalog is `config/profiles.lua`. It is not loaded
-by the current legacy profile parser. Every execution profile is `candidate` or
-`experimental` until its exact context, cache, batch, quality, and peak-memory
-combination passes on real hardware; unimplemented additions remain `planned`.
+The built-in machine-readable catalog is `config/profiles.lua`; shareable JSON
+profiles are distributed through `profiles/catalog.json` and installed beneath
+the runtime root. Every execution profile remains `candidate` or `experimental`
+until its exact context, cache, batch, quality, and peak-memory combination
+passes on real hardware; unimplemented additions remain `planned`.
 
 ## Four separate concepts
 
@@ -40,9 +41,9 @@ TensorRT, or unrelated Python packages. Engines may share an environment only
 when a tested lockfile proves their dependencies compatible; otherwise each
 selected engine gets its own minimal environment under `~/.mica`.
 
-The existing `backend` CLI remains a compatibility interface until schema 2 is
-implemented. It currently groups serving stacks and artifact families. New
-code must not use that overloaded term where it means a concrete runtime.
+The existing `backend` CLI remains a compatibility interface for legacy
+profiles. Schema-2 profiles select the concrete engine and artifact per model;
+`--backend` and `--quant` cannot override those selections.
 
 ## Proposed residency profiles
 
@@ -151,15 +152,14 @@ duration, packed text/audio positions, frames, and codec workspace.
 
 ## Work still required
 
-1. Replace the legacy `all/core/quality` parser with schema-2 loading.
-2. Validate model-card metadata and profile references at startup.
-3. Implement the engine registry, execution-set resolver, minimal per-engine
-   installer, and compatibility mapping from the current `backend` CLI.
-4. Map generic fields to MLX, llama.cpp/audio.cpp, vLLM, and future creative
-   audio engine flags.
-5. Add request token/media estimation and aggregate batch admission.
-6. Add observed worker-memory watermarks and exception-safe leases.
-7. Certify each candidate with real Q4/Q8, Q4/Q8-KV, context, concurrency, and
+Schema-2 loading, profile reference validation, per-engine installation,
+context/concurrency/KV propagation, deterministic residency, local JSON
+profiles, and the GitHub catalog are implemented. Remaining work is:
+
+1. Add complete request/media estimation and aggregate batch-token admission.
+2. Add observed worker-memory watermarks and exception-safe leases.
+3. Certify each candidate with real Q4/Q8, Q4/Q8-KV, context, concurrency, and
    quality tests; write measured idle/peak memory into the profile.
-8. Define and test proxy routes for `text-to-music` and `lyrics-to-song`.
-9. Enable deterministic hardware recommendations only for certified profiles.
+4. Define and test proxy routes for `text-to-music` and `lyrics-to-song`.
+5. Certify `mica-assistant-gptq` on native vLLM hardware before allowing its
+   catalog entry to be installed.

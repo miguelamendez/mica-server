@@ -63,6 +63,46 @@ StartupPlan plan_startup(const Registry& registry, const Profile& profile,
   return plan;
 }
 
+StartupPlan plan_profile_startup(const Registry& registry, const Profile& profile,
+                                 Backend backend, Quantization quantization,
+                                 double max_ram_gib) {
+  if (profile.schema < 2) {
+    return plan_startup(registry, profile, backend, quantization, max_ram_gib);
+  }
+  StartupPlan plan;
+  std::vector<const ProfileModel*> selected;
+  for (const auto& policy : profile.model_policies) {
+    if (policy.backend == backend && policy.quantization == quantization) {
+      selected.push_back(&policy);
+    }
+  }
+  std::stable_sort(selected.begin(), selected.end(), [](const auto* left, const auto* right) {
+    if (left->startup != right->startup) return left->startup > right->startup;
+    if (left->priority != right->priority) return left->priority > right->priority;
+    return left->id < right->id;
+  });
+  for (const auto* policy : selected) {
+    if (!policy->startup) {
+      plan.skipped.push_back(policy->id);
+      continue;
+    }
+    const auto& model = registry.model(policy->id);
+    const auto& artifact = model.artifacts.at(backend).at(quantization);
+    if (plan.reserved_gib + artifact.reservation_gib <= max_ram_gib + 1e-9) {
+      plan.admitted.push_back(policy->id);
+      plan.reserved_gib += artifact.reservation_gib;
+    } else if (policy->residency == Residency::pinned) {
+      const double deficit = plan.reserved_gib + artifact.reservation_gib - max_ram_gib;
+      plan.error = policy->id + ": pinned startup model exceeds the profile memory limit by " +
+                   std::to_string(std::ceil(deficit * 10.0) / 10.0) + " GiB";
+      return plan;
+    } else {
+      plan.skipped.push_back(policy->id);
+    }
+  }
+  return plan;
+}
+
 std::vector<ResidentModel> rank_eviction_candidates(
     std::vector<ResidentModel> residents) {
   residents.erase(std::remove_if(residents.begin(), residents.end(),

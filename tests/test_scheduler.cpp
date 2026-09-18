@@ -1,6 +1,9 @@
+#include <algorithm>
 #include <cassert>
 #include <fstream>
 #include <iostream>
+
+#include <nlohmann/json.hpp>
 
 #include <unistd.h>
 
@@ -29,6 +32,52 @@ int main() {
   assert(gguf_long.max_total_tokens == 17408);
   assert(gguf_long.max_concurrent_requests == 1);
   assert(gguf_long.kv_cache_precision == "q4");
+  const auto& interactive = registry.profile("interactive");
+  assert(interactive.schema == 2);
+  assert(interactive.maximum_ram_gib == 8.0);
+  assert(interactive.memory_safety_reserve_gib == 0.5);
+  assert(interactive.model_policies.size() == 4);
+  const auto* interactive_text = interactive.policy_for("spark-x25-4b");
+  assert(interactive_text != nullptr);
+  assert(interactive_text->engine == "mlx-lm");
+  assert(interactive_text->backend == mica::Backend::mlx);
+  assert(interactive_text->quantization == mica::Quantization::q4);
+  assert(interactive_text->residency == mica::Residency::pinned);
+  assert(interactive_text->startup);
+  const auto& gguf_interactive = registry.profile("gguf-interactive");
+  assert(gguf_interactive.schema == 2);
+  assert(gguf_interactive.backend == mica::Backend::gguf);
+  assert(gguf_interactive.policy_for("spark-x25-4b")->engine == "llama-cpp");
+  assert(gguf_interactive.policy_for("granite-speech-5")->engine == "audio-cpp");
+  const auto& mlx_assistant = registry.profile("mica-assistant-mlx");
+  assert(mlx_assistant.model_policies.size() == 4);
+  for (const auto& policy : mlx_assistant.model_policies) {
+    assert(policy.backend == mica::Backend::mlx);
+    assert(policy.engine.starts_with("mlx-"));
+  }
+  const auto& gguf_assistant = registry.profile("mica-assistant-gguf");
+  assert(gguf_assistant.model_policies.size() == 4);
+  for (const auto& policy : gguf_assistant.model_policies) {
+    assert(policy.backend == mica::Backend::gguf);
+    assert(policy.engine == "llama-cpp" || policy.engine == "audio-cpp");
+  }
+  {
+    std::ifstream catalog(config.parent_path() / "profiles/catalog.json");
+    const auto document = nlohmann::json::parse(catalog);
+    const auto& profiles = document.at("profiles");
+    const auto gptq = std::find_if(profiles.begin(), profiles.end(), [](const auto& item) {
+      return item.value("id", "") == "mica-assistant-gptq";
+    });
+    assert(gptq != profiles.end());
+    assert(!gptq->value("available", true));
+  }
+  const auto schema2_startup = mica::plan_profile_startup(
+      registry, gguf_interactive, mica::Backend::gguf,
+      mica::Quantization::q4, 7.5);
+  assert(!schema2_startup.error);
+  assert(schema2_startup.admitted.size() == 3);
+  assert(schema2_startup.reserved_gib > 7.29 &&
+         schema2_startup.reserved_gib < 7.31);
   const auto& vllm_control = registry.model("vllm-qwen3-06b-control");
   assert(vllm_control.artifacts.at(mica::Backend::vllm)
              .at(mica::Quantization::q4).supported);

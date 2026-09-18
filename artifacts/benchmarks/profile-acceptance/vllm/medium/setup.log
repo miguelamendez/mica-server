@@ -95,5 +95,5 @@
   "vllm_device": "metal",
   "vram_budget_gib": 0.0
 }
-[test] validate loopback bind: /Users/miguel/models/environment-tools/bin/python -c 'import socket; s=socket.socket(); s.bind(('\''127.0.0.1'\'', 0)); print(s.getsockname()[1]); s.close()'
-[test] validate vLLM runtime: /Users/miguel/models/environment-vllm/bin/python -c 'import platform, vllm; print(vllm.__version__); print(platform.machine())'
+[test] validate loopback bind: $MICA_ROOT/environment-tools/bin/python -c 'import socket; s=socket.socket(); s.bind(('\''127.0.0.1'\'', 0)); print(s.getsockname()[1]); s.close()'
+[test] validate vLLM runtime: $MICA_ROOT/environment-vllm/bin/python -c 'import platform, vllm; print(vllm.__version__); print(platform.machine())'

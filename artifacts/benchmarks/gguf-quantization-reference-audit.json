@@ -2,7 +2,7 @@
   "schema_version": 1,
   "files": [
     {
-      "path": "/Users/miguel/models/checkpoints/gguf/granite-speech-5/granite-speech-5.0-470m-turboctc-q4_k.gguf",
+      "path": "$MICA_ROOT/checkpoints/gguf/granite-speech-5/granite-speech-5.0-470m-turboctc-q4_k.gguf",
       "size_bytes": 272112352,
       "tensor_count": 550,
       "type_counts": {
@@ -4647,7 +4647,7 @@
       }
     },
     {
-      "path": "/Users/miguel/models/checkpoints/gguf/granite-speech-5/granite-speech-5.0-470m-turboctc-q8_0.gguf",
+      "path": "$MICA_ROOT/checkpoints/gguf/granite-speech-5/granite-speech-5.0-470m-turboctc-q8_0.gguf",
       "size_bytes": 504718560,
       "tensor_count": 550,
       "type_counts": {
@@ -9292,7 +9292,7 @@
       }
     },
     {
-      "path": "/Users/miguel/models/checkpoints/gguf/audio8-tts-06b/audio8-tts-preview-0.6b-q4_0.gguf",
+      "path": "$MICA_ROOT/checkpoints/gguf/audio8-tts-06b/audio8-tts-preview-0.6b-q4_0.gguf",
       "size_bytes": 1092886528,
       "tensor_count": 681,
       "type_counts": {
@@ -15270,7 +15270,7 @@
       }
     },
     {
-      "path": "/Users/miguel/models/checkpoints/gguf/audio8-tts-06b/audio8-tts-preview-0.6b-q8_0.gguf",
+      "path": "$MICA_ROOT/checkpoints/gguf/audio8-tts-06b/audio8-tts-preview-0.6b-q8_0.gguf",
       "size_bytes": 1429544960,
       "tensor_count": 681,
       "type_counts": {
@@ -21248,7 +21248,7 @@
       }
     },
     {
-      "path": "/Users/miguel/models/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf",
+      "path": "$MICA_ROOT/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf",
       "size_bytes": 529101536,
       "tensor_count": 320,
       "type_counts": {
@@ -24059,7 +24059,7 @@
       }
     },
     {
-      "path": "/Users/miguel/models/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q8_0.gguf",
+      "path": "$MICA_ROOT/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q8_0.gguf",
       "size_bytes": 811591648,
       "tensor_count": 320,
       "type_counts": {
@@ -26866,7 +26866,7 @@
       }
     },
     {
-      "path": "/Users/miguel/models/checkpoints/gguf/minicpm-v46-thinking/mmproj-model-f16.gguf",
+      "path": "$MICA_ROOT/checkpoints/gguf/minicpm-v46-thinking/mmproj-model-f16.gguf",
       "size_bytes": 1108746976,
       "tensor_count": 459,
       "type_counts": {
@@ -30752,7 +30752,7 @@
       }
     },
     {
-      "path": "/Users/miguel/models/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q4_K_M.gguf",
+      "path": "$MICA_ROOT/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q4_K_M.gguf",
       "size_bytes": 2600223552,
       "tensor_count": 290,
       "type_counts": {
@@ -33331,7 +33331,7 @@
       }
     },
     {
-      "path": "/Users/miguel/models/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q8_0.gguf",
+      "path": "$MICA_ROOT/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q8_0.gguf",
       "size_bytes": 4375020352,
       "tensor_count": 290,
       "type_counts": {
@@ -35908,8 +35908,8 @@
   ],
   "comparisons": [
     {
-      "left": "/Users/miguel/models/checkpoints/gguf/granite-speech-5/granite-speech-5.0-470m-turboctc-q4_k.gguf",
-      "right": "/Users/miguel/models/checkpoints/gguf/granite-speech-5/granite-speech-5.0-470m-turboctc-q8_0.gguf",
+      "left": "$MICA_ROOT/checkpoints/gguf/granite-speech-5/granite-speech-5.0-470m-turboctc-q4_k.gguf",
+      "right": "$MICA_ROOT/checkpoints/gguf/granite-speech-5/granite-speech-5.0-470m-turboctc-q8_0.gguf",
       "same_tensor_names": true,
       "same_shapes": true,
       "same_precision_map": false,
@@ -36815,8 +36815,8 @@
       ]
     },
     {
-      "left": "/Users/miguel/models/checkpoints/gguf/granite-speech-5/granite-speech-5.0-470m-turboctc-q8_0.gguf",
-      "right": "/Users/miguel/models/checkpoints/gguf/audio8-tts-06b/audio8-tts-preview-0.6b-q4_0.gguf",
+      "left": "$MICA_ROOT/checkpoints/gguf/granite-speech-5/granite-speech-5.0-470m-turboctc-q8_0.gguf",
+      "right": "$MICA_ROOT/checkpoints/gguf/audio8-tts-06b/audio8-tts-preview-0.6b-q4_0.gguf",
       "same_tensor_names": false,
       "same_shapes": true,
       "same_precision_map": false,
@@ -38059,8 +38059,8 @@
       "type_differences": []
     },
     {
-      "left": "/Users/miguel/models/checkpoints/gguf/audio8-tts-06b/audio8-tts-preview-0.6b-q4_0.gguf",
-      "right": "/Users/miguel/models/checkpoints/gguf/audio8-tts-06b/audio8-tts-preview-0.6b-q8_0.gguf",
+      "left": "$MICA_ROOT/checkpoints/gguf/audio8-tts-06b/audio8-tts-preview-0.6b-q4_0.gguf",
+      "right": "$MICA_ROOT/checkpoints/gguf/audio8-tts-06b/audio8-tts-preview-0.6b-q8_0.gguf",
       "same_tensor_names": true,
       "same_shapes": true,
       "same_precision_map": false,
@@ -39316,8 +39316,8 @@
       ]
     },
     {
-      "left": "/Users/miguel/models/checkpoints/gguf/audio8-tts-06b/audio8-tts-preview-0.6b-q8_0.gguf",
-      "right": "/Users/miguel/models/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf",
+      "left": "$MICA_ROOT/checkpoints/gguf/audio8-tts-06b/audio8-tts-preview-0.6b-q8_0.gguf",
+      "right": "$MICA_ROOT/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf",
       "same_tensor_names": false,
       "same_shapes": true,
       "same_precision_map": false,
@@ -40330,8 +40330,8 @@
       "type_differences": []
     },
     {
-      "left": "/Users/miguel/models/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf",
-      "right": "/Users/miguel/models/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q8_0.gguf",
+      "left": "$MICA_ROOT/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf",
+      "right": "$MICA_ROOT/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q8_0.gguf",
       "same_tensor_names": true,
       "same_shapes": true,
       "same_precision_map": false,
@@ -41277,8 +41277,8 @@
       ]
     },
     {
-      "left": "/Users/miguel/models/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q8_0.gguf",
-      "right": "/Users/miguel/models/checkpoints/gguf/minicpm-v46-thinking/mmproj-model-f16.gguf",
+      "left": "$MICA_ROOT/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q8_0.gguf",
+      "right": "$MICA_ROOT/checkpoints/gguf/minicpm-v46-thinking/mmproj-model-f16.gguf",
       "same_tensor_names": false,
       "same_shapes": true,
       "same_precision_map": false,
@@ -42069,8 +42069,8 @@
       "type_differences": []
     },
     {
-      "left": "/Users/miguel/models/checkpoints/gguf/minicpm-v46-thinking/mmproj-model-f16.gguf",
-      "right": "/Users/miguel/models/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q4_K_M.gguf",
+      "left": "$MICA_ROOT/checkpoints/gguf/minicpm-v46-thinking/mmproj-model-f16.gguf",
+      "right": "$MICA_ROOT/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q4_K_M.gguf",
       "same_tensor_names": false,
       "same_shapes": true,
       "same_precision_map": false,
@@ -42831,8 +42831,8 @@
       "type_differences": []
     },
     {
-      "left": "/Users/miguel/models/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q4_K_M.gguf",
-      "right": "/Users/miguel/models/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q8_0.gguf",
+      "left": "$MICA_ROOT/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q4_K_M.gguf",
+      "right": "$MICA_ROOT/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q8_0.gguf",
       "same_tensor_names": true,
       "same_shapes": true,
       "same_precision_map": false,

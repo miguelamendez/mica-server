@@ -18,7 +18,7 @@ Status labels:
 
 ## ADR-001: native control plane with optional Python workers
 
-Decision: **accepted; partial**.
+Decision: **accepted; implemented with backend-specific environments**.
 
 - The CLI, hardware detection, setup orchestration, proxy, model scheduler,
   process lifecycle, downloads, state, and authentication belong in C++.
@@ -30,9 +30,9 @@ Decision: **accepted; partial**.
 - A GGUF-only installation must not require Python or create a Python virtual
   environment.
 
-Current gap: the hardware-profile prototype is Python and setup always creates
-an `environment-tools` Python environment for Hugging Face downloads. Both must
-be replaced by native C++ before the bootstrap path is complete.
+The hardware detector and GGUF artifact downloader are native C++. GGUF-only
+setup creates no Python environment. MLX and vLLM keep isolated Python workers
+because their upstream runtimes require them.
 
 Rationale: the proxy and GGUF path must remain small, deterministic, easy to
 distribute as one binary, and independent of Python package resolution.
@@ -88,7 +88,7 @@ directory names.
 
 ## ADR-003: isolated, demand-created Python environments
 
-Decision: **accepted; partial**.
+Decision: **accepted; implemented for detection and build selection**.
 
 - GGUF: zero Python environments.
 - MLX only: one persistent minimal MLX serving environment.
@@ -147,10 +147,10 @@ An accelerator without its required native compiler falls back to Vulkan when
 available, otherwise CPU. TPU detection must never select a nonexistent
 llama.cpp or audio.cpp TPU path.
 
-Current gap: profile schema, C++ loading, compile selection, and synthetic tests
-exist, but the primary detector is currently `scripts/detect_hardware.py`.
-Vendor parsing must move into `src/hardware.cpp`, after which the Python
-detector will be deleted.
+Native detection lives in `src/hardware.cpp`. Synthetic Apple Metal, NVIDIA
+CUDA, AMD ROCm/HIP, Intel XPU/SYCL, TPU, and CPU profiles cover reproducible
+selection tests; GGUF CMake flags and vLLM device installers consume the same
+resolved hardware profile.
 
 ## ADR-005: bounded native compilation
 
@@ -174,12 +174,13 @@ expected per-profile CMake flags.
 
 ## ADR-006: current backend selection and future engine dispatch
 
-Decision: **accepted; implemented for selection, partial end to end**.
+Decision: **accepted; implemented for schema-2 dispatch, partial end to end**.
 
-Setup may install MLX, GGUF, vLLM, or any combination. A server process serves
-exactly one backend, selected explicitly when multiple backends are installed.
-Installing MLX and GGUF therefore downloads both artifact formats, while Q4 and
-Q8 selection downloads both precisions.
+Setup installs the transitive engine set selected by a schema-2 profile. Each
+model pins one concrete engine and artifact; the server can dispatch models to
+multiple selected engines behind one authenticated URL. The recommended
+assistant profiles are engine-family-pure so users do not accidentally duplicate
+model artifacts or runtime dependencies.
 
 The public proxy keeps one base URL and OpenAI-compatible route set. It lists
 available models, lazily starts workers, warms priority models, admits work
@@ -189,11 +190,8 @@ Current gaps include true proxy streaming, observed-memory enforcement,
 exception-safe worker leases, request queueing, and complete real proxy-to-
 worker integration tests.
 
-This is the current compatibility behavior, not the final abstraction. The
-schema-2 design in ADR-015 permits one public proxy to dispatch different
-models to different concrete engines while retaining one authenticated base
-URL. That migration is planned and does not make multi-engine serving an
-implemented feature today.
+Legacy profiles retain `--backend` as a compatibility surface. Schema-2
+profiles reject backend/quantization overrides so tested behavior cannot drift.
 
 ## ADR-007: memory admission and deterministic eviction
 
@@ -371,7 +369,7 @@ passes.
 
 ## ADR-013: separate execution and residency profiles
 
-Decision: **accepted; planned**.
+Decision: **accepted; implemented**.
 
 Model execution profiles own a concrete engine, artifact format and precision,
 context, generated output, reasoning budget, cache policy, batch limits, media
@@ -385,11 +383,11 @@ training context, maximum generated output, reasoning controls, and Mica-tested
 limits. Profiles fail above architectural/engine limits and warn (or fail in
 certified mode) above training, upstream-recommended, or Mica-tested limits.
 
-The proposed schema and initial profile catalog are documented in
+The implemented schema and profile catalog are documented in
 `docs/design/model-execution-and-residency-profiles.md` and
-`config/profiles.lua`. The legacy `all/core/quality` runtime profiles remain in
-force until the schema-2 loader, validator, engine mappings, and memory
-enforcement are implemented and tested.
+`config/profiles.lua`. Shareable schema-2 JSON profiles can be loaded from a
+file or installed from the GitHub catalog. Legacy `all/core/quality` profiles
+remain only for compatibility and test reproduction.
 
 ## ADR-014: vLLM memory limits and model eligibility
 
@@ -418,7 +416,7 @@ reservation-based admission and engine allocator limits.
 
 ## ADR-015: capability, artifact, engine, and profile are independent
 
-Decision: **accepted; planned**.
+Decision: **accepted; implemented for current engines**.
 
 Mica keeps four concepts separate:
 
@@ -440,10 +438,18 @@ profile is persisted, and setup installs only the transitive engine and artifact
 dependencies it names. A music-only Apple installation therefore need not
 install CUDA, TensorRT, DiffRhythm, vLLM, or llama.cpp.
 
+Engine selection is per model. A residency profile may contain several engines
+behind one proxy, although the recommended `mica-assistant-mlx` and
+`mica-assistant-gguf` profiles intentionally keep every model within one engine
+family. `mica-assistant-gptq` is present as a blocked catalog target until the
+same four logical capabilities pass vLLM certification. Future image and music
+engines extend the engine registry and adapter layer rather than overloading a
+global backend switch.
+
 The public proxy remains one authenticated URL and routes by capability/model
-to engine adapters. Multiple engines behind that proxy are a planned extension;
-the current server's one-backend-at-a-time rule remains until dispatch,
-lifecycle, streaming, admission, and failure-isolation tests pass.
+to engine adapters. Schema-2 lifecycle, streaming, and reservation admission
+are implemented; observed-memory enforcement and broader failure-isolation
+tests remain open.
 
 Accepted future catalog candidates are:
 
@@ -468,10 +474,9 @@ family, but Mica's pinned build currently compiles only `granite5asr` and
 audio.cpp installation by default. Official optimized MLX, TFLite, and
 TensorRT profiles remain separate engines with independent evidence.
 
-`config/profiles.lua` schema 2 documents the proposed engine registry,
-engine-pinned profiles, and hardware-resolved execution sets. The existing
-`--backend` CLI remains a compatibility surface until the schema-2 loader and
-engine-aware installer are implemented.
+`config/profiles.lua` schema 2 is the active engine registry and profile
+catalog. The existing `--backend` CLI remains a legacy compatibility surface;
+schema-2 profiles select their engine set directly.
 
 ## ADR-016: one agent chat with ASR, VLM, and TTS utilities
 

@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "target": "/Users/miguel/models/checkpoints/mlx/spark-x25-4b/q4",
-  "draft": "/Users/miguel/models/checkpoints/mlx/spark-x25-1.7b/q4",
+  "target": "$MICA_ROOT/checkpoints/mlx/spark-x25-4b/q4",
+  "draft": "$MICA_ROOT/checkpoints/mlx/spark-x25-1.7b/q4",
   "num_draft_tokens": 2,
   "cases": [
     {

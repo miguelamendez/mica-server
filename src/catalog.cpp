@@ -884,4 +884,69 @@ void merge_custom_models(Registry& registry, const std::filesystem::path& root) 
   }
 }
 
+nlohmann::json registry_catalog(const Registry& registry,
+                                const std::optional<std::string>& capability,
+                                const std::optional<Backend>& backend,
+                                bool check_remote) {
+  json models = json::array();
+  std::map<std::string, bool> remote_status;
+  const auto modality_for = [](const std::string& value) {
+    if (value == "text") return std::string("text-to-text");
+    if (value == "vision") return std::string("image-video-to-text");
+    return value;
+  };
+  for (const auto& model : registry.models) {
+    if (capability && model.capability != *capability) continue;
+    json repositories = json::object();
+    json revisions = json::object();
+    json variants = json::object();
+    for (const auto& [candidate_backend, artifacts] : model.artifacts) {
+      if (backend && candidate_backend != *backend) continue;
+      json quantizations = json::array();
+      for (const auto& [quantization, artifact] : artifacts) {
+        if (artifact.supported) quantizations.push_back(to_string(quantization));
+      }
+      if (quantizations.empty()) continue;
+      const auto repository = model.repositories.find(candidate_backend);
+      if (repository == model.repositories.end() || repository->second.empty()) continue;
+      const auto backend_name = to_string(candidate_backend);
+      variants[backend_name] = quantizations;
+      repositories[backend_name] = repository->second;
+      const auto revision = model.repository_revisions.find(candidate_backend);
+      revisions[backend_name] = revision == model.repository_revisions.end()
+                                    ? "main"
+                                    : revision->second;
+      if (check_remote && !remote_status.contains(repository->second)) {
+        const auto result = run_command(
+            {"curl", "--head", "--location", "--fail", "--silent",
+             "--show-error", "--max-time", "10",
+             "https://huggingface.co/" + repository->second},
+            true);
+        remote_status[repository->second] = result.exit_code == 0;
+      }
+    }
+    if (variants.empty()) continue;
+    json item = {{"id", model.id},
+                 {"capability", model.capability},
+                 {"modality", modality_for(model.capability)},
+                 {"description", model.description},
+                 {"tags", model.tags},
+                 {"source_repository", model.source_repo},
+                 {"repositories", repositories},
+                 {"revisions", revisions},
+                 {"variants", variants}};
+    if (check_remote) {
+      json availability = json::object();
+      for (const auto& [backend_name, repository] : repositories.items()) {
+        availability[backend_name] = {
+            {"repository", repository},
+            {"available", remote_status.at(repository.get<std::string>())}};
+      }
+      item["remote"] = std::move(availability);
+    }
+    models.push_back(std::move(item));
+  }
+  return {{"schema", 1}, {"object", "model_registry"}, {"data", models}};
+}
+
 }  // namespace mica

@@ -14,10 +14,14 @@ struct SetupOptions {
   std::filesystem::path root;
   std::filesystem::path config_directory;
   std::filesystem::path hardware_profile;
-  std::string profile{"all"};
+  std::filesystem::path api_key_file;
+  std::filesystem::path profile_file;
+  std::string profile{"auto"};
   std::string hf_repo;
   std::vector<Backend> backends;
   std::vector<Quantization> quantizations{Quantization::q4};
+  bool backends_explicit{false};
+  bool quantizations_explicit{false};
   double max_ram_gib{8.0};
   double max_vram_gib{0.0};
   VllmDevice vllm_device{VllmDevice::automatic};

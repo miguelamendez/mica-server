@@ -11,6 +11,7 @@ namespace mica {
 enum class Backend { mlx, gguf, vllm };
 enum class Quantization { q4, q8, native };
 enum class VllmDevice { automatic, cpu, cuda, metal, rocm, xpu, tpu };
+enum class Residency { pinned, warm, on_demand, ephemeral };
 
 std::string to_string(Backend value);
 std::string to_string(Quantization value);
@@ -18,6 +19,8 @@ Backend parse_backend(const std::string& value);
 Quantization parse_quantization(const std::string& value);
 std::string to_string(VllmDevice value);
 VllmDevice parse_vllm_device(const std::string& value);
+std::string to_string(Residency value);
+Residency parse_residency(const std::string& value);
 
 struct HardwareInfo {
   struct Accelerator {
@@ -87,6 +90,7 @@ struct ModelDefinition {
   int gguf_parallel_slots{1};
   bool mlx_extract_mtp{false};
   std::map<Backend, std::string> repositories;
+  std::map<Backend, std::string> repository_revisions;
   int startup_priority{100};
   bool required{false};
   std::map<Backend, bool> required_by_backend;
@@ -98,8 +102,27 @@ struct ModelDefinition {
   }
 };
 
+struct ProfileModel {
+  std::string id;
+  std::string execution;
+  std::string engine;
+  Backend backend{Backend::gguf};
+  Quantization quantization{Quantization::q4};
+  Residency residency{Residency::on_demand};
+  int priority{50};
+  bool startup{false};
+  int idle_seconds{300};
+  int max_input_tokens{7168};
+  int max_output_tokens{1024};
+  int max_total_tokens{8192};
+  int max_concurrent_requests{1};
+  std::string kv_cache_precision{"q8"};
+};
+
 struct Profile {
   std::string name;
+  int schema{1};
+  std::string mode{"interactive"};
   Quantization quantization{Quantization::q4};
   std::vector<std::string> models;
   std::optional<Backend> backend;
@@ -108,6 +131,18 @@ struct Profile {
   int max_total_tokens{8192};
   int max_concurrent_requests{1};
   std::string kv_cache_precision{"q8"};
+  double maximum_ram_gib{0.0};
+  double maximum_vram_gib{0.0};
+  double memory_safety_reserve_gib{0.0};
+  int maximum_resident_workers{0};
+  std::vector<ProfileModel> model_policies;
+
+  [[nodiscard]] const ProfileModel* policy_for(const std::string& id) const {
+    for (const auto& policy : model_policies) {
+      if (policy.id == id) return &policy;
+    }
+    return nullptr;
+  }
 };
 
 struct Policy {

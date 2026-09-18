@@ -95,5 +95,5 @@
   "vllm_device": "metal",
   "vram_budget_gib": 0.0
 }
-[test] validate loopback bind: /Users/miguel/models/environment-tools/bin/python -c 'import socket; s=socket.socket(); s.bind(('\''127.0.0.1'\'', 0)); print(s.getsockname()[1]); s.close()'
-[test] validate MLX imports and device: /Users/miguel/models/environment-mlx/bin/python -c 'import mlx.core as mx; import mlx_lm, mlx_vlm, mlx_audio; print(mx.default_device())'
+[test] validate loopback bind: $MICA_ROOT/environment-tools/bin/python -c 'import socket; s=socket.socket(); s.bind(('\''127.0.0.1'\'', 0)); print(s.getsockname()[1]); s.close()'
+[test] validate MLX imports and device: $MICA_ROOT/environment-mlx/bin/python -c 'import mlx.core as mx; import mlx_lm, mlx_vlm, mlx_audio; print(mx.default_device())'

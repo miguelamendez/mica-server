@@ -87,10 +87,10 @@ OpenAI client / Mica chat UI
       warmup · memory admission · eviction
               │
               ▼
-      one active backend per process
-       ├─ MLX: mlx-lm / mlx-vlm / mlx-audio
-       ├─ GGUF: llama.cpp / audio.cpp
-       └─ vLLM: hardware-specific vLLM runtime
+      profile-selected engine workers
+       ├─ MLX artifacts: mlx-lm / mlx-vlm / mlx-audio
+       ├─ GGUF artifacts: llama.cpp / audio.cpp
+       └─ GPTQ artifacts: hardware-specific vLLM runtime
 ~~~
 
 The control plane is a native C++ binary. The model catalog and scheduling
@@ -98,9 +98,14 @@ policy are Lua. Python is isolated behind MLX/vLLM workers and the optional
 browser playground; GGUF inference uses native <code>llama.cpp</code> and
 <code>audio.cpp</code> processes.
 
-Multiple backends may be installed, but a server process serves exactly one at
-a time. Switching backends does not change the public routes: stop the process
-and restart it with another <code>--backend</code>.
+This split is intentional: C++ keeps the always-running proxy, hardware
+detection, process lifecycle, and scheduler small; Lua is an embeddable
+declarative configuration layer. Python exists only when a selected engine
+requires it. A GGUF-only assistant never creates a Python environment.
+
+Each schema-2 model entry pins one engine and artifact. The recommended
+assistant profiles are engine-family-pure, while the proxy can dispatch a custom
+profile containing multiple engines behind the same authenticated URL.
 
 ## Requirements
 
@@ -109,8 +114,11 @@ Every platform needs:
 - CMake 3.24 or newer;
 - a C++20 compiler;
 - Lua 5.4 development headers and library;
-- Git, cURL, Python 3, and [uv](https://docs.astral.sh/uv/);
+- Git and cURL;
 - enough disk space for the selected Q4/Q8 artifacts.
+
+Python and [uv](https://docs.astral.sh/uv/) are required only when an MLX or
+vLLM profile is selected, or when the optional Python playground is used.
 
 Apple Silicon macOS is the recommended MLX development platform:
 
@@ -129,7 +137,7 @@ sudo apt install build-essential cmake git curl python3 liblua5.4-dev
 Install <code>uv</code> separately if the distribution package is unavailable.
 Native Windows is not supported yet; use WSL2 for GGUF or vLLM.
 
-| Backend | Hosts | Notes |
+| Engine family | Hosts | Notes |
 | --- | --- | --- |
 | MLX | Apple Silicon macOS | Uses unified memory; setup creates a Python 3.11 environment. |
 | GGUF | macOS, Linux, WSL | Selects Metal, CUDA, HIP/ROCm, SYCL, Vulkan, or CPU. |
@@ -137,7 +145,14 @@ Native Windows is not supported yet; use WSL2 for GGUF or vLLM.
 
 ## Quick start: Apple Silicon with MLX
 
-Run these commands from a clone of this repository.
+Install the build/runtime prerequisites and clone the repository:
+
+~~~sh
+xcode-select --install
+brew install cmake lua uv git curl libomp
+git clone https://github.com/miguelamendez/mica-server.git
+cd mica-server
+~~~
 
 ### 1. Build
 
@@ -149,6 +164,18 @@ cmake --build build --parallel 2
 The two-job limit keeps native compilation within the project's 16 GiB
 compilation budget.
 
+You may run `./build/mica-server` directly. To install the native CLI and its
+Lua/JSON configuration under your user account instead:
+
+~~~sh
+cmake --install build --prefix "$HOME/.local"
+export PATH="$HOME/.local/bin:$PATH"
+mica-server --help
+~~~
+
+The installed binary discovers configuration relative to itself or through
+`MICA_CONFIG_DIR`; it does not embed the source checkout path.
+
 ### 2. Inspect the machine and plan
 
 ~~~sh
@@ -156,27 +183,24 @@ compilation budget.
   --output "$HOME/models/mica-server/hardware-profile.json"
 
 ./build/mica-server plan \
-  --backends mlx \
-  --profile all \
-  --quant q4,q8 \
+  --profile mica-assistant-mlx \
   --ram-gib 8
 ~~~
 
 <code>plan</code> makes no changes. Review the selected hardware target,
 startup models, quantizations, and memory reservations before continuing.
 
-### 3. Install the backend
+### 3. Install the engines
 
 ~~~sh
 ./build/mica-server setup \
-  --backends mlx \
-  --profile all \
-  --quant q4,q8 \
+  --profile mica-assistant-mlx \
   --ram-gib 8
 ~~~
 
-Setup creates isolated environments under <code>~/models</code>, validates the
-backend, writes <code>runtime.json</code>, and generates a local API key.
+Setup creates only the environments required by the profile under
+<code>~/models</code>, validates the selected engines, writes
+<code>runtime.json</code>, and generates a local API key.
 Artifacts are downloaded lazily from the curated Hugging Face repositories
 during server warmup or the first request that needs them.
 
@@ -187,7 +211,7 @@ serve, quantization, and helper commands. For example:
 ### 4. Start the server
 
 ~~~sh
-./build/mica-server serve --backend mlx --port 8080
+./build/mica-server serve --port 8080
 ~~~
 
 The first launch can take several minutes while Mica downloads artifacts,
@@ -216,38 +240,41 @@ microphone access when prompted. On macOS, <code>Command+Enter</code> sends and
 <code>Option+R</code> starts or stops recording. On Linux/WSL, use
 <code>Ctrl+Enter</code> and <code>Alt+R</code>.
 
-## Backend recipes
+## Engine recipes
 
 ### GGUF
 
 ~~~sh
 ./build/mica-server plan \
-  --backends gguf --profile all --quant q4,q8 --ram-gib 8
+  --profile mica-assistant-gguf --ram-gib 8
 
 ./build/mica-server setup \
-  --backends gguf --profile all --quant q4,q8 --ram-gib 8
+  --profile mica-assistant-gguf --ram-gib 8
 
-./build/mica-server serve --backend gguf --port 8080
+./build/mica-server serve --port 8080
 ~~~
 
 Setup compiles no more than two native jobs at once. The audio runtime includes
-only the Granite and Audio8 families instead of its full model registry.
+only the Granite and Audio8 families instead of its full model registry. The
+saved hardware profile determines Metal, CUDA, HIP, SYCL, Vulkan, or CPU build
+flags. This path does not install Python.
 
 ### vLLM
 
-The current repository validates vLLM with the Qwen3 0.6B control profile. Do
-not use <code>--profile all</code> for vLLM yet: the four production adapters
-are deliberately gated.
+The current repository validates vLLM with the Qwen3 0.6B control profile. The
+planned <code>mica-assistant-gptq</code> profile is listed in the remote catalog
+but is deliberately non-installable until all four production modalities pass
+native vLLM architecture, inference, batch, memory, and quality gates.
 
 ~~~sh
 ./build/mica-server plan \
-  --backends vllm --profile vllm-small --quant q4 --ram-gib 8
+  --profile vllm-control --ram-gib 8
 
 ./build/mica-server setup \
-  --backends vllm --profile vllm-small --quant q4 --ram-gib 8 \
+  --profile vllm-control --ram-gib 8 \
   --vllm-device auto
 
-./build/mica-server serve --backend vllm --port 8080
+./build/mica-server serve --port 8080
 ~~~
 
 Use <code>--vllm-device cpu|cuda|metal|rocm|xpu|tpu</code> to require a target
@@ -255,30 +282,33 @@ instead of falling back. Dedicated accelerators can receive
 <code>--vram-gib N</code>. Apple Metal uses unified memory and remains governed
 by <code>--ram-gib</code>.
 
-### Install multiple backends
+### Switch profiles without deleting caches
 
 ~~~sh
-./build/mica-server setup \
-  --backends mlx,gguf --profile all --quant q4,q8 --ram-gib 8
+./build/mica-server setup --profile mica-assistant-gguf --ram-gib 8
+./build/mica-server serve
 ~~~
 
-This can cache both artifact families and therefore uses substantially more
-disk. Serve only one backend at a time.
+Stop the server before changing profiles. Setup reconciles the required engine
+dependencies and records the selected profile; downloaded artifacts from older
+profiles remain in the disk cache. A custom schema-2 profile may select more
+than one engine, but every individual model remains bound to exactly one.
 
 ## Profiles and memory
 
 Profiles define allowed models, context limits, concurrency, KV-cache policy,
-priority, and the preferred warm working set. Current selectable profiles live
-in [config/models.lua](config/models.lua).
+priority, and the preferred warm working set. Built-ins live in
+[config/profiles.lua](config/profiles.lua); installed JSON profiles live under
+the runtime root and can come from the GitHub catalog or a local file.
 
-| Profile | Intended use | Models / limits |
+| Profile | Engines/artifacts | Status and behavior |
 | --- | --- | --- |
-| <code>all</code> | Full chat application | Spark, Granite, Audio8, and MiniCPM; Q4 recommended. |
-| <code>core</code> | Minimal practical assistant | Required Spark LLM and Granite ASR. |
-| <code>quality</code> | Highest retained precision | All four models; use <code>--quant q8</code>. |
-| <code>mlx-small</code>, <code>gguf-small</code>, <code>vllm-small</code> | Short batched text | 512 input, 256 output, concurrency 4. |
-| <code>*-medium</code> | General text | 4,096 input, 512 output, concurrency 2. |
-| <code>*-long</code> | Long single request | 16,384 input, 1,024 output, concurrency 1. |
+| <code>mica-assistant-mlx</code> | MLX only | Recommended Apple assistant: Spark pinned, ASR/TTS warm, vision on demand. |
+| <code>mica-assistant-gguf</code> | GGUF only | Portable native equivalent; no Python dependency. |
+| <code>mica-assistant-gptq</code> | GPTQ/vLLM | Visible roadmap profile; blocked from installation until all modalities are certified. |
+| <code>quality-interactive</code>, <code>gguf-quality-interactive</code> | MLX or GGUF Q8 | Larger quality-oriented 16 GiB policies. |
+| <code>text-batch</code>, <code>gguf-text-batch</code> | MLX or GGUF Q4 | Four bounded text sequences; utilities are ephemeral. |
+| <code>low-memory</code>, <code>gguf-low-memory</code> | MLX or GGUF Q4 | At most one resident worker. |
 
 At startup, required models are warmed first: LLM, then ASR. TTS and vision
 follow while the budget permits. On demand, Mica evicts workers with no active
@@ -296,6 +326,24 @@ curl http://127.0.0.1:8080/admin/models \
 
 The default idle TTL is five minutes. Adjust TTL, safety margin, timeouts, and
 minimum free RAM in [config/policy.lua](config/policy.lua).
+
+List, install, clone, validate, or edit profiles without modifying the binary:
+
+~~~sh
+./build/mica-server profile list
+./build/mica-server profile list --remote
+./build/mica-server profile install mica-assistant-mlx
+./build/mica-server profile validate ./my-profile.json
+./build/mica-server profile install-file ./my-profile.json
+./build/mica-server profile create my-assistant --from mica-assistant-mlx
+./build/mica-server profile edit my-assistant --editor vi
+./build/mica-server setup --profile-file ./my-profile.json --ram-gib 8
+~~~
+
+A local profile may reference any compatible Hugging Face model, but must pin
+an immutable revision, declare a commercial-use license, modality, concrete
+engine, artifact path/format, and safe memory/context limits. Remote code is
+never trusted. See [the profile guide](docs/profiles.md).
 
 ## Runtime layout
 
@@ -316,6 +364,7 @@ The default root is <code>~/models</code>:
     ├── runtime.json
     ├── setup-acceptance.json
     ├── custom-models.json
+    ├── profiles/                   installed schema-2 JSON profiles
     ├── logs/
     ├── workers/
     └── tmp/sessions/            chat JSON and session media
@@ -410,6 +459,7 @@ PDFs are rendered to page images before analysis.
 | <code>GET /health</code> | Process liveness |
 | <code>GET /ready</code> | Warmup/readiness |
 | <code>GET /v1/models</code> | Enabled models and quantized IDs |
+| <code>GET /v1/catalog</code> | Registry filtered by modality, capability, or backend |
 | <code>POST /v1/chat/completions</code> | Chat, including streaming |
 | <code>POST /v1/completions</code> | Legacy completion adapter |
 | <code>POST /v1/audio/transcriptions</code> | ASR |
@@ -419,6 +469,9 @@ PDFs are rendered to page images before analysis.
 | <code>GET /v1/agent/sessions/&lt;id&gt;</code> | Session JSON |
 | <code>GET /v1/agent/sessions/&lt;id&gt;/media/...</code> | Authenticated media |
 | <code>GET /admin/models</code> | Profile, budget, and resident workers |
+
+The complete request/response and authentication reference is in
+[docs/api.md](docs/api.md).
 
 ## Chat interface
 
@@ -495,13 +548,14 @@ module retained at full precision and why. vLLM gates are documented in
 
 | File | Responsibility |
 | --- | --- |
-| [config/models.lua](config/models.lua) | Current catalog, selectable profiles, priorities, repositories, artifacts, and reservations |
+| [config/models.lua](config/models.lua) | Model catalog, repositories, artifacts, reservations, and migration profiles |
 | [config/policy.lua](config/policy.lua) | Idle TTL, safety margin, free-memory reserve, and timeouts |
 | [config/tools.lua](config/tools.lua) | VLM model and upload/media bounds |
 | [config/mlx_audio_profiles.json](config/mlx_audio_profiles.json) | Protected audio quantization layers |
 | [config/vllm_quantization_profiles.json](config/vllm_quantization_profiles.json) | vLLM conversion and calibration |
 | [config/huggingface_publish.json](config/huggingface_publish.json) | Publication destinations and gates |
-| [config/profiles.lua](config/profiles.lua) | Proposed schema-2 design; not loaded by the current server |
+| [config/profiles.lua](config/profiles.lua) | Active schema-2 execution and residency profiles |
+| [profiles/catalog.json](profiles/catalog.json) | GitHub-distributed recommended profile catalog |
 
 Architecture decisions and the current implementation boundary are maintained
 in
@@ -638,10 +692,18 @@ Allow microphone access for <code>127.0.0.1</code>. On macOS recording is
 - Attachment contents are treated as untrusted data by the agent prompt.
 - Never commit tokens, runtime state, model caches, or private conversations.
 
-## Design and future work
+## Roadmap
 
-The next schema separates model capability, artifact format, inference engine,
-execution policy, and residency policy. Stable Audio 3 and DiffRhythm are
-documented future additions, not currently installed or served. See
-[the execution and residency design](docs/design/model-execution-and-residency-profiles.md)
-and [the architecture decisions](docs/design/architecture-decisions.md).
+- [ ] Complete Mica Harness, the workflow orchestration and validation layer.
+- [ ] Certify and enable the full `mica-assistant-gptq` vLLM profile on native
+  CUDA/ROCm/XPU hardware.
+- [ ] Add image-generation engines, Q4/Q8 artifacts, routes, and profiles.
+- [ ] Add audio/music-generation engines and quants for Stable Audio and
+  DiffRhythm, with explicit license policy.
+- [ ] Add a Qwen2.5-Coder-7B coding profile.
+- [ ] Migrate the default runtime layout from `~/models` to `~/.mica`.
+
+Stable Audio and DiffRhythm are documented future additions, not currently
+installed or served. See [the execution and residency design](docs/design/model-execution-and-residency-profiles.md),
+[the architecture decisions](docs/design/architecture-decisions.md),
+[the API reference](docs/api.md), and [the profile guide](docs/profiles.md).

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "files": [
     {
-      "path": "/Users/miguel/models/checkpoints/gguf/minicpm-v46-thinking/mmproj-model-f16.gguf",
+      "path": "$MICA_ROOT/checkpoints/gguf/minicpm-v46-thinking/mmproj-model-f16.gguf",
       "size_bytes": 1108746976,
       "tensor_count": 459,
       "type_counts": {
@@ -3888,7 +3888,7 @@
       }
     },
     {
-      "path": "/Users/miguel/models/comparisons/gguf-local/minicpm-v46-thinking/projector-f16.gguf",
+      "path": "$MICA_ROOT/comparisons/gguf-local/minicpm-v46-thinking/projector-f16.gguf",
       "size_bytes": 1108747104,
       "tensor_count": 459,
       "type_counts": {
@@ -7776,8 +7776,8 @@
   ],
   "comparisons": [
     {
-      "left": "/Users/miguel/models/checkpoints/gguf/minicpm-v46-thinking/mmproj-model-f16.gguf",
-      "right": "/Users/miguel/models/comparisons/gguf-local/minicpm-v46-thinking/projector-f16.gguf",
+      "left": "$MICA_ROOT/checkpoints/gguf/minicpm-v46-thinking/mmproj-model-f16.gguf",
+      "right": "$MICA_ROOT/comparisons/gguf-local/minicpm-v46-thinking/projector-f16.gguf",
       "same_tensor_names": true,
       "same_shapes": true,
       "same_precision_map": true,

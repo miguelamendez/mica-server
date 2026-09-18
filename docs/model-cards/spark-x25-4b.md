@@ -15,6 +15,8 @@ tags:
 mica:
   schema: 1
   model_id: spark-x25-4b
+  mica_server_repo: https://github.com/miguelamendez/mica-server
+  curated_repo: https://huggingface.co/miguelamendez/mica-spark-x25-4b
   source_repo: XHToken/Spark-X2.5-4B
   source_revision: 0bcb35678590218655dff3765b9e61c83b35e9c4
   parameters: 4B-class
@@ -38,6 +40,12 @@ Mica runtime artifacts for
 [`XHToken/Spark-X2.5-4B`](https://huggingface.co/XHToken/Spark-X2.5-4B),
 pinned to revision `0bcb35678590218655dff3765b9e61c83b35e9c4`. The
 source and derivatives are Apache-2.0 licensed.
+
+The runtime configuration, conversion policy, and validation evidence are
+maintained in the [Mica Server repository](https://github.com/miguelamendez/mica-server).
+Validated artifacts are staged for publication together in the
+[`miguelamendez/mica-spark-x25-4b`](https://huggingface.co/miguelamendez/mica-spark-x25-4b)
+repository; this card does not claim the remote upload has completed.
 
 ## Model facts and provenance
 

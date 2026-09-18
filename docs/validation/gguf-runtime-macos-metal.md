@@ -99,7 +99,7 @@ alignment left too many codec tensors at source precision. It produced a 1.4
 GiB file, used about 1.93 GiB RSS, and had no speed advantage. A mixed
 Q4_K-generator/Q8_0-codec candidate was still larger at 1.5 GiB. Both rejected
 artifacts remain recoverable under
-`/Users/miguel/models/rejected/audio8-tts-06b/2026-09-16-q4-k-experiments/`.
+`$MICA_ROOT/rejected/audio8-tts-06b/2026-09-16-q4-k-experiments/`.
 
 ## Spark-X2.5-4B
 

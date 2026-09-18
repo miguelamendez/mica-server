@@ -52,6 +52,7 @@ add_library(mica_server_core
   src/command.cpp
   src/config.cpp
   src/hardware.cpp
+  src/profiles.cpp
   src/scheduler.cpp
   src/setup.cpp
 )
@@ -82,12 +83,116 @@ target_compile_options(mica_server_core PRIVATE -Wall -Wextra -Wpedantic)
 add_executable(mica-server src/main.cpp src/server.cpp)
 target_link_libraries(mica-server PRIVATE mica_server_core)
 
+include(GNUInstallDirs)
+
 if(MICA_SERVER_BUILD_TESTS)
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
   enable_testing()
   add_executable(mica-server-tests tests/test_scheduler.cpp)
   target_link_libraries(mica-server-tests PRIVATE mica_server_core)
   add_test(NAME mica-server-tests COMMAND mica-server-tests)
+  add_test(
+    NAME mica-server-schema2-gguf-profile
+    COMMAND $<TARGET_FILE:mica-server> setup --profile gguf-interactive
+            --dry-run --ram-gib 8 --root /tmp/mica-schema2-gguf-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/mac-metal.json
+  )
+  set_tests_properties(mica-server-schema2-gguf-profile PROPERTIES
+    PASS_REGULAR_EXPRESSION "installed_backends.*gguf.*validate native loopback bind"
+    FAIL_REGULAR_EXPRESSION "uv venv|environment-tools|environment-mlx|environment-vllm"
+  )
+  add_test(
+    NAME mica-server-schema2-reject-quant-override
+    COMMAND $<TARGET_FILE:mica-server> plan --profile interactive --quant q8
+            --root /tmp/mica-schema2-quant-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/mac-metal.json
+  )
+  set_tests_properties(mica-server-schema2-reject-quant-override PROPERTIES
+    WILL_FAIL TRUE
+  )
+  add_test(
+    NAME mica-server-auto-profile-mac
+    COMMAND $<TARGET_FILE:mica-server> plan --profile auto --ram-gib 8
+            --root /tmp/mica-auto-mac-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/mac-metal.json
+  )
+  set_tests_properties(mica-server-auto-profile-mac PROPERTIES
+    PASS_REGULAR_EXPRESSION "mica-assistant-mlx"
+  )
+  add_test(
+    NAME mica-server-auto-profile-linux
+    COMMAND $<TARGET_FILE:mica-server> plan --profile auto --ram-gib 8
+            --root /tmp/mica-auto-linux-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cpu.json
+  )
+  set_tests_properties(mica-server-auto-profile-linux PROPERTIES
+    PASS_REGULAR_EXPRESSION "mica-assistant-gguf"
+  )
+  add_test(
+    NAME mica-server-profile-file-plan
+    COMMAND $<TARGET_FILE:mica-server> plan --profile-file
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/profiles/custom-assistant.json
+            --root /tmp/mica-profile-file-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/mac-metal.json
+  )
+  set_tests_properties(mica-server-profile-file-plan PROPERTIES
+    PASS_REGULAR_EXPRESSION "custom-assistant"
+  )
+  add_test(
+    NAME mica-server-profile-external-gguf
+    COMMAND $<TARGET_FILE:mica-server> plan --profile-file
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/profiles/external-gguf.json
+            --root /tmp/mica-profile-external-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cpu.json
+  )
+  set_tests_properties(mica-server-profile-external-gguf PROPERTIES
+    PASS_REGULAR_EXPRESSION "external-gguf"
+  )
+  add_test(
+    NAME mica-server-profile-reject-remote-code
+    COMMAND $<TARGET_FILE:mica-server> profile validate
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/profiles/unsafe-remote-code.json
+            --root /tmp/mica-profile-unsafe-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+  )
+  set_tests_properties(mica-server-profile-reject-remote-code PROPERTIES
+    WILL_FAIL TRUE
+  )
+  foreach(MICA_HARDWARE_CASE IN ITEMS mac-metal linux-cuda linux-rocm linux-xpu)
+    add_test(
+      NAME mica-server-gguf-build-${MICA_HARDWARE_CASE}
+      COMMAND $<TARGET_FILE:mica-server> setup --profile mica-assistant-gguf
+              --dry-run --ram-gib 8
+              --root /tmp/mica-build-${MICA_HARDWARE_CASE}
+              --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+              --hardware-profile
+              ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/${MICA_HARDWARE_CASE}.json
+    )
+  endforeach()
+  set_tests_properties(mica-server-gguf-build-mac-metal PROPERTIES
+    PASS_REGULAR_EXPRESSION "GGML_METAL=ON.*ENGINE_ENABLE_METAL=ON.*--parallel 2"
+  )
+  set_tests_properties(mica-server-gguf-build-linux-cuda PROPERTIES
+    PASS_REGULAR_EXPRESSION "GGML_CUDA=ON.*ENGINE_ENABLE_CUDA=ON.*--parallel 2"
+  )
+  set_tests_properties(mica-server-gguf-build-linux-rocm PROPERTIES
+    PASS_REGULAR_EXPRESSION "GGML_HIP=ON.*ENGINE_ENABLE_HIP=ON.*--parallel 2"
+  )
+  set_tests_properties(mica-server-gguf-build-linux-xpu PROPERTIES
+    PASS_REGULAR_EXPRESSION "GGML_SYCL=ON.*ENGINE_ENABLE_VULKAN=ON.*--parallel 2"
+  )
   add_test(
     NAME mica-server-quantize-plan
     COMMAND $<TARGET_FILE:mica-server> quantize --model fixture-asr --backend gguf
@@ -439,7 +544,11 @@ if(MICA_SERVER_BUILD_TESTS)
   )
 endif()
 
-install(TARGETS mica-server RUNTIME DESTINATION bin)
-install(DIRECTORY config/ DESTINATION share/mica-server/config)
-install(DIRECTORY scripts/ DESTINATION share/mica-server/scripts
-        FILES_MATCHING PATTERN "*.py")
+install(TARGETS mica-server RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(DIRECTORY config/
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/config
+        FILES_MATCHING PATTERN "*.lua" PATTERN "*.json")
+install(DIRECTORY scripts/ DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/scripts
+        FILES_MATCHING PATTERN "*.py" PATTERN "__pycache__" EXCLUDE)
+install(FILES profiles/catalog.json
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/profiles)

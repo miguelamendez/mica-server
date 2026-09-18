@@ -25,6 +25,8 @@ tags:
 mica:
   schema: 1
   model_id: audio8-tts-06b
+  mica_server_repo: https://github.com/miguelamendez/mica-server
+  curated_repo: https://huggingface.co/miguelamendez/mica-audio8-tts-06b
   source_repo: Audio8/Audio8-TTS-Preview-0.6b
   source_revision: f07040f3d151f1ba0253bfb92cb2f5dd38b44594
   parameters: 601159424
@@ -46,6 +48,12 @@ Mica runtime artifacts for
 [`Audio8/Audio8-TTS-Preview-0.6b`](https://huggingface.co/Audio8/Audio8-TTS-Preview-0.6b),
 pinned to revision `f07040f3d151f1ba0253bfb92cb2f5dd38b44594`.
 The model and derivatives are Apache-2.0 licensed.
+
+The runtime configuration, conversion policy, and validation evidence are
+maintained in the [Mica Server repository](https://github.com/miguelamendez/mica-server).
+Validated artifacts are staged for publication together in the
+[`miguelamendez/mica-audio8-tts-06b`](https://huggingface.co/miguelamendez/mica-audio8-tts-06b)
+repository; this card does not claim the remote upload has completed.
 
 ## Model facts and provenance
 

@@ -4,6 +4,8 @@
 #include <optional>
 #include <string>
 
+#include <nlohmann/json_fwd.hpp>
+
 #include "mica_server/types.hpp"
 
 namespace mica {
@@ -50,5 +52,10 @@ std::string add_custom_model(const AddModelOptions& options);
 void quantize_model(const QuantizeModelOptions& options);
 void configure_vllm_custom_model(const ConfigureVllmModelOptions& options);
 void merge_custom_models(Registry& registry, const std::filesystem::path& root);
+nlohmann::json registry_catalog(
+    const Registry& registry,
+    const std::optional<std::string>& capability = std::nullopt,
+    const std::optional<Backend>& backend = std::nullopt,
+    bool check_remote = false);
 
 }  // namespace mica

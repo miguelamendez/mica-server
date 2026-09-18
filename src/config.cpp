@@ -247,6 +247,226 @@ void run_file(lua_State* state, const std::filesystem::path& path) {
   }
 }
 
+Backend backend_for_engine(const std::string& engine) {
+  if (engine == "mlx-lm" || engine == "mlx-vlm" || engine == "mlx-audio") {
+    return Backend::mlx;
+  }
+  if (engine == "llama-cpp" || engine == "audio-cpp") return Backend::gguf;
+  if (engine == "vllm") return Backend::vllm;
+  throw std::invalid_argument("unsupported profile engine: " + engine);
+}
+
+void validate_profile_model(const Registry& registry, const ProfileModel& policy,
+                            const std::string& profile_name) {
+  const auto& model = registry.model(policy.id);
+  const auto backend = model.artifacts.find(policy.backend);
+  if (backend == model.artifacts.end()) {
+    throw std::runtime_error("profile " + profile_name + " selects an undeclared backend for " +
+                             policy.id);
+  }
+  const auto artifact = backend->second.find(policy.quantization);
+  if (artifact == backend->second.end() || !artifact->second.supported) {
+    const auto reason = artifact == backend->second.end()
+                            ? std::string("quantization is not declared")
+                            : artifact->second.reason;
+    throw std::runtime_error("profile " + profile_name + " cannot use " + policy.id +
+                             "@" + to_string(policy.backend) + ":" +
+                             to_string(policy.quantization) + ": " + reason);
+  }
+  if (policy.max_input_tokens < 1 || policy.max_output_tokens < 1 ||
+      policy.max_total_tokens < policy.max_input_tokens + policy.max_output_tokens) {
+    throw std::runtime_error("profile " + profile_name + " has inconsistent token limits for " +
+                             policy.id);
+  }
+  if ((model.capability == "text" || model.capability == "vision") &&
+      policy.max_total_tokens > model.gguf_context_tokens) {
+    throw std::runtime_error("profile " + profile_name + " exceeds the declared context for " +
+                             policy.id);
+  }
+  if (policy.max_concurrent_requests < 1 || policy.max_concurrent_requests > 64) {
+    throw std::runtime_error("profile " + profile_name + " has invalid concurrency for " +
+                             policy.id);
+  }
+  if (policy.kv_cache_precision != "q4" && policy.kv_cache_precision != "q8" &&
+      policy.kv_cache_precision != "auto" &&
+      policy.kv_cache_precision != "runtime-managed" &&
+      policy.kv_cache_precision != "not-applicable") {
+    throw std::runtime_error("profile " + profile_name + " has invalid KV cache precision for " +
+                             policy.id);
+  }
+}
+
+void load_profiles_v2(lua_State* state, Registry& registry,
+                      const std::filesystem::path& path) {
+  if (!std::filesystem::exists(path)) return;
+  if (luaL_loadfile(state, path.c_str()) != LUA_OK || lua_pcall(state, 0, 1, 0) != LUA_OK) {
+    const std::string message = lua_tostring(state, -1);
+    lua_pop(state, 1);
+    throw std::runtime_error("Lua profile config failed: " + message);
+  }
+  if (!lua_istable(state, -1)) {
+    lua_pop(state, 1);
+    throw std::runtime_error("profiles.lua must return a table");
+  }
+  const int root = lua_absindex(state, -1);
+  const auto schema = static_cast<int>(number_field(state, root, "schema", 0));
+  if (schema != 2) {
+    lua_pop(state, 1);
+    throw std::runtime_error("profiles.lua must use schema 2");
+  }
+  lua_getfield(state, root, "execution_profiles");
+  if (!lua_istable(state, -1)) {
+    lua_pop(state, 2);
+    throw std::runtime_error("profiles.lua is missing execution_profiles");
+  }
+  const int executions = lua_absindex(state, -1);
+  lua_getfield(state, root, "residency_profiles");
+  if (!lua_istable(state, -1)) {
+    lua_pop(state, 3);
+    throw std::runtime_error("profiles.lua is missing residency_profiles");
+  }
+  const int profiles = lua_absindex(state, -1);
+
+  lua_pushnil(state);
+  while (lua_next(state, profiles) != 0) {
+    const auto profile_name = std::string(luaL_checkstring(state, -2));
+    if (!lua_istable(state, -1)) {
+      lua_pop(state, 4);
+      throw std::runtime_error("residency profile must be a table: " + profile_name);
+    }
+    const int profile_table = lua_absindex(state, -1);
+    Profile profile;
+    profile.name = profile_name;
+    profile.schema = 2;
+    profile.mode = string_field(state, profile_table, "mode", "interactive");
+    profile.maximum_ram_gib = number_field(state, profile_table, "maximum_ram_gib", 0.0);
+    profile.maximum_vram_gib = number_field(state, profile_table, "maximum_vram_gib", 0.0);
+    profile.memory_safety_reserve_gib =
+        number_field(state, profile_table, "memory_safety_reserve_gib", 0.0);
+    profile.maximum_resident_workers = static_cast<int>(
+        number_field(state, profile_table, "maximum_resident_workers", 0));
+    if (profile.maximum_ram_gib < 0 || profile.maximum_vram_gib < 0 ||
+        profile.memory_safety_reserve_gib < 0 || profile.maximum_resident_workers < 0) {
+      lua_pop(state, 4);
+      throw std::runtime_error("profile memory limits cannot be negative: " + profile_name);
+    }
+
+    lua_getfield(state, profile_table, "models");
+    if (!lua_istable(state, -1) || lua_rawlen(state, -1) == 0) {
+      lua_pop(state, 5);
+      throw std::runtime_error("profile has no models: " + profile_name);
+    }
+    const int models = lua_absindex(state, -1);
+    const auto model_count = lua_rawlen(state, models);
+    for (std::size_t i = 1; i <= model_count; ++i) {
+      lua_rawgeti(state, models, static_cast<lua_Integer>(i));
+      if (!lua_istable(state, -1)) {
+        lua_pop(state, 6);
+        throw std::runtime_error("profile model entry must be a table: " + profile_name);
+      }
+      const int entry = lua_absindex(state, -1);
+      ProfileModel policy;
+      policy.id = string_field(state, entry, "id");
+      policy.execution = string_field(state, entry, "execution");
+      policy.residency = parse_residency(
+          string_field(state, entry, "residency", "on-demand"));
+      policy.priority = static_cast<int>(number_field(state, entry, "priority", 50));
+      policy.startup = bool_field(state, entry, "startup", false);
+      policy.idle_seconds = static_cast<int>(number_field(
+          state, entry, "idle_seconds",
+          policy.residency == Residency::pinned ? 0 :
+          policy.residency == Residency::ephemeral ? 0 : 300));
+      if (policy.id.empty() || policy.execution.empty()) {
+        lua_pop(state, 6);
+        throw std::runtime_error("profile model requires id and execution: " + profile_name);
+      }
+      if (std::find(profile.models.begin(), profile.models.end(), policy.id) !=
+          profile.models.end()) {
+        lua_pop(state, 6);
+        throw std::runtime_error("profile contains a duplicate model: " + policy.id);
+      }
+
+      lua_getfield(state, executions, policy.execution.c_str());
+      if (!lua_istable(state, -1)) {
+        lua_pop(state, 7);
+        throw std::runtime_error("unknown execution profile " + policy.execution +
+                                 " in " + profile_name);
+      }
+      const int execution = lua_absindex(state, -1);
+      const auto execution_model = string_field(state, execution, "model");
+      if (execution_model != policy.id) {
+        lua_pop(state, 7);
+        throw std::runtime_error("execution profile model mismatch for " + policy.id);
+      }
+      policy.engine = string_field(state, execution, "engine");
+      policy.backend = backend_for_engine(policy.engine);
+
+      lua_getfield(state, execution, "artifact");
+      if (!lua_istable(state, -1)) {
+        lua_pop(state, 8);
+        throw std::runtime_error("execution profile has no artifact: " + policy.execution);
+      }
+      policy.quantization = parse_quantization(
+          string_field(state, -1, "quantization", "q4"));
+      lua_pop(state, 1);
+
+      lua_getfield(state, execution, "context");
+      if (lua_istable(state, -1)) {
+        policy.max_input_tokens = static_cast<int>(
+            number_field(state, -1, "max_input_tokens", policy.max_input_tokens));
+        policy.max_output_tokens = static_cast<int>(
+            number_field(state, -1, "max_output_tokens", policy.max_output_tokens));
+        policy.max_total_tokens = static_cast<int>(
+            number_field(state, -1, "max_total_tokens", policy.max_total_tokens));
+      } else {
+        policy.max_input_tokens = 1;
+        policy.max_output_tokens = 1;
+        policy.max_total_tokens = 2;
+      }
+      lua_pop(state, 1);
+
+      lua_getfield(state, execution, "batching");
+      if (lua_istable(state, -1)) {
+        policy.max_concurrent_requests = static_cast<int>(number_field(
+            state, -1, "max_concurrent_requests", policy.max_concurrent_requests));
+      }
+      lua_pop(state, 1);
+
+      lua_getfield(state, execution, "kv_cache");
+      if (lua_istable(state, -1)) {
+        policy.kv_cache_precision =
+            string_field(state, -1, "precision", policy.kv_cache_precision);
+      }
+      lua_pop(state, 1);
+      lua_pop(state, 1);  // execution profile
+
+      if (policy.priority < 0 || policy.priority > 1000 || policy.idle_seconds < 0) {
+        lua_pop(state, 6);
+        throw std::runtime_error("invalid residency policy for " + policy.id);
+      }
+      validate_profile_model(registry, policy, profile_name);
+      profile.models.push_back(policy.id);
+      profile.model_policies.push_back(std::move(policy));
+      lua_pop(state, 1);  // model entry
+    }
+    lua_pop(state, 1);  // models
+    const auto& first = profile.model_policies.front();
+    profile.quantization = first.quantization;
+    profile.max_input_tokens = first.max_input_tokens;
+    profile.max_output_tokens = first.max_output_tokens;
+    profile.max_total_tokens = first.max_total_tokens;
+    profile.max_concurrent_requests = first.max_concurrent_requests;
+    profile.kv_cache_precision = first.kv_cache_precision;
+    const auto same_backend = std::all_of(
+        profile.model_policies.begin(), profile.model_policies.end(),
+        [&](const auto& item) { return item.backend == first.backend; });
+    if (same_backend) profile.backend = first.backend;
+    registry.profiles[profile.name] = std::move(profile);
+    lua_pop(state, 1);  // residency profile value; keep key for lua_next
+  }
+  lua_pop(state, 3);  // residency profiles, execution profiles, root
+}
+
 }  // namespace
 
 std::string to_string(Backend value) {
@@ -299,6 +519,25 @@ VllmDevice parse_vllm_device(const std::string& value) {
       "vLLM device must be auto, cpu, cuda, metal, rocm, xpu, or tpu");
 }
 
+std::string to_string(Residency value) {
+  switch (value) {
+    case Residency::pinned: return "pinned";
+    case Residency::warm: return "warm";
+    case Residency::on_demand: return "on-demand";
+    case Residency::ephemeral: return "ephemeral";
+  }
+  throw std::invalid_argument("invalid residency");
+}
+
+Residency parse_residency(const std::string& value) {
+  if (value == "pinned") return Residency::pinned;
+  if (value == "warm") return Residency::warm;
+  if (value == "on-demand") return Residency::on_demand;
+  if (value == "ephemeral") return Residency::ephemeral;
+  throw std::invalid_argument(
+      "residency must be pinned, warm, on-demand, or ephemeral");
+}
+
 Quantization parse_quantization(const std::string& value) {
   if (value == "q4") return Quantization::q4;
   if (value == "q8") return Quantization::q8;
@@ -336,6 +575,7 @@ Registry load_registry(const std::filesystem::path& config_directory) {
     run_file(state, config_directory / "policy.lua");
     const auto tools = config_directory / "tools.lua";
     if (std::filesystem::exists(tools)) run_file(state, tools);
+    load_profiles_v2(state, registry, config_directory / "profiles.lua");
   } catch (...) {
     lua_close(state);
     throw;

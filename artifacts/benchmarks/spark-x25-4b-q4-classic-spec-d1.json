@@ -1,6 +1,6 @@
 {
-  "target": "/Users/miguel/models/checkpoints/mlx/spark-x25-4b/q4",
-  "draft": "/Users/miguel/models/checkpoints/mlx/spark-x25-1.7b/q4",
+  "target": "$MICA_ROOT/checkpoints/mlx/spark-x25-4b/q4",
+  "draft": "$MICA_ROOT/checkpoints/mlx/spark-x25-1.7b/q4",
   "prompt": "Explain in three short paragraphs how speculative decoding works, including why target-model verification preserves correctness.",
   "prompt_tokens": 35,
   "num_draft_tokens": 1,

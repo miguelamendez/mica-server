@@ -2,7 +2,7 @@
   "schema_version": 1,
   "files": [
     {
-      "path": "/Users/miguel/models/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q4_K_M.gguf",
+      "path": "$MICA_ROOT/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q4_K_M.gguf",
       "size_bytes": 2600223552,
       "tensor_count": 290,
       "type_counts": {
@@ -2581,7 +2581,7 @@
       }
     },
     {
-      "path": "/Users/miguel/models/comparisons/gguf-local/spark-x25-4b/model-local-Q4_K_M.gguf",
+      "path": "$MICA_ROOT/comparisons/gguf-local/spark-x25-4b/model-local-Q4_K_M.gguf",
       "size_bytes": 2600224000,
       "tensor_count": 290,
       "type_counts": {
@@ -5160,7 +5160,7 @@
       }
     },
     {
-      "path": "/Users/miguel/models/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q8_0.gguf",
+      "path": "$MICA_ROOT/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q8_0.gguf",
       "size_bytes": 4375020352,
       "tensor_count": 290,
       "type_counts": {
@@ -7735,7 +7735,7 @@
       }
     },
     {
-      "path": "/Users/miguel/models/comparisons/gguf-local/spark-x25-4b/model-local-Q8_0.gguf",
+      "path": "$MICA_ROOT/comparisons/gguf-local/spark-x25-4b/model-local-Q8_0.gguf",
       "size_bytes": 4375020800,
       "tensor_count": 290,
       "type_counts": {
@@ -10312,8 +10312,8 @@
   ],
   "comparisons": [
     {
-      "left": "/Users/miguel/models/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q4_K_M.gguf",
-      "right": "/Users/miguel/models/comparisons/gguf-local/spark-x25-4b/model-local-Q4_K_M.gguf",
+      "left": "$MICA_ROOT/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q4_K_M.gguf",
+      "right": "$MICA_ROOT/comparisons/gguf-local/spark-x25-4b/model-local-Q4_K_M.gguf",
       "same_tensor_names": true,
       "same_shapes": true,
       "same_precision_map": true,
@@ -10323,8 +10323,8 @@
       "type_differences": []
     },
     {
-      "left": "/Users/miguel/models/comparisons/gguf-local/spark-x25-4b/model-local-Q4_K_M.gguf",
-      "right": "/Users/miguel/models/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q8_0.gguf",
+      "left": "$MICA_ROOT/comparisons/gguf-local/spark-x25-4b/model-local-Q4_K_M.gguf",
+      "right": "$MICA_ROOT/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q8_0.gguf",
       "same_tensor_names": true,
       "same_shapes": true,
       "same_precision_map": false,
@@ -11420,8 +11420,8 @@
       ]
     },
     {
-      "left": "/Users/miguel/models/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q8_0.gguf",
-      "right": "/Users/miguel/models/comparisons/gguf-local/spark-x25-4b/model-local-Q8_0.gguf",
+      "left": "$MICA_ROOT/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q8_0.gguf",
+      "right": "$MICA_ROOT/comparisons/gguf-local/spark-x25-4b/model-local-Q8_0.gguf",
       "same_tensor_names": true,
       "same_shapes": true,
       "same_precision_map": true,

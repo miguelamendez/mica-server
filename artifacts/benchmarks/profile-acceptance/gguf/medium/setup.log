@@ -97,6 +97,6 @@
 }
 Native runtime build guard: at most 2 compiler jobs within the 16 GiB compilation budget.
 Native GGUF runtimes already exist; use --refresh to rebuild.
-[test] validate loopback bind: /Users/miguel/models/environment-tools/bin/python -c 'import socket; s=socket.socket(); s.bind(('\''127.0.0.1'\'', 0)); print(s.getsockname()[1]); s.close()'
-[test] validate llama.cpp runtime: /Users/miguel/models/runtime/llama.cpp/build-mica/bin/llama-server --version
-[test] validate audio.cpp runtime: /Users/miguel/models/runtime/audio.cpp/build-mica/bin/audiocpp_server --help
+[test] validate loopback bind: $MICA_ROOT/environment-tools/bin/python -c 'import socket; s=socket.socket(); s.bind(('\''127.0.0.1'\'', 0)); print(s.getsockname()[1]); s.close()'
+[test] validate llama.cpp runtime: $MICA_ROOT/runtime/llama.cpp/build-mica/bin/llama-server --version
+[test] validate audio.cpp runtime: $MICA_ROOT/runtime/audio.cpp/build-mica/bin/audiocpp_server --help

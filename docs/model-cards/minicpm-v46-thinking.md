@@ -17,6 +17,8 @@ tags:
 mica:
   schema: 1
   model_id: minicpm-v46-thinking
+  mica_server_repo: https://github.com/miguelamendez/mica-server
+  curated_repo: https://huggingface.co/miguelamendez/mica-minicpm-v46-thinking
   source_repo: openbmb/MiniCPM-V-4.6-Thinking
   source_revision: 93d8f4b60ad5d1f763442cf4c19f2a71fa95af4a
   parameters: approximately-1.2B-components
@@ -40,6 +42,12 @@ Mica runtime artifacts for
 [`openbmb/MiniCPM-V-4.6-Thinking`](https://huggingface.co/openbmb/MiniCPM-V-4.6-Thinking),
 pinned to revision `93d8f4b60ad5d1f763442cf4c19f2a71fa95af4a`.
 The source and derivatives are Apache-2.0 licensed.
+
+The runtime configuration, conversion policy, and validation evidence are
+maintained in the [Mica Server repository](https://github.com/miguelamendez/mica-server).
+Validated artifacts are staged for publication together in the
+[`miguelamendez/mica-minicpm-v46-thinking`](https://huggingface.co/miguelamendez/mica-minicpm-v46-thinking)
+repository; this card does not claim the remote upload has completed.
 
 ## Model facts and provenance
 

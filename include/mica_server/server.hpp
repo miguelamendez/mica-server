@@ -14,6 +14,7 @@ struct ServerOptions {
   int port{8080};
   std::filesystem::path root;
   std::filesystem::path config_directory;
+  std::filesystem::path api_key_file;
   std::optional<Backend> active_backend;
 };
 
