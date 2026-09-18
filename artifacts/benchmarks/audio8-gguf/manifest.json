@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "date": "2026-09-16",
+  "source_repo": "Audio8/Audio8-TTS-Preview-0.6b",
+  "source_revision": "f07040f3d151f1ba0253bfb92cb2f5dd38b44594",
+  "runtime_revision": "930a47807093a7e7747ec4d8ac350c5cdfe06c4e",
+  "backend": "metal",
+  "prompt": "Daddy, can you read me a bedtime story before I go to sleep?",
+  "options": {
+    "seed": 42,
+    "temperature": 0.7,
+    "top_p": 0.9,
+    "top_k": 50,
+    "retry_badcase": false
+  },
+  "clone_reference": {
+    "audio": "librispeech_test_clean_6930-75918-0000.wav",
+    "text": "Concord returned to its place amidst the tents."
+  },
+  "outputs": {
+    "q4_0-plain.wav": {
+      "sha256": "8da8209cb1a3835889a13e3a2e69a3181f6b879081c5c39fd0cc8645e965fc25",
+      "audio_ms": 4876.190476,
+      "wall_ms": 5281.746083,
+      "rtf": 1.083171,
+      "asr": "daddy can you read me a bedtime story before i go to sleep"
+    },
+    "q4_0-clone.wav": {
+      "sha256": "d854b4e9fded3d5365c5b76dc64f17b7e728a26661391ce8ace0a1b8581b61a5",
+      "audio_ms": 4179.591837,
+      "wall_ms": 5086.123291,
+      "rtf": 1.216895,
+      "asr": "daddy can you read me a bedtime story before i go to sleep"
+    },
+    "q8_0-plain.wav": {
+      "sha256": "2647d03642e737f7ad8169faf28745fdaeeabd140ff8853aa15989c7b39ea873",
+      "audio_ms": 4643.990930,
+      "wall_ms": 5411.524375,
+      "rtf": 1.165275,
+      "asr": "daddy can you read me a bedtime story before i go to sleep"
+    },
+    "q8_0-clone.wav": {
+      "sha256": "8763a893036155dc6406d7d390bc4fc9ca658cad23f95455f43eea9fe1a3aa71",
+      "audio_ms": 4365.351474,
+      "wall_ms": 5665.643667,
+      "rtf": 1.297867,
+      "asr": "daddy can you read me a bedtime story before i go to sleep"
+    }
+  }
+}

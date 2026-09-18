@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "model": "minicpm-v46-thinking-q8",
+  "image": "artifacts/test-assets/minicpm-scene.png",
+  "video": "artifacts/test-assets/minicpm-sequence.mp4",
+  "results": [
+    {
+      "category": "image",
+      "prompt": "Read the exact large text and describe where the blue and red regions are. Be concise.",
+      "reasoning": "Got it, let's look at the image. There's a blue square on the top left, red square on the bottom right, and the text \"MICA 31415\" is between them. So the blue region is the top-left square, red is the bottom-right square.\n",
+      "output": "The blue square is on the top left, red square is on the bottom right, and \"MICA 31415\" is between them with the text spanning across.",
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 102,
+        "prompt_tokens": 237,
+        "total_tokens": 339,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 237,
+        "prompt_ms": 916.198,
+        "prompt_per_token_ms": 3.865814345991561,
+        "prompt_per_second": 258.67770940342587,
+        "predicted_n": 102,
+        "predicted_ms": 1118.029,
+        "predicted_per_token_ms": 11.06959405940594,
+        "predicted_per_second": 90.33754938378164
+      },
+      "client_wall_ms": 2049.5822909997514
+    },
+    {
+      "category": "video",
+      "prompt": "Describe the color sequence in chronological order and include any ordinal text you see. Be concise.",
+      "reasoning": "Got it, let's look at the images. The first one is red with \"FIRST RED\". Then green with \"SECOND GREEN\". Then blue with \"THIRD BLUE\". So the order is: First Red (red), Second Green (green), Third Blue (blue).\n",
+      "output": "First Red (red), Second Green (green), Third Blue (blue)",
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 74,
+        "prompt_tokens": 5064,
+        "total_tokens": 5138,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 5064,
+        "prompt_ms": 21336.102,
+        "prompt_per_token_ms": 4.213290284360189,
+        "prompt_per_second": 237.34419717341058,
+        "predicted_n": 74,
+        "predicted_ms": 860.567,
+        "predicted_per_token_ms": 11.788589041095891,
+        "predicted_per_second": 84.82779376852703
+      },
+      "client_wall_ms": 22385.360541999034
+    }
+  ]
+}

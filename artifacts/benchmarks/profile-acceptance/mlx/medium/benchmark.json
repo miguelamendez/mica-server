@@ -1,0 +1,100 @@
+{
+  "schema": 1,
+  "created_unix_seconds": 1789692611.922533,
+  "model": "spark-x25-4b",
+  "backend": "mlx",
+  "quantization": "q4",
+  "base_url": "http://127.0.0.1:8081",
+  "max_output_tokens": 256,
+  "peak_rss_gib": null,
+  "hardware": null,
+  "cases": [
+    {
+      "task": "summary",
+      "target_context_tokens": 4096,
+      "concurrency": 2,
+      "runs": 1,
+      "summary": {
+        "request_count": 2,
+        "batch_wall_seconds": 33.64169491699431,
+        "latency_seconds": {
+          "min": 33.27185974999156,
+          "median": 33.45586035399174,
+          "p95": 33.639860957991914,
+          "max": 33.639860957991914
+        },
+        "actual_prompt_tokens": {
+          "min": 4072,
+          "max": 4072,
+          "mean": 4072.0
+        },
+        "completion_tokens": 370,
+        "aggregate_completion_tokens_per_second": 10.998256803437457,
+        "mean_backend_decode_tokens_per_second": 22.799473001031668,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 33.27185974999156,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 181,
+            "prompt_tokens": 4072,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 4253
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 4.34496323,
+            "predicted_ms": 13232.069440032501,
+            "predicted_n": 181,
+            "predicted_per_second": 13.678888311483606,
+            "predicted_per_token_ms": 73.10535602227901,
+            "prompt_ms": 13314.736207990793,
+            "prompt_n": 4072,
+            "prompt_per_second": 305.82656211815925,
+            "prompt_per_token_ms": 3.2698271630625717
+          },
+          "reasoning": null,
+          "output": "Here is the summary of the supplied synthetic project log, structured into five concise bullets:\n\n1. **Initial Launch (Alpha Milestone):** The project began with the first milestone, **alpha**, marking the successful completion of the initial phase.\n\n2. **Final Completion (Omega Milestone):** The project reached its ultimate objective, culminating in the final milestone, **omega**.\n\n3. **Identified Open Risks:** Throughout the execution, the project identified and tracked three primary risks: **memory**, **latency**, and **quality**.\n\n4. **Execution and Management:** The project log indicates a continuous, active execution process, featuring repeated and sustained record-keeping and management activities.\n\n5. **Continuous Monitoring:** The log details a persistent monitoring and management approach, emphasizing continuous tracking and oversight throughout the entire project lifecycle."
+        },
+        {
+          "wall_seconds": 33.639860957991914,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 189,
+            "prompt_tokens": 4072,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 4261
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 4.34496323,
+            "predicted_ms": 5921.041930189801,
+            "predicted_n": 189,
+            "predicted_per_second": 31.920057690579732,
+            "predicted_per_token_ms": 31.32826418089842,
+            "prompt_ms": 13245.710999006405,
+            "prompt_n": 4072,
+            "prompt_per_second": 307.42026610013244,
+            "prompt_per_token_ms": 3.2528759820742645
+          },
+          "reasoning": null,
+          "output": "Here is the summary of the supplied synthetic project log, structured into five concise bullets:\n\n1. **Initial Launch (Alpha Milestone):** The project began with the first milestone, **alpha**, marking the successful completion of the initial phase.\n\n2. **Final Completion (Omega Milestone):** The project progressed through its development and execution phases, culminating in the final milestone, **omega**.\n\n3. **Identified Risks:** Throughout the project lifecycle, the identified risks were **memory**, **latency**, and **quality**.\n\n4. **Risk Management:** The project log explicitly addresses these risks, indicating a structured approach to managing the challenges encountered during execution.\n\n5. **Project Conclusion:** The synthesis concludes that the project successfully reached its final milestone (omega) while maintaining a comprehensive record of the initial launch, final completion, and the management of all associated risks."
+        }
+      ]
+    }
+  ]
+}

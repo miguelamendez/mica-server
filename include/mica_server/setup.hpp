@@ -13,6 +13,7 @@ namespace mica {
 struct SetupOptions {
   std::filesystem::path root;
   std::filesystem::path config_directory;
+  std::filesystem::path hardware_profile;
   std::string profile{"all"};
   std::string hf_repo;
   std::vector<Backend> backends;

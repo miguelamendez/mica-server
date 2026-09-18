@@ -17,7 +17,8 @@
       "draft": {
         "kind": "classic-speculative-candidate",
         "source": "XHToken/Spark-X2.5-1.7B",
-        "note": "Smaller sibling, not a vendor-published MTP drafter; disabled until speed and acceptance tests pass."
+        "status": "disabled-on-mlx",
+        "note": "The sibling has a byte-identical tokenizer, but MLX-LM 0.31.3 produced non-lossless greedy output at draft lengths 1 and 2 and no material speedup. Retest after the upstream speculative cache bug is fixed."
       },
       "mirrors": {
         "mlx": "miguelamendez/mica-spark-x25-4b-mlx",
@@ -70,10 +71,16 @@
         ],
         "status": "conservative architecture-guided candidate; validation pending"
       },
+      "gguf_quantization_policy": {
+        "q4_type": "Q4_0",
+        "q8_type": "Q8_0",
+        "reason": "Q4_0's 32-element blocks cover Audio8 codec matrices that Q4_K's 256-element blocks leave at source precision.",
+        "status": "validated: seeded TTS and zero-shot clone both passed exact Granite ASR round-trip"
+      },
       "candidates": {
         "mlx_q4": null,
         "mlx_q8": "vanch007/Audio8-TTS-MLX-8bit",
-        "gguf_q4": null,
+        "gguf_q4": "local:audio8-tts-preview-0.6b-q4_0.gguf",
         "gguf_q8": "js-byte/Audio8-TTS-Preview-0.6b-GGUF"
       },
       "fallback": "Convert missing Q4 variants from the pinned official checkpoint."
@@ -92,7 +99,28 @@
         "mlx_q8": null,
         "gguf_q4_q8": "openbmb/MiniCPM-V-4.6-Thinking-gguf"
       },
-      "fallback": "Convert MLX Q4/Q8 from official BF16; the released checkpoint has no mtp.* tensors to extract."
+      "mlx_quantization_policy": {
+        "status": "validated-with-q4-formatting-caveat",
+        "quantized": [
+          "language_model.*.mlp.{gate_proj,up_proj,down_proj}",
+          "language_model.*.self_attn.{q_proj,k_proj,v_proj,o_proj} on the six full-attention layers"
+        ],
+        "preserved": [
+          "vision_tower",
+          "vit_merger",
+          "merger",
+          "language_model.*.linear_attn",
+          "language_model.*.embed_tokens",
+          "language_model.*.lm_head"
+        ],
+        "quantized_module_count": 96,
+        "recommended": "q8 for stronger BF16 formatting fidelity; q4 when the smaller memory footprint matters"
+      },
+      "draft": {
+        "status": "unavailable",
+        "note": "No smaller MiniCPM-V 4.6 sibling exists. Qwen3.5-0.8B is not smaller and its 248320-token vocabulary differs from MiniCPM-V's 248094-token vocabulary. Although config.json declares mtp_num_hidden_layers=1, the published safetensors header contains no MTP/next-token tensors and no language layer after layer 23."
+      },
+      "fallback": "Convert MLX Q4/Q8 from official BF16 without --mtp; the released checkpoint has no extractable MTP tensors."
     }
   ]
 }

@@ -1,0 +1,140 @@
+{
+  "schema": 1,
+  "created_unix_seconds": 1789692722.032604,
+  "model": "spark-x25-4b",
+  "backend": "gguf",
+  "quantization": "q4",
+  "base_url": "http://127.0.0.1:8081",
+  "max_output_tokens": 128,
+  "peak_rss_gib": null,
+  "hardware": null,
+  "cases": [
+    {
+      "task": "summary",
+      "target_context_tokens": 512,
+      "concurrency": 4,
+      "runs": 1,
+      "summary": {
+        "request_count": 4,
+        "batch_wall_seconds": 20.251281542005017,
+        "latency_seconds": {
+          "min": 20.244189582997933,
+          "median": 20.246608270499564,
+          "p95": 20.24917095899582,
+          "max": 20.24917095899582
+        },
+        "actual_prompt_tokens": {
+          "min": 488,
+          "max": 488,
+          "mean": 488.0
+        },
+        "completion_tokens": 512,
+        "aggregate_completion_tokens_per_second": 25.282350597813497,
+        "mean_backend_decode_tokens_per_second": 9.183302680933883,
+        "all_stopped_normally": false
+      },
+      "requests": [
+        {
+          "wall_seconds": 20.244189582997933,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "prompt_tokens": 488,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 616
+          },
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 13829.471,
+            "predicted_n": 128,
+            "predicted_per_second": 9.18328690952821,
+            "predicted_per_token_ms": 108.89347244094488,
+            "prompt_ms": 6392.24,
+            "prompt_n": 488,
+            "prompt_per_second": 76.3425653604996,
+            "prompt_per_token_ms": 13.098852459016394
+          },
+          "reasoning": "We are given a context that is a long string of repeated words: \"record record record ...\" (many times). The task is to summarize the supplied synthetic project log in five concise bullets, preserving the first milestone, final milestone, and all risks.\n\nThe context says: \"The first milestone is alpha. The final milestone is omega. The open risks are memory, latency, and quality.\" Then there is a huge repetition of \"record\". So the \"project log\" is essentially that text. We need to summarize it in five concise bullets, preserving the first milestone, final milestone, and all risks.\n\nSo the",
+          "output": ""
+        },
+        {
+          "wall_seconds": 20.24576295800216,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "prompt_tokens": 488,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 616
+          },
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 13829.595,
+            "predicted_n": 128,
+            "predicted_per_second": 9.183204569620441,
+            "predicted_per_token_ms": 108.89444881889763,
+            "prompt_ms": 6394.497,
+            "prompt_n": 488,
+            "prompt_per_second": 76.31561950846172,
+            "prompt_per_token_ms": 13.103477459016394
+          },
+          "reasoning": "We are given a context that is a long string of repeated words: \"record record record ...\" (many times). The task is to summarize the supplied synthetic project log in five concise bullets, preserving the first milestone, final milestone, and all risks.\n\nThe context says: \"The first milestone is alpha. The final milestone is omega. The open risks are memory, latency, and quality.\" Then there is a huge repetition of \"record\". So the \"project log\" is essentially that text. We need to summarize it in five concise bullets, preserving the first milestone, final milestone, and all risks.\n\nSo the",
+          "output": ""
+        },
+        {
+          "wall_seconds": 20.247453582996968,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "prompt_tokens": 488,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 616
+          },
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 13829.404,
+            "predicted_n": 128,
+            "predicted_per_second": 9.183331400254126,
+            "predicted_per_token_ms": 108.89294488188976,
+            "prompt_ms": 6396.632,
+            "prompt_n": 488,
+            "prompt_per_second": 76.29014769022199,
+            "prompt_per_token_ms": 13.107852459016392
+          },
+          "reasoning": "We are given a context that is a long string of repeated words: \"record record record ...\" (many times). The task is to summarize the supplied synthetic project log in five concise bullets, preserving the first milestone, final milestone, and all risks.\n\nThe context says: \"The first milestone is alpha. The final milestone is omega. The open risks are memory, latency, and quality.\" Then there is a huge repetition of \"record\". So the \"project log\" is essentially that text. We need to summarize it in five concise bullets, preserving the first milestone, final milestone, and all risks.\n\nSo the",
+          "output": ""
+        },
+        {
+          "wall_seconds": 20.24917095899582,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "prompt_tokens": 488,
+            "prompt_tokens_details": {
+              "cached_tokens": 9
+            },
+            "total_tokens": 616
+          },
+          "timings": {
+            "cache_n": 9,
+            "predicted_ms": 13829.319,
+            "predicted_n": 128,
+            "predicted_per_second": 9.183387844332755,
+            "predicted_per_token_ms": 108.89227559055118,
+            "prompt_ms": 6398.667,
+            "prompt_n": 479,
+            "prompt_per_second": 74.8593417972837,
+            "prompt_per_token_ms": 13.358386221294364
+          },
+          "reasoning": "We are given a context that is a long string of repeated words: \"record record record ...\" (many times). The task is to summarize the supplied synthetic project log in five concise bullets, preserving the first milestone, final milestone, and all risks.\n\nThe context says: \"The first milestone is alpha. The final milestone is omega. The open risks are memory, latency, and quality.\" Then there is a huge repetition of \"record\". So the \"synthetic project log\" is essentially that text. We need to summarize it in five concise bullets, preserving the first milestone, final milestone, and all risks.\n\n",
+          "output": ""
+        }
+      ]
+    }
+  ]
+}

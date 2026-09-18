@@ -1,0 +1,269 @@
+{
+  "schema": 1,
+  "created_unix_seconds": 1789608883.316622,
+  "model": "mlx-community/Qwen3-0.6B-4bit",
+  "backend": "vllm",
+  "quantization": "q4",
+  "base_url": "http://127.0.0.1:8091",
+  "max_output_tokens": 64,
+  "peak_rss_gib": null,
+  "hardware": {
+    "accelerators": [
+      {
+        "apis": [
+          "metal"
+        ],
+        "architecture": "10-core",
+        "driver": "26.5.1",
+        "id": "0",
+        "memory_gib": 24.0,
+        "name": "Apple M4",
+        "runtime": "metal",
+        "type": "gpu",
+        "unified_memory": true,
+        "vendor": "apple"
+      }
+    ],
+    "backend_targets": {
+      "audio": {
+        "device": "metal"
+      },
+      "gguf": {
+        "device": "metal"
+      },
+      "mlx": {
+        "device": "metal"
+      },
+      "vllm": {
+        "device": "metal"
+      }
+    },
+    "build_policy": {
+      "max_memory_gib": 16,
+      "max_parallel_jobs": 2
+    },
+    "cpu": {
+      "logical_cores": 10,
+      "model": "Apple M4",
+      "physical_cores": 10,
+      "vendor": "apple"
+    },
+    "memory": {
+      "system_ram_gib": 24.0,
+      "unified_memory_gib": 24.0
+    },
+    "schema": 1,
+    "system": {
+      "apple_silicon": true,
+      "arch": "arm64",
+      "os": "macos",
+      "version": "26.5.1",
+      "wsl": false
+    },
+    "toolchains": {
+      "cmake": true,
+      "cuda": false,
+      "cxx": true,
+      "metal": true,
+      "python": true,
+      "rocm": false,
+      "uv": true,
+      "vulkan": false,
+      "xpu": false
+    }
+  },
+  "cases": [
+    {
+      "task": "reasoning",
+      "target_context_tokens": 512,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 0.8657490420009708,
+        "latency_seconds": {
+          "min": 0.8638829160008754,
+          "median": 0.8638829160008754,
+          "p95": 0.8638829160008754,
+          "max": 0.8638829160008754
+        },
+        "actual_prompt_tokens": {
+          "min": 776,
+          "max": 776,
+          "mean": 776.0
+        },
+        "completion_tokens": 64,
+        "aggregate_completion_tokens_per_second": 73.92442485651429,
+        "mean_backend_decode_tokens_per_second": 0.0,
+        "all_stopped_normally": false
+      },
+      "requests": [
+        {
+          "wall_seconds": 0.8638829160008754,
+          "finish_reason": "length",
+          "usage": {
+            "prompt_tokens": 776,
+            "total_tokens": 840,
+            "completion_tokens": 64,
+            "prompt_tokens_details": null,
+            "completion_tokens_details": null
+          },
+          "timings": {},
+          "reasoning": "",
+          "output": "<think>\nOkay, let's see. The context is about milestones and risks, but the question here is about a farmer with 17 sheep and all but 9 running away. So, the problem is to figure out how many sheep remain after 9 ran away.\n\nFirst, the farmer has 17 sheep"
+        }
+      ]
+    },
+    {
+      "task": "reasoning",
+      "target_context_tokens": 512,
+      "concurrency": 2,
+      "runs": 1,
+      "summary": {
+        "request_count": 2,
+        "batch_wall_seconds": 0.4453210419997049,
+        "latency_seconds": {
+          "min": 0.44372787500105915,
+          "median": 0.4443817709998257,
+          "p95": 0.4450356669985922,
+          "max": 0.4450356669985922
+        },
+        "actual_prompt_tokens": {
+          "min": 776,
+          "max": 776,
+          "mean": 776.0
+        },
+        "completion_tokens": 128,
+        "aggregate_completion_tokens_per_second": 287.43308293993624,
+        "mean_backend_decode_tokens_per_second": 0.0,
+        "all_stopped_normally": false
+      },
+      "requests": [
+        {
+          "wall_seconds": 0.44372787500105915,
+          "finish_reason": "length",
+          "usage": {
+            "prompt_tokens": 776,
+            "total_tokens": 840,
+            "completion_tokens": 64,
+            "prompt_tokens_details": null,
+            "completion_tokens_details": null
+          },
+          "timings": {},
+          "reasoning": "",
+          "output": "<think>\nOkay, let's see. The context is about milestones and risks, but the question here is about a farmer with 17 sheep and all but 9 running away. So, the problem is to figure out how many sheep remain after 9 ran away.\n\nFirst, the farmer has 17 sheep"
+        },
+        {
+          "wall_seconds": 0.4450356669985922,
+          "finish_reason": "length",
+          "usage": {
+            "prompt_tokens": 776,
+            "total_tokens": 840,
+            "completion_tokens": 64,
+            "prompt_tokens_details": null,
+            "completion_tokens_details": null
+          },
+          "timings": {},
+          "reasoning": "",
+          "output": "<think>\nOkay, let's see. The context is about milestones and risks, but the question here is about a farmer with 17 sheep and all but 9 running away. So, the problem is to figure out how many sheep remain after 9 ran away.\n\nFirst, the farmer has 17 sheep"
+        }
+      ]
+    },
+    {
+      "task": "knowledge",
+      "target_context_tokens": 512,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 0.3972810839986778,
+        "latency_seconds": {
+          "min": 0.3971564999992552,
+          "median": 0.3971564999992552,
+          "p95": 0.3971564999992552,
+          "max": 0.3971564999992552
+        },
+        "actual_prompt_tokens": {
+          "min": 770,
+          "max": 770,
+          "mean": 770.0
+        },
+        "completion_tokens": 64,
+        "aggregate_completion_tokens_per_second": 161.09500949764072,
+        "mean_backend_decode_tokens_per_second": 0.0,
+        "all_stopped_normally": false
+      },
+      "requests": [
+        {
+          "wall_seconds": 0.3971564999992552,
+          "finish_reason": "length",
+          "usage": {
+            "prompt_tokens": 770,
+            "total_tokens": 834,
+            "completion_tokens": 64,
+            "prompt_tokens_details": null,
+            "completion_tokens_details": null
+          },
+          "timings": {},
+          "reasoning": "",
+          "output": "<think>\nOkay, the user is asking why Earth's seasons are mainly caused by axial tilt, not distance from the Sun. Let me start by recalling the basics. The Earth's axial tilt is the angle between the Earth's axis and the Sun's rays at a particular time. This tilt causes different parts of the Earth"
+        }
+      ]
+    },
+    {
+      "task": "knowledge",
+      "target_context_tokens": 512,
+      "concurrency": 2,
+      "runs": 1,
+      "summary": {
+        "request_count": 2,
+        "batch_wall_seconds": 0.40352495800107135,
+        "latency_seconds": {
+          "min": 0.4021109589994012,
+          "median": 0.4027037919986469,
+          "p95": 0.40329662499789265,
+          "max": 0.40329662499789265
+        },
+        "actual_prompt_tokens": {
+          "min": 770,
+          "max": 770,
+          "mean": 770.0
+        },
+        "completion_tokens": 128,
+        "aggregate_completion_tokens_per_second": 317.2046671761506,
+        "mean_backend_decode_tokens_per_second": 0.0,
+        "all_stopped_normally": false
+      },
+      "requests": [
+        {
+          "wall_seconds": 0.4021109589994012,
+          "finish_reason": "length",
+          "usage": {
+            "prompt_tokens": 770,
+            "total_tokens": 834,
+            "completion_tokens": 64,
+            "prompt_tokens_details": null,
+            "completion_tokens_details": null
+          },
+          "timings": {},
+          "reasoning": "",
+          "output": "<think>\nOkay, the user is asking why Earth's seasons are mainly caused by axial tilt, not distance from the Sun. Let me start by recalling the basics. The Earth's axial tilt is the angle between the Earth's axis and the Sun's rays at a particular time. This tilt causes different parts of the Earth"
+        },
+        {
+          "wall_seconds": 0.40329662499789265,
+          "finish_reason": "length",
+          "usage": {
+            "prompt_tokens": 770,
+            "total_tokens": 834,
+            "completion_tokens": 64,
+            "prompt_tokens_details": null,
+            "completion_tokens_details": null
+          },
+          "timings": {},
+          "reasoning": "",
+          "output": "<think>\nOkay, the user is asking why Earth's seasons are mainly caused by axial tilt, not distance from the Sun. Let me start by recalling the basics. The Earth's axial tilt is the angle between the Earth's axis and the Sun's rays at a particular time. This tilt causes different parts of the Earth"
+        }
+      ]
+    }
+  ]
+}

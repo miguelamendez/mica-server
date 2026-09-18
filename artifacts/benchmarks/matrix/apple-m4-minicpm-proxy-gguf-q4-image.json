@@ -1,0 +1,129 @@
+{
+  "schema": 1,
+  "created_unix_seconds": 1789598122.3139641,
+  "model": "minicpm-v46-thinking@gguf:q4",
+  "backend": "gguf",
+  "quantization": "q4",
+  "base_url": "http://127.0.0.1:8080",
+  "max_output_tokens": 128,
+  "peak_rss_gib": 2.092,
+  "hardware": {
+    "accelerators": [
+      {
+        "apis": [
+          "metal"
+        ],
+        "architecture": "10-core",
+        "driver": "26.5.1",
+        "id": "0",
+        "memory_gib": 24.0,
+        "name": "Apple M4",
+        "runtime": "metal",
+        "type": "gpu",
+        "unified_memory": true,
+        "vendor": "apple"
+      }
+    ],
+    "backend_targets": {
+      "audio": {
+        "device": "metal"
+      },
+      "gguf": {
+        "device": "metal"
+      },
+      "mlx": {
+        "device": "metal"
+      },
+      "vllm": {
+        "device": "metal"
+      }
+    },
+    "build_policy": {
+      "max_memory_gib": 16,
+      "max_parallel_jobs": 2
+    },
+    "cpu": {
+      "logical_cores": 10,
+      "model": "Apple M4",
+      "physical_cores": 10,
+      "vendor": "apple"
+    },
+    "memory": {
+      "system_ram_gib": 24.0,
+      "unified_memory_gib": 24.0
+    },
+    "schema": 1,
+    "system": {
+      "apple_silicon": true,
+      "arch": "arm64",
+      "os": "macos",
+      "version": "26.5.1",
+      "wsl": false
+    },
+    "toolchains": {
+      "cmake": true,
+      "cuda": false,
+      "cxx": true,
+      "metal": true,
+      "python": true,
+      "rocm": false,
+      "uv": true,
+      "vulkan": false,
+      "xpu": false
+    }
+  },
+  "cases": [
+    {
+      "task": "image",
+      "target_context_tokens": 0,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 19.994059874999948,
+        "latency_seconds": {
+          "min": 19.9910269159991,
+          "median": 19.9910269159991,
+          "p95": 19.9910269159991,
+          "max": 19.9910269159991
+        },
+        "actual_prompt_tokens": {
+          "min": 229,
+          "max": 229,
+          "mean": 229.0
+        },
+        "completion_tokens": 123,
+        "aggregate_completion_tokens_per_second": 6.151827131106875,
+        "mean_backend_decode_tokens_per_second": 116.24383764737718,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 19.9910269159991,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 123,
+            "prompt_tokens": 229,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 352
+          },
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 1049.518,
+            "predicted_n": 123,
+            "predicted_per_second": 116.24383764737718,
+            "predicted_per_token_ms": 8.60260655737705,
+            "prompt_ms": 1161.314,
+            "prompt_n": 229,
+            "prompt_per_second": 197.19042395080055,
+            "prompt_per_token_ms": 5.071240174672489
+          },
+          "reasoning": "Got it, let's look at the image. There are two colored squares: blue on the top left, red on the bottom right. Between them, the text \"MICA 31415\" is there. So the blue square is on the top left, red square is on the bottom right, and the number \"MICA 31415\" is in the middle.\n",
+          "output": "The blue square is on the top left, red square is on the bottom right, and the text \"MICA 31415\" is in the center between them."
+        }
+      ]
+    }
+  ]
+}

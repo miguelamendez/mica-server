@@ -1,0 +1,28 @@
+{
+  "target": "/Users/miguel/models/checkpoints/mlx/spark-x25-4b/q4",
+  "draft": "/Users/miguel/models/checkpoints/mlx/spark-x25-1.7b/q4",
+  "prompt": "Explain in three short paragraphs how speculative decoding works, including why target-model verification preserves correctness.",
+  "prompt_tokens": 35,
+  "num_draft_tokens": 2,
+  "token_sequences_equal": false,
+  "plain": {
+    "elapsed_seconds": 5.041091000006418,
+    "completion_tokens": 192,
+    "tokens_per_second": 38.086993470214196,
+    "peak_memory_gib": 3.124457700178027,
+    "accepted_draft_tokens": 0,
+    "target_verified_tokens": 192
+  },
+  "speculative": {
+    "elapsed_seconds": 5.0140276250022,
+    "completion_tokens": 192,
+    "tokens_per_second": 38.29256923966704,
+    "peak_memory_gib": 3.1330027524381876,
+    "accepted_draft_tokens": 104,
+    "target_verified_tokens": 88
+  },
+  "speculative_output_token_share": 0.5416666666666666,
+  "speedup": 1.0053975320896256,
+  "plain_text": "We need to explain speculative decoding in three short paragraphs, including why target-model verification preserves correctness.\n\nLet's break down the requirements:\n\n1. Three short paragraphs.\n2. Explain how speculative decoding works.\n3. Include why target-model verification preserves correctness.\n\nWe need to structure the answer accordingly.\n\nFirst, let's recall what speculative decoding is. Speculative decoding is a technique used in large language models (LLMs) to speed up inference by using a smaller, faster model to propose multiple tokens, and then verifying them with the target (full) model. The target model is used to check the correctness of the proposed tokens. If all proposed tokens are correct, the target model accepts them all, and we move on. If some are incorrect, the target model rejects them and we continue with the correct ones. This reduces the number of forward passes needed, thus improving throughput.\n\nNow,",
+  "speculative_text": "We need to explain speculative decoding in three short paragraphs, including why target-model verification preserves correctness.\n\nLet's break down the requirements:\n\n1. Three short paragraphs.\n2. Explain how speculative decoding works.\n3. Include why target-model verification preserves correctness.\n\nWe need to structure the response accordingly.\n\nFirst, let's recall what speculative decoding is. Speculative decoding is a technique used in large language models (LLMs) to speed up inference by using a smaller, faster model to propose multiple tokens, and then verifying them with the target (larger) model. The idea is to reduce the number of forward passes needed for each token by having a draft model generate multiple tokens in parallel, and then the target model checks them. If they are correct, they are accepted; if not, the target model generates the correct token(s) and the process repeats.\n\nKey points:\n- Speculative"
+}

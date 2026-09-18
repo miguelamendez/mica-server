@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "created_unix_seconds": 1789692976.579455,
+  "model": "vllm-qwen3-06b-control",
+  "backend": "vllm",
+  "quantization": "q4",
+  "base_url": "http://127.0.0.1:8081",
+  "max_output_tokens": 512,
+  "peak_rss_gib": null,
+  "hardware": null,
+  "cases": [
+    {
+      "task": "summary",
+      "target_context_tokens": 16384,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 21.433053583998117,
+        "latency_seconds": {
+          "min": 21.431320000003325,
+          "median": 21.431320000003325,
+          "p95": 21.431320000003325,
+          "max": 21.431320000003325
+        },
+        "actual_prompt_tokens": {
+          "min": 16349,
+          "max": 16349,
+          "mean": 16349.0
+        },
+        "completion_tokens": 15,
+        "aggregate_completion_tokens_per_second": 0.6998536135419815,
+        "mean_backend_decode_tokens_per_second": 0.0,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 21.431320000003325,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 15,
+            "completion_tokens_details": null,
+            "prompt_tokens": 16349,
+            "prompt_tokens_details": null,
+            "total_tokens": 16364
+          },
+          "timings": {},
+          "reasoning": "",
+          "output": "<think>\n</think>\n\n</think>\n\n</think>\n\n</think>\n\n</think>\n\n</think>\n\n"
+        }
+      ]
+    }
+  ]
+}

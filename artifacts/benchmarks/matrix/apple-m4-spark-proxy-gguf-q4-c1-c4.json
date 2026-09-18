@@ -1,0 +1,333 @@
+{
+  "schema": 1,
+  "created_unix_seconds": 1789598193.038322,
+  "model": "spark-x25-4b@gguf:q4",
+  "backend": "gguf",
+  "quantization": "q4",
+  "base_url": "http://127.0.0.1:8080",
+  "max_output_tokens": 128,
+  "peak_rss_gib": 4.713,
+  "hardware": {
+    "accelerators": [
+      {
+        "apis": [
+          "metal"
+        ],
+        "architecture": "10-core",
+        "driver": "26.5.1",
+        "id": "0",
+        "memory_gib": 24.0,
+        "name": "Apple M4",
+        "runtime": "metal",
+        "type": "gpu",
+        "unified_memory": true,
+        "vendor": "apple"
+      }
+    ],
+    "backend_targets": {
+      "audio": {
+        "device": "metal"
+      },
+      "gguf": {
+        "device": "metal"
+      },
+      "mlx": {
+        "device": "metal"
+      },
+      "vllm": {
+        "device": "metal"
+      }
+    },
+    "build_policy": {
+      "max_memory_gib": 16,
+      "max_parallel_jobs": 2
+    },
+    "cpu": {
+      "logical_cores": 10,
+      "model": "Apple M4",
+      "physical_cores": 10,
+      "vendor": "apple"
+    },
+    "memory": {
+      "system_ram_gib": 24.0,
+      "unified_memory_gib": 24.0
+    },
+    "schema": 1,
+    "system": {
+      "apple_silicon": true,
+      "arch": "arm64",
+      "os": "macos",
+      "version": "26.5.1",
+      "wsl": false
+    },
+    "toolchains": {
+      "cmake": true,
+      "cuda": false,
+      "cxx": true,
+      "metal": true,
+      "python": true,
+      "rocm": false,
+      "uv": true,
+      "vulkan": false,
+      "xpu": false
+    }
+  },
+  "cases": [
+    {
+      "task": "reasoning",
+      "target_context_tokens": 512,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 6.810293124999589,
+        "latency_seconds": {
+          "min": 6.808778708000318,
+          "median": 6.808778708000318,
+          "p95": 6.808778708000318,
+          "max": 6.808778708000318
+        },
+        "actual_prompt_tokens": {
+          "min": 788,
+          "max": 788,
+          "mean": 788.0
+        },
+        "completion_tokens": 128,
+        "aggregate_completion_tokens_per_second": 18.795079396822253,
+        "mean_backend_decode_tokens_per_second": 30.804815835712827,
+        "all_stopped_normally": false
+      },
+      "requests": [
+        {
+          "wall_seconds": 6.808778708000318,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "prompt_tokens": 788,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 916
+          },
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 4122.732,
+            "predicted_n": 128,
+            "predicted_per_second": 30.804815835712827,
+            "predicted_per_token_ms": 32.462456692913385,
+            "prompt_ms": 2668.552,
+            "prompt_n": 788,
+            "prompt_per_second": 295.2912291010256,
+            "prompt_per_token_ms": 3.38648730964467
+          },
+          "reasoning": "We are given a context that lists milestones 1 through 42, each completed with deterministic evidence, and each has a corresponding risk that requires validation before release. The context is essentially a list of statements, but it's not directly relevant to the question. The question is: \"A farmer has 17 sheep; all but 9 run away. Explain briefly how many remain.\"\n\nWe need to use the context only as scratch material. The context is just a list of milestones and risks, which seems irrelevant. The question is a simple arithmetic problem: 17 sheep, all but 9 run away",
+          "output": ""
+        }
+      ]
+    },
+    {
+      "task": "reasoning",
+      "target_context_tokens": 512,
+      "concurrency": 2,
+      "runs": 1,
+      "summary": {
+        "request_count": 2,
+        "batch_wall_seconds": 8.575264666998919,
+        "latency_seconds": {
+          "min": 8.477637915999367,
+          "median": 8.526223832999676,
+          "p95": 8.574809749999986,
+          "max": 8.574809749999986
+        },
+        "actual_prompt_tokens": {
+          "min": 788,
+          "max": 788,
+          "mean": 788.0
+        },
+        "completion_tokens": 256,
+        "aggregate_completion_tokens_per_second": 29.853305984267912,
+        "mean_backend_decode_tokens_per_second": 18.455831494337808,
+        "all_stopped_normally": false
+      },
+      "requests": [
+        {
+          "wall_seconds": 8.477637915999367,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "prompt_tokens": 788,
+            "prompt_tokens_details": {
+              "cached_tokens": 787
+            },
+            "total_tokens": 916
+          },
+          "timings": {
+            "cache_n": 787,
+            "predicted_ms": 8316.599,
+            "predicted_n": 128,
+            "predicted_per_second": 15.270665328459385,
+            "predicted_per_token_ms": 65.48503149606299,
+            "prompt_ms": 147.754,
+            "prompt_n": 1,
+            "prompt_per_second": 6.768006280709829,
+            "prompt_per_token_ms": 147.754
+          },
+          "reasoning": "We are given a context that lists milestones 1 through 42, each completed with deterministic evidence, and each has a corresponding risk that requires validation before release. The context is essentially a list of statements, but it's not directly relevant to the question. The question is: \"A farmer has 17 sheep; all but 9 run away. Explain briefly how many remain.\"\n\nWe need to use the context only as scratch material. The context is just a list of milestones and risks, which seems irrelevant. The question is a simple arithmetic problem: 17 sheep, all but 9 run away",
+          "output": ""
+        },
+        {
+          "wall_seconds": 8.574809749999986,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "prompt_tokens": 788,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 916
+          },
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 5868.491,
+            "predicted_n": 128,
+            "predicted_per_second": 21.64099766021623,
+            "predicted_per_token_ms": 46.2085905511811,
+            "prompt_ms": 2693.296,
+            "prompt_n": 788,
+            "prompt_per_second": 292.5783129667144,
+            "prompt_per_token_ms": 3.417888324873096
+          },
+          "reasoning": "We are given a context that lists milestones 1 through 42, each completed with deterministic evidence, and each has a corresponding risk that requires validation before release. The context is essentially a list of statements, but it's not directly relevant to the question. The question is: \"A farmer has 17 sheep; all but 9 run away. Explain briefly how many remain.\"\n\nWe need to use the context only as scratch material. The context is just a list of milestones and risks, which seems irrelevant. The question is a simple arithmetic problem: 17 sheep, all but 9 run away",
+          "output": ""
+        }
+      ]
+    },
+    {
+      "task": "reasoning",
+      "target_context_tokens": 512,
+      "concurrency": 4,
+      "runs": 1,
+      "summary": {
+        "request_count": 4,
+        "batch_wall_seconds": 16.494790707998618,
+        "latency_seconds": {
+          "min": 16.39001270799963,
+          "median": 16.393534249999902,
+          "p95": 16.4942840420008,
+          "max": 16.4942840420008
+        },
+        "actual_prompt_tokens": {
+          "min": 788,
+          "max": 788,
+          "mean": 788.0
+        },
+        "completion_tokens": 512,
+        "aggregate_completion_tokens_per_second": 31.04010284602896,
+        "mean_backend_decode_tokens_per_second": 8.22190557731732,
+        "all_stopped_normally": false
+      },
+      "requests": [
+        {
+          "wall_seconds": 16.394869457999448,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "prompt_tokens": 788,
+            "prompt_tokens_details": {
+              "cached_tokens": 787
+            },
+            "total_tokens": 916
+          },
+          "timings": {
+            "cache_n": 787,
+            "predicted_ms": 16212.588,
+            "predicted_n": 128,
+            "predicted_per_second": 7.833419315904407,
+            "predicted_per_token_ms": 127.65817322834646,
+            "prompt_ms": 130.042,
+            "prompt_n": 1,
+            "prompt_per_second": 7.689823287860845,
+            "prompt_per_token_ms": 130.042
+          },
+          "reasoning": "We are given a context that lists milestones 1 through 42, each completed with deterministic evidence, and each has a corresponding risk that requires validation before release. The context is essentially a list of statements, but it's not directly relevant to the question. The question is: \"A farmer has 17 sheep; all but 9 run away. Explain briefly how many remain.\"\n\nWe need to use the context only as scratch material. The context is just a list of milestones and risks, which seems irrelevant. The question is a simple arithmetic problem: 17 sheep, all but 9 run away",
+          "output": ""
+        },
+        {
+          "wall_seconds": 16.4942840420008,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "prompt_tokens": 788,
+            "prompt_tokens_details": {
+              "cached_tokens": 9
+            },
+            "total_tokens": 916
+          },
+          "timings": {
+            "cache_n": 9,
+            "predicted_ms": 13530.274,
+            "predicted_n": 128,
+            "predicted_per_second": 9.386358325042051,
+            "predicted_per_token_ms": 106.5375905511811,
+            "prompt_ms": 2908.978,
+            "prompt_n": 779,
+            "prompt_per_second": 267.7916436631697,
+            "prompt_per_token_ms": 3.7342464698331193
+          },
+          "reasoning": "We are given a context that lists milestones 1 through 42, each completed with deterministic evidence, and each has a corresponding risk that requires validation before release. The context is essentially a list of statements, but it's not directly relevant to the question. The question is: \"A farmer has 17 sheep; all but 9 run away. Explain briefly how many remain.\"\n\nWe need to use the context only as scratch material. The context is just a list of milestones and risks, which seems irrelevant. The question is a simple arithmetic problem: 17 sheep, all but 9 run away",
+          "output": ""
+        },
+        {
+          "wall_seconds": 16.392199042000357,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "prompt_tokens": 788,
+            "prompt_tokens_details": {
+              "cached_tokens": 787
+            },
+            "total_tokens": 916
+          },
+          "timings": {
+            "cache_n": 787,
+            "predicted_ms": 16212.034,
+            "predicted_n": 128,
+            "predicted_per_second": 7.833687000656426,
+            "predicted_per_token_ms": 127.65381102362204,
+            "prompt_ms": 134.804,
+            "prompt_n": 1,
+            "prompt_per_second": 7.418177502151272,
+            "prompt_per_token_ms": 134.804
+          },
+          "reasoning": "We are given a context that lists milestones 1 through 42, each completed with deterministic evidence, and each has a corresponding risk that requires validation before release. The context is essentially a list of statements, but it's not directly relevant to the question. The question is: \"A farmer has 17 sheep; all but 9 run away. Explain briefly how many remain.\"\n\nWe need to use the context only as scratch material. The context is just a list of milestones and risks, which seems irrelevant. The question is a simple arithmetic problem: 17 sheep, all but 9 run away",
+          "output": ""
+        },
+        {
+          "wall_seconds": 16.39001270799963,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "prompt_tokens": 788,
+            "prompt_tokens_details": {
+              "cached_tokens": 786
+            },
+            "total_tokens": 916
+          },
+          "timings": {
+            "cache_n": 786,
+            "predicted_ms": 16211.06,
+            "predicted_n": 128,
+            "predicted_per_second": 7.834157667666395,
+            "predicted_per_token_ms": 127.64614173228345,
+            "prompt_ms": 140.571,
+            "prompt_n": 2,
+            "prompt_per_second": 14.227685653513172,
+            "prompt_per_token_ms": 70.2855
+          },
+          "reasoning": "We are given a context that lists milestones 1 through 42, each completed with deterministic evidence, and each has a corresponding risk that requires validation before release. The context is essentially a list of statements, but it's not directly relevant to the question. The question is: \"A farmer has 17 sheep; all but 9 run away. Explain briefly how many remain.\"\n\nWe need to use the context only as scratch material. The context is just a list of milestones and risks, which seems irrelevant. The question is a simple arithmetic problem: 17 sheep, all but 9 run away",
+          "output": ""
+        }
+      ]
+    }
+  ]
+}

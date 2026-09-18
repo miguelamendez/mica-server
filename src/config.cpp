@@ -60,8 +60,13 @@ Artifact artifact_from(lua_State* state, int index, const char* prefix,
   const std::string base(prefix);
   Artifact artifact;
   artifact.pattern = string_field(state, index, (base + "_path").c_str());
+  artifact.repository_pattern =
+      string_field(state, index, (base + "_repo_path").c_str(), artifact.pattern);
   artifact.projector_pattern =
       string_field(state, index, (base + "_projector").c_str());
+  artifact.projector_repository_pattern = string_field(
+      state, index, (base + "_projector_repo_path").c_str(),
+      artifact.projector_pattern);
   artifact.reservation_gib =
       number_field(state, index, (base + "_ram_gib").c_str(), 0.0);
   artifact.supported = backend_supported && !artifact.pattern.empty();
@@ -90,6 +95,11 @@ int register_model(lua_State* state) {
   model.mlx_converter = string_field(state, 1, "mlx_converter");
   model.mlx_quantization_profile =
       string_field(state, 1, "mlx_quantization_profile");
+  model.gguf_family = string_field(state, 1, "gguf_family");
+  model.gguf_context_tokens =
+      static_cast<int>(number_field(state, 1, "gguf_context_tokens", 8192));
+  model.gguf_parallel_slots =
+      static_cast<int>(number_field(state, 1, "gguf_parallel_slots", 1));
   model.mlx_extract_mtp = bool_field(state, 1, "mlx_extract_mtp", false);
   model.repositories[Backend::mlx] = string_field(state, 1, "mlx_repo");
   model.repositories[Backend::gguf] = string_field(state, 1, "gguf_repo");
@@ -103,6 +113,12 @@ int register_model(lua_State* state) {
   model.required_by_backend[Backend::vllm] =
       bool_field(state, 1, "vllm_required", false);
   if (model.id.empty()) return luaL_error(state, "model id is required");
+  if (model.gguf_context_tokens < 512) {
+    return luaL_error(state, "gguf_context_tokens must be at least 512");
+  }
+  if (model.gguf_parallel_slots < 1 || model.gguf_parallel_slots > 16) {
+    return luaL_error(state, "gguf_parallel_slots must be between 1 and 16");
+  }
 
   const bool mlx_supported = bool_field(state, 1, "mlx_supported", true);
   const bool gguf_supported = bool_field(state, 1, "gguf_supported", false);
@@ -138,7 +154,31 @@ int register_profile(lua_State* state) {
   profile.quantization =
       parse_quantization(string_field(state, 1, "quantization", "q4"));
   profile.models = string_array_field(state, 1, "models");
+  const auto backend = string_field(state, 1, "backend");
+  if (!backend.empty()) profile.backend = parse_backend(backend);
+  profile.max_input_tokens =
+      static_cast<int>(number_field(state, 1, "max_input_tokens", 7168));
+  profile.max_output_tokens =
+      static_cast<int>(number_field(state, 1, "max_output_tokens", 1024));
+  profile.max_total_tokens =
+      static_cast<int>(number_field(state, 1, "max_total_tokens", 8192));
+  profile.max_concurrent_requests =
+      static_cast<int>(number_field(state, 1, "max_concurrent_requests", 1));
+  profile.kv_cache_precision =
+      string_field(state, 1, "kv_cache_precision", "q8");
   if (profile.name.empty()) return luaL_error(state, "profile name is required");
+  if (profile.models.empty()) return luaL_error(state, "profile models are required");
+  if (profile.max_input_tokens < 1 || profile.max_output_tokens < 1 ||
+      profile.max_total_tokens < profile.max_input_tokens + profile.max_output_tokens) {
+    return luaL_error(state, "profile token limits are inconsistent");
+  }
+  if (profile.max_concurrent_requests < 1 || profile.max_concurrent_requests > 64) {
+    return luaL_error(state, "profile concurrency must be between 1 and 64");
+  }
+  if (profile.kv_cache_precision != "q4" && profile.kv_cache_precision != "q8" &&
+      profile.kv_cache_precision != "auto") {
+    return luaL_error(state, "profile KV cache precision must be q4, q8, or auto");
+  }
   registry->profiles[profile.name] = std::move(profile);
   return 0;
 }
@@ -155,6 +195,40 @@ int register_policy(lua_State* state) {
       static_cast<int>(number_field(state, 1, "load_timeout_seconds", 180));
   registry->policy.queue_timeout_seconds =
       static_cast<int>(number_field(state, 1, "queue_timeout_seconds", 60));
+  return 0;
+}
+
+int register_vlm_tool(lua_State* state) {
+  auto* registry = registry_from_upvalue(state);
+  luaL_checktype(state, 1, LUA_TTABLE);
+  auto& tool = registry->vlm_tool;
+  tool.enabled = bool_field(state, 1, "enabled", true);
+  tool.name = string_field(state, 1, "name", "vlm_tool");
+  tool.description = string_field(state, 1, "description");
+  tool.model_id = string_field(state, 1, "model_id", "minicpm-v46-thinking");
+  tool.max_images_per_call =
+      static_cast<int>(number_field(state, 1, "max_images_per_call", 8));
+  tool.max_videos_per_call =
+      static_cast<int>(number_field(state, 1, "max_videos_per_call", 1));
+  tool.max_document_pages_per_call =
+      static_cast<int>(number_field(state, 1, "max_document_pages_per_call", 8));
+  tool.max_video_frames =
+      static_cast<int>(number_field(state, 1, "max_video_frames", 32));
+  tool.max_total_visual_items =
+      static_cast<int>(number_field(state, 1, "max_total_visual_items", 8));
+  tool.max_agent_steps =
+      static_cast<int>(number_field(state, 1, "max_agent_steps", 4));
+  tool.max_upload_bytes = static_cast<std::uint64_t>(
+      number_field(state, 1, "max_upload_bytes", 50.0 * 1024.0 * 1024.0));
+  if (tool.name.empty() || tool.model_id.empty()) {
+    return luaL_error(state, "VLM tool name and model_id are required");
+  }
+  if (tool.max_images_per_call < 1 || tool.max_videos_per_call < 1 ||
+      tool.max_document_pages_per_call < 1 || tool.max_video_frames < 1 ||
+      tool.max_total_visual_items < 1 || tool.max_agent_steps < 1 ||
+      tool.max_agent_steps > 16 || tool.max_upload_bytes < 1024) {
+    return luaL_error(state, "VLM tool limits are invalid");
+  }
   return 0;
 }
 
@@ -206,6 +280,9 @@ std::string to_string(VllmDevice value) {
     case VllmDevice::cpu: return "cpu";
     case VllmDevice::cuda: return "cuda";
     case VllmDevice::metal: return "metal";
+    case VllmDevice::rocm: return "rocm";
+    case VllmDevice::xpu: return "xpu";
+    case VllmDevice::tpu: return "tpu";
   }
   throw std::invalid_argument("invalid vLLM device");
 }
@@ -215,7 +292,11 @@ VllmDevice parse_vllm_device(const std::string& value) {
   if (value == "cpu") return VllmDevice::cpu;
   if (value == "cuda") return VllmDevice::cuda;
   if (value == "metal") return VllmDevice::metal;
-  throw std::invalid_argument("vLLM device must be auto, cpu, cuda, or metal");
+  if (value == "rocm") return VllmDevice::rocm;
+  if (value == "xpu") return VllmDevice::xpu;
+  if (value == "tpu") return VllmDevice::tpu;
+  throw std::invalid_argument(
+      "vLLM device must be auto, cpu, cuda, metal, rocm, xpu, or tpu");
 }
 
 Quantization parse_quantization(const std::string& value) {
@@ -248,10 +329,13 @@ Registry load_registry(const std::filesystem::path& config_directory) {
   register_function(state, &registry, "model", register_model);
   register_function(state, &registry, "profile", register_profile);
   register_function(state, &registry, "policy", register_policy);
+  register_function(state, &registry, "vlm_tool", register_vlm_tool);
   lua_setglobal(state, "mica");
   try {
     run_file(state, config_directory / "models.lua");
     run_file(state, config_directory / "policy.lua");
+    const auto tools = config_directory / "tools.lua";
+    if (std::filesystem::exists(tools)) run_file(state, tools);
   } catch (...) {
     lua_close(state);
     throw;

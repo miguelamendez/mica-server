@@ -14,21 +14,46 @@ int main() {
   const auto& all = registry.profile("all");
   const auto& spark = registry.model("spark-x25-4b");
   assert(spark.repositories.at(mica::Backend::mlx) ==
-         "miguelamendez/mica-spark-x25-4b-mlx");
+         "miguelamendez/mica-spark-x25-4b");
   assert(spark.repositories.at(mica::Backend::gguf) ==
-         "miguelamendez/mica-spark-x25-4b-gguf");
+         "miguelamendez/mica-spark-x25-4b");
   assert(!spark.description.empty());
   assert(!spark.tags.empty());
+  assert(spark.gguf_context_tokens == 8192);
+  assert(spark.gguf_parallel_slots == 4);
+  assert(spark.artifacts.at(mica::Backend::mlx).at(mica::Quantization::q4)
+             .repository_pattern == "mlx/q4");
+  const auto& gguf_long = registry.profile("gguf-long");
+  assert(gguf_long.backend == mica::Backend::gguf);
+  assert(gguf_long.max_input_tokens == 16384);
+  assert(gguf_long.max_total_tokens == 17408);
+  assert(gguf_long.max_concurrent_requests == 1);
+  assert(gguf_long.kv_cache_precision == "q4");
+  const auto& vllm_control = registry.model("vllm-qwen3-06b-control");
+  assert(vllm_control.artifacts.at(mica::Backend::vllm)
+             .at(mica::Quantization::q4).supported);
   assert(mica::normalize_modality("tts") == "tts");
   assert(mica::modality_capability("text-to-text") == "text");
   assert(mica::modality_capability("img-text-to-text") == "vision");
   assert(mica::parse_backend("vllm") == mica::Backend::vllm);
   assert(mica::parse_vllm_device("cpu") == mica::VllmDevice::cpu);
+  assert(mica::parse_vllm_device("rocm") == mica::VllmDevice::rocm);
+  assert(mica::parse_vllm_device("xpu") == mica::VllmDevice::xpu);
+  assert(mica::parse_vllm_device("tpu") == mica::VllmDevice::tpu);
   assert(mica::parse_quantization("native") == mica::Quantization::native);
+  assert(registry.vlm_tool.enabled);
+  assert(registry.vlm_tool.name == "vlm_tool");
+  assert(registry.vlm_tool.model_id == "minicpm-v46-thinking");
+  assert(registry.vlm_tool.max_images_per_call == 8);
+  assert(registry.vlm_tool.max_videos_per_call == 1);
+  assert(registry.vlm_tool.max_document_pages_per_call == 8);
+  assert(registry.vlm_tool.max_video_frames == 32);
 
   mica::HardwareInfo apple;
   apple.os = "macos";
   apple.apple_silicon = true;
+  apple.mlx_target = "metal";
+  apple.vllm_target = "metal";
   assert(apple.supports_vllm());
   assert(apple.recommended_vllm_device() == mica::VllmDevice::metal);
   mica::HardwareInfo linux_cpu;
@@ -36,9 +61,24 @@ int main() {
   assert(linux_cpu.supports_vllm());
   assert(linux_cpu.recommended_vllm_device() == mica::VllmDevice::cpu);
   mica::HardwareInfo linux_cuda = linux_cpu;
+  linux_cuda.vllm_target = "cuda";
   linux_cuda.nvidia_detected = true;
   linux_cuda.nvidia_vram_gib = {12.0};
   assert(linux_cuda.recommended_vllm_device() == mica::VllmDevice::cuda);
+
+  const auto metal_memory = mica::vllm_memory_utilization(
+      mica::VllmDevice::metal, 8.0, 0.0, 24.0);
+  assert(metal_memory.has_value());
+  assert(*metal_memory > 0.333 && *metal_memory < 0.334);
+  const auto cuda_memory = mica::vllm_memory_utilization(
+      mica::VllmDevice::cuda, 64.0, 12.0, 24.0);
+  assert(cuda_memory.has_value() && *cuda_memory == 0.5);
+  assert(!mica::vllm_memory_utilization(
+              mica::VllmDevice::cpu, 8.0, 0.0, 24.0)
+              .has_value());
+  assert(!mica::vllm_memory_utilization(
+              mica::VllmDevice::metal, 8.0, 0.0, 0.0)
+              .has_value());
 
   const auto custom_root = std::filesystem::temp_directory_path() /
                            ("mica-server-test-" + std::to_string(getpid()));
@@ -65,9 +105,12 @@ int main() {
   const auto fits = mica::plan_startup(registry, all, mica::Backend::mlx,
                                        mica::Quantization::q4, 8.0);
   assert(!fits.error);
-  assert(fits.admitted.size() == 4);
+  assert(fits.admitted.size() == 3);
   assert(fits.admitted[0] == "spark-x25-4b");
   assert(fits.admitted[1] == "granite-speech-5");
+  assert(fits.admitted[2] == "audio8-tts-06b");
+  assert(fits.skipped.size() == 1);
+  assert(fits.skipped[0] == "minicpm-v46-thinking");
 
   const auto baseline = mica::plan_startup(registry, all, mica::Backend::mlx,
                                            mica::Quantization::q4, 4.2);

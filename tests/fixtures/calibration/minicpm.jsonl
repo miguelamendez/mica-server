@@ -1,0 +1,2 @@
+{"schema":1,"modality":"image","media":"../../../artifacts/test-assets/minicpm-scene.png","prompt":"Read the visible text and describe the colored regions.","max_slice_nums":1}
+{"schema":1,"modality":"video","frames":["../../../artifacts/test-assets/minicpm-scene.png","../../../artifacts/test-assets/minicpm-scene.png"],"prompt":"Describe the frames in chronological order.","max_slice_nums":1}

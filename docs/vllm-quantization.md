@@ -1,6 +1,6 @@
 # vLLM quantization decision sheet
 
-Date: 2026-09-15
+Date: 2026-09-17
 
 This decision is quality-first: a format is eligible only if the target vLLM
 runtime has a maintained loader/kernel and the quantized checkpoint passes
@@ -11,13 +11,21 @@ quality parity.
 
 | Goal | Primary candidate | Control / fallback | Why |
 |---|---|---|---|
-| NVIDIA Q8, least degradation | compressed-tensors W8A16 | BF16 reference; GPTQ W8A16 | Keeping activations at 16-bit is more conservative than W8A8. At 8-bit, validate whether calibration improves meaningfully over RTN. |
-| NVIDIA Q4, mature baseline | GPTQ W4A16, group 128, calibrated | AWQ W4A16 | GPTQ is the established broad-compatibility baseline. AWQ remains a model-specific challenger. |
-| NVIDIA Q4, quality challenger | AutoRound W4A16, group 128, `best` recipe | GPTQ baseline | Current LLM Compressor documentation reports leading or on-par INT4 quality and particular benefit for small-to-medium models; it exports compressed-tensors directly loadable by vLLM. |
-| NVIDIA FP8 throughput | W8A8 FP8, calibrated when possible | W8A16 | Hardware-specific Ada/Hopper option. Activation quantization makes this a throughput candidate, not the least-degradation default. |
-| Blackwell-only throughput | NVFP4 / NVFP4A16 | AutoRound or GPTQ W4A16 | Eligible only on compatible hardware and only after accuracy comparison. |
-| x86/Arm CPU | compressed-tensors INT8 W8A8 or supported GPTQ | BF16 | Must be tested on the actual CPU runtime; this is separate from the NVIDIA artifact. |
-| Apple vLLM-Metal | validated native MLX Q8/Q4 | MLX backend itself | Do not assume CUDA compressed-tensors formats transfer to vLLM-Metal. Its narrower support matrix controls eligibility. |
+| Portable NVIDIA Q4 | AutoRound W4A16, group 128, calibrated | GPTQ W4A16, group 128 | AutoRound remains the general quality-first candidate and GPTQ the mature control. Model-specific compatibility decides which can be produced; Spark's current revision fails AutoRound block calibration, so GPTQ is its active Q4 path. Both target compressed-tensors artifacts for vLLM/Marlin. |
+| Portable NVIDIA Q8 | GPTQ W8A16, group 128, calibrated | BF16 reference | Keeping activations at 16-bit is the conservative quality-first Q8 choice. It is compared with the original weights before promotion. |
+| Optional NVIDIA throughput | W8A8 FP8 or INT8, calibrated | W8A16 | These are hardware-specific challengers, not default artifacts. Activation quantization can improve throughput but expands the quality gate. |
+| x86/Arm CPU | compressed-tensors INT8 W8A8 where supported | BF16 | CPU runtime support and performance must be tested separately; a CUDA/Marlin result does not establish CPU compatibility. |
+| Apple vLLM-Metal | native MLX affine Q8/Q4 for a listed family | MLX backend itself | The official-project Metal plugin consumes MLX checkpoints, but its narrower model table controls eligibility. CUDA compressed-tensors formats do not automatically transfer. |
+
+Blackwell-only NVFP4/MXFP4 is intentionally excluded from the current artifact
+matrix. Mica is optimizing for portable NVIDIA deployment rather than the best
+result on one accelerator generation. It can be added later as an optional
+hardware-specific challenger without changing the portable Q4/Q8 baselines.
+
+“AutoRound”, “GPTQ”, and “W4A16” are not interchangeable labels: AutoRound or
+GPTQ is the optimization algorithm, W4A16/W8A16 is the numerical scheme, and
+compressed-tensors is the serialized artifact format. Marlin is the intended
+NVIDIA execution kernel after vLLM accepts the model architecture.
 
 Sensitive components stay at higher precision unless a model-specific test
 proves otherwise: `lm_head`, embeddings, router/gate layers, vision/audio
@@ -41,6 +49,95 @@ with strong size/quality goals. However:
 EXL3 can become a separate NVIDIA backend in the future, not an artifact
 advertised as vLLM-compatible. That would require an ExLlamaV3/TabbyAPI worker,
 architecture support, actual inference, and quality/throughput comparison.
+
+## Apple M4 decision
+
+The September 16 vLLM-Metal release path requires Apple Silicon, macOS 15+, and
+native arm64 Python 3.12. Stable installation uses prebuilt, mutually compatible
+vLLM core and vllm-metal wheels; mica-server must not compile the generic vLLM
+CPU source when `vllm_device=metal`.
+
+The current vLLM-Metal support table does not list Spark's `spark2_5` custom
+architecture, MiniCPM-V 4.6, Granite Speech 5 TurboCTC, or Audio8 ArkTTS.
+Qwen3.5-family text support does not imply support for Spark's different model
+type, and vLLM-Metal's current native multimodal table is limited to selected
+image-only families. These four catalog entries therefore remain disabled on
+the Apple M4 until a real worker loads and completes modality-appropriate
+inference. A small listed model is used only to validate the backend install;
+it does not validate the catalog models.
+
+## Reproducible candidate workflow
+
+The C++ command creates candidates under
+`~/models/checkpoints/vllm/<model>/candidates/`. It never registers them as
+servable variants. The defaults live in
+`config/vllm_quantization_profiles.json`; every candidate writes
+`mica-vllm-candidate.json` with its source revision, license, protected layers,
+calibration settings, tool versions, and all validation fields initially
+false. The profile pins the direct Python quantization dependencies; the
+manifest records those plus the resolved transitive versions.
+
+Toolchains are model-specific. Spark pins its checkpoint-declared Transformers
+4.57.1 with LLM Compressor 0.11.0; MiniCPM and Audio8 use Transformers 5.14.1
+with LLM Compressor 0.13.0. Granite needs Transformers 5.17.0 plus the
+compatible LLM Compressor 0.13.1 alpha. AutoRound and GPTQ dependencies are
+installed separately so one algorithm cannot silently upgrade the other's
+Transformers version.
+
+```sh
+# Spark production Q4 candidate (GPTQ is the model override)
+./build/mica-server quantize --model spark-x25-4b \
+  --backend vllm --quant q4 --quant-device cuda
+
+# Spark production Q8 candidate
+./build/mica-server quantize --model spark-x25-4b \
+  --backend vllm --quant q8 --algorithm gptq --quant-device cuda
+
+# MiniCPM example; repeat with --quant q8
+./build/mica-server quantize --model minicpm-v46-thinking \
+  --backend vllm --quant q4 --quant-device cuda \
+  --calibration-dataset /calibration/minicpm-production.jsonl
+
+# Audio8 or Granite use their corresponding audited JSONL manifest.
+./build/mica-server quantize --model audio8-tts-06b \
+  --backend vllm --quant q4 --quant-device cuda \
+  --calibration-dataset /calibration/audio8-production.jsonl
+```
+
+Local text calibration accepts JSON/JSONL records with `messages` or `text`.
+Vision manifests require both `image` records (`media`, `prompt`) and `video`
+records (`frames`, `prompt`). ASR records contain `audio` and optional
+`sampling_rate`. TTS production manifests must mix plain `text` records and
+records containing `reference_audio` plus matching `reference_text`. Relative
+media paths resolve from the manifest directory. The quantizer validates the
+mix before loading weights and records the manifest path, SHA-256, record
+count, and modality mix in candidate metadata.
+
+On the Apple M4 development host, conversion is additionally restricted to two
+compute threads and a 16-GiB process-tree RSS watchdog. Q4 and Q8 structural
+candidates now complete and reload for all four catalog models. Batch-2 tests
+exercise Spark text, MiniCPM image and video, Granite ASR, and Audio8 plain and
+reference-voice TTS. These tiny calibration sets validate wiring only; the
+configured production size remains 512 records at up to 2,048 tokens or the
+modality equivalent.
+
+MiniCPM is registered in current vLLM core and Audio8 is listed by vLLM-Omni.
+Spark still needs a compatible core architecture adapter, and Granite Speech 5
+still needs a native CTC transcription loader. None of the structural artifacts
+is registered for serving or eligible for upload.
+
+For offline model-side batching, use `scripts/vllm_candidate_smoke.py` with
+`--batch-size 2`. For later native-engine continuous batching, run
+`scripts/openai_batch_smoke.py` against the proxy with batch sizes `1,2,4`.
+The latter sends simultaneous requests to the public OpenAI-compatible routes
+for text, vision, ASR, or TTS and writes a JSON report.
+
+Detailed records:
+
+- `docs/validation/spark-vllm-quantization-macos.md`
+- `docs/validation/minicpm-vllm-quantization-macos.md`
+- `docs/validation/granite-vllm-quantization-macos.md`
+- `docs/validation/audio8-vllm-quantization-macos.md`
 
 ## Other methods considered
 

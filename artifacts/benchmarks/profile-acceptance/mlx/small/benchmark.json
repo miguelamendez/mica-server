@@ -1,0 +1,160 @@
+{
+  "schema": 1,
+  "created_unix_seconds": 1789692572.24266,
+  "model": "spark-x25-4b",
+  "backend": "mlx",
+  "quantization": "q4",
+  "base_url": "http://127.0.0.1:8081",
+  "max_output_tokens": 128,
+  "peak_rss_gib": null,
+  "hardware": null,
+  "cases": [
+    {
+      "task": "summary",
+      "target_context_tokens": 512,
+      "concurrency": 4,
+      "runs": 1,
+      "summary": {
+        "request_count": 4,
+        "batch_wall_seconds": 10.655790999997407,
+        "latency_seconds": {
+          "min": 10.44728625001153,
+          "median": 10.653845625005488,
+          "p95": 10.654057124993415,
+          "max": 10.654057124993415
+        },
+        "actual_prompt_tokens": {
+          "min": 488,
+          "max": 488,
+          "mean": 488.0
+        },
+        "completion_tokens": 512,
+        "aggregate_completion_tokens_per_second": 48.048990450368684,
+        "mean_backend_decode_tokens_per_second": 27.05163778454063,
+        "all_stopped_normally": false
+      },
+      "requests": [
+        {
+          "wall_seconds": 10.654057124993415,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "prompt_tokens": 488,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 616
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 3.630109486,
+            "predicted_ms": 4623.258876973602,
+            "predicted_n": 128,
+            "predicted_per_second": 27.686098357483534,
+            "predicted_per_token_ms": 36.11920997635627,
+            "prompt_ms": 3840.4021250025835,
+            "prompt_n": 488,
+            "prompt_per_second": 127.07002655344894,
+            "prompt_per_token_ms": 7.8696764856610315
+          },
+          "reasoning": null,
+          "output": "Here is a concise summary of the supplied project log:\n\n* **First Milestone:** The project begins with the milestone of **alpha**.\n* **Final Milestone:** The project concludes with the final milestone of **omega**.\n* **Open Risks:** The project is currently facing **memory**, **latency**, and **quality** risks.\n* **Log Status:** The provided log is a synthetic record containing repeated, identical entries.\n* **Context:** The information provided outlines the project's initial and final milestones alongside the identified operational risks. \n\n*(Note: The excessive repetition in the original log"
+        },
+        {
+          "wall_seconds": 10.44728625001153,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "prompt_tokens": 488,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 616
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 3.630109486,
+            "predicted_ms": 5089.813459649917,
+            "predicted_n": 128,
+            "predicted_per_second": 25.148269384474453,
+            "predicted_per_token_ms": 39.764167653514974,
+            "prompt_ms": 1106.5561669820454,
+            "prompt_n": 488,
+            "prompt_per_second": 441.00788966812394,
+            "prompt_per_token_ms": 2.2675331290615683
+          },
+          "reasoning": null,
+          "output": "Here is a concise summary of the supplied project log:\n\n* **First Milestone:** The project begins with the first milestone, which is **alpha**.\n* **Final Milestone:** The project concludes with the final milestone, which is **omega**.\n* **Open Risks:** The project is currently facing **memory**, **latency**, and **quality** as open risks.\n* **Log Status:** The provided log is a synthetic record containing repeated, continuous entries.\n* **Project Scope:** The summary accurately preserves the core project milestones and identified risks as defined in the log. \n\n*(Note"
+        },
+        {
+          "wall_seconds": 10.653968750004424,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "prompt_tokens": 488,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 616
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 3.630109486,
+            "predicted_ms": 4623.28755906893,
+            "predicted_n": 128,
+            "predicted_per_second": 27.685926597604396,
+            "predicted_per_token_ms": 36.119434055226016,
+            "prompt_ms": 3840.4021250025835,
+            "prompt_n": 488,
+            "prompt_per_second": 127.07002655344894,
+            "prompt_per_token_ms": 7.8696764856610315
+          },
+          "reasoning": null,
+          "output": "Here is a concise summary of the supplied project log:\n\n* **First Milestone:** The project begins with the milestone of **alpha**.\n* **Final Milestone:** The project concludes with the final milestone of **omega**.\n* **Open Risks:** The project is currently facing **memory**, **latency**, and **quality** risks.\n* **Log Status:** The provided log is a synthetic record containing repeated, identical entries.\n* **Context:** The information provided outlines the project's initial and final milestones alongside the identified operational risks. \n\n*(Note: The excessive repetition in the original log"
+        },
+        {
+          "wall_seconds": 10.653722500006552,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "prompt_tokens": 488,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 616
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 3.630109486,
+            "predicted_ms": 4623.232419287243,
+            "predicted_n": 128,
+            "predicted_per_second": 27.686256798600137,
+            "predicted_per_token_ms": 36.119003275681585,
+            "prompt_ms": 3840.4021250025835,
+            "prompt_n": 488,
+            "prompt_per_second": 127.07002655344894,
+            "prompt_per_token_ms": 7.8696764856610315
+          },
+          "reasoning": null,
+          "output": "Here is a concise summary of the supplied project log:\n\n* **First Milestone:** The project begins with the milestone of **alpha**.\n* **Final Milestone:** The project concludes with the final milestone of **omega**.\n* **Open Risks:** The project is currently facing **memory**, **latency**, and **quality** risks.\n* **Log Status:** The provided log is a synthetic record containing repeated, identical entries.\n* **Context:** The information provided outlines the project's initial and final milestones alongside the identified operational risks. \n\n*(Note: The excessive repetition in the original log"
+        }
+      ]
+    }
+  ]
+}

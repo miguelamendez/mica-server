@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "generated_at": "2026-09-18",
+  "hardware": "Apple M4, 24 GiB unified memory",
+  "backend": "mlx-audio",
+  "model": "audio8-tts-06b",
+  "sample_rate_hz": 44100,
+  "comparison": "matched prompt, default unseeded sampling, no reference voice",
+  "segment_measurement_seconds": 5,
+  "results": [
+    {
+      "quantization": "q4",
+      "duration_seconds": 23.777234,
+      "first_mean_db": -18.7,
+      "first_peak_db": -2.7,
+      "last_mean_db": -27.7,
+      "last_peak_db": -12.7,
+      "mean_change_db": -9.0
+    },
+    {
+      "quantization": "q8",
+      "duration_seconds": 34.040454,
+      "first_mean_db": -18.3,
+      "first_peak_db": -3.1,
+      "last_mean_db": -21.0,
+      "last_peak_db": -6.9,
+      "mean_change_db": -2.7
+    }
+  ],
+  "interpretation": "Q8 is the interactive default. Q4 remains available as a lower-memory option; the unseeded result is not a deterministic multi-seed quality certification."
+}

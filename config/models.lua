@@ -1,7 +1,8 @@
 -- Runtime paths are relative to the model's curated repository in Miguel's HF namespace.
 -- Setup installs runtimes only. The server downloads a selected artifact on first load.
 -- vLLM artifacts are deliberately disabled until each device-specific runtime passes the
--- same real-inference smoke checks. vLLM is a serving backend, not a generic Q4/Q8 converter.
+-- same real-inference smoke checks. vLLM candidates can be produced only through
+-- explicit, curated quantization schemes and remain disabled until runtime validation.
 mica.settings {
   default_hf_repo = "miguelamendez/mica-server-catalog",
   llama_cpp_revision = "latest",
@@ -11,23 +12,29 @@ mica.settings {
 mica.model {
   id = "spark-x25-4b",
   capability = "text",
-  description = "Spark-X2.5-4B text model; the audited official checkpoint contains no native MTP or DFlash drafter.",
-  tags = {"text-generation", "no-native-mtp", "commercial-use", "apache-2.0"},
+  description = "Spark-X2.5-4B text model; no native MTP/DFlash exists, and its 1.7B sibling remains disabled as an MLX classic drafter after losslessness tests failed.",
+  tags = {"text-generation", "no-native-mtp", "classic-draft-disabled-mlx", "commercial-use", "apache-2.0"},
   source_repo = "XHToken/Spark-X2.5-4B",
   mlx_converter = "mlx_vlm.convert",
-  mlx_repo = "miguelamendez/mica-spark-x25-4b-mlx",
-  gguf_repo = "miguelamendez/mica-spark-x25-4b-gguf",
+  mlx_repo = "miguelamendez/mica-spark-x25-4b",
+  gguf_repo = "miguelamendez/mica-spark-x25-4b",
+  gguf_context_tokens = 8192,
+  gguf_parallel_slots = 4,
   priority = 10,
   required = true,
   mlx_q4_path = "q4",
+  mlx_q4_repo_path = "mlx/q4",
   mlx_q4_ram_gib = 3.2,
   mlx_q8_path = "q8",
+  mlx_q8_repo_path = "mlx/q8",
   mlx_q8_ram_gib = 5.4,
   gguf_supported = true,
   gguf_q4_path = "Spark-X2.5-4B-Q4_K_M.gguf",
-  gguf_q4_ram_gib = 3.2,
+  gguf_q4_repo_path = "gguf/Spark-X2.5-4B-Q4_K_M.gguf",
+  gguf_q4_ram_gib = 4.8,
   gguf_q8_path = "Spark-X2.5-4B-Q8_0.gguf",
-  gguf_q8_ram_gib = 5.1,
+  gguf_q8_repo_path = "gguf/Spark-X2.5-4B-Q8_0.gguf",
+  gguf_q8_ram_gib = 6.7,
   vllm_supported = false,
   vllm_reason = "Spark-X2.5 has not passed upstream vLLM or vLLM-Metal inference validation",
 }
@@ -40,19 +47,24 @@ mica.model {
   source_repo = "ibm-granite/granite-speech-5.0-470m-turboctc",
   mlx_converter = "mlx_audio.convert",
   mlx_quantization_profile = "granite-speech5-quality",
-  mlx_repo = "miguelamendez/mica-granite-speech-5-mlx",
-  gguf_repo = "miguelamendez/mica-granite-speech-5-gguf",
+  gguf_family = "granite5asr",
+  mlx_repo = "miguelamendez/mica-granite-speech-5",
+  gguf_repo = "miguelamendez/mica-granite-speech-5",
   priority = 20,
   required = true,
   mlx_q4_path = "q4",
+  mlx_q4_repo_path = "mlx/q4",
   mlx_q4_ram_gib = 0.9,
   mlx_q8_path = "q8",
+  mlx_q8_repo_path = "mlx/q8",
   mlx_q8_ram_gib = 1.2,
   gguf_supported = true,
-  gguf_q4_path = "granite-speech-5.0-470m-turboctc-q4_k_m.gguf",
+  gguf_q4_path = "granite-speech-5.0-470m-turboctc-q4_k.gguf",
+  gguf_q4_repo_path = "gguf/granite-speech-5.0-470m-turboctc-q4_k.gguf",
   gguf_q4_ram_gib = 0.9,
   gguf_q8_path = "granite-speech-5.0-470m-turboctc-q8_0.gguf",
-  gguf_q8_ram_gib = 1.2,
+  gguf_q8_repo_path = "gguf/granite-speech-5.0-470m-turboctc-q8_0.gguf",
+  gguf_q8_ram_gib = 1.4,
   vllm_supported = false,
   vllm_reason = "Granite TurboCTC has not passed a vLLM transcription worker smoke test",
 }
@@ -65,19 +77,24 @@ mica.model {
   source_repo = "Audio8/Audio8-TTS-Preview-0.6b",
   mlx_converter = "mlx_audio.convert",
   mlx_quantization_profile = "audio8-quality",
-  mlx_repo = "miguelamendez/mica-audio8-tts-06b-mlx",
-  gguf_repo = "miguelamendez/mica-audio8-tts-06b-gguf",
+  gguf_family = "audio8_tts",
+  mlx_repo = "miguelamendez/mica-audio8-tts-06b",
+  gguf_repo = "miguelamendez/mica-audio8-tts-06b",
   priority = 30,
   required = false,
   mlx_q4_path = "q4",
+  mlx_q4_repo_path = "mlx/q4",
   mlx_q4_ram_gib = 1.2,
   mlx_q8_path = "q8",
+  mlx_q8_repo_path = "mlx/q8",
   mlx_q8_ram_gib = 1.8,
   gguf_supported = true,
-  gguf_q4_path = "audio8-tts-preview-0.6b-q4_k_m.gguf",
-  gguf_q4_ram_gib = 1.2,
+  gguf_q4_path = "audio8-tts-preview-0.6b-q4_0.gguf",
+  gguf_q4_repo_path = "gguf/audio8-tts-preview-0.6b-q4_0.gguf",
+  gguf_q4_ram_gib = 1.6,
   gguf_q8_path = "audio8-tts-preview-0.6b-q8_0.gguf",
-  gguf_q8_ram_gib = 1.8,
+  gguf_q8_repo_path = "gguf/audio8-tts-preview-0.6b-q8_0.gguf",
+  gguf_q8_ram_gib = 1.9,
   vllm_supported = false,
   vllm_reason = "Audio8 TTS is not a validated vLLM or vLLM-Omni speech worker",
 }
@@ -85,28 +102,57 @@ mica.model {
 mica.model {
   id = "minicpm-v46-thinking",
   capability = "vision",
-  description = "MiniCPM-V 4.6 Thinking multimodal model for image and video understanding.",
-  tags = {"image-text-to-text", "video-text-to-text", "thinking", "commercial-use", "apache-2.0"},
+  description = "MiniCPM-V 4.6 Thinking multimodal model for image and video understanding; no smaller compatible sibling or extractable MTP weights are published.",
+  tags = {"image-text-to-text", "video-text-to-text", "thinking", "no-compatible-draft", "commercial-use", "apache-2.0"},
   source_repo = "openbmb/MiniCPM-V-4.6-Thinking",
   mlx_converter = "mlx_vlm.convert",
-  mlx_extract_mtp = true,
-  mlx_repo = "miguelamendez/mica-minicpm-v46-thinking-mlx",
-  gguf_repo = "miguelamendez/mica-minicpm-v46-thinking-gguf",
+  mlx_repo = "miguelamendez/mica-minicpm-v46-thinking",
+  gguf_repo = "miguelamendez/mica-minicpm-v46-thinking",
+  gguf_context_tokens = 8192,
+  gguf_parallel_slots = 1,
   priority = 40,
   required = false,
   mlx_q4_path = "q4",
-  mlx_q4_ram_gib = 2.2,
+  mlx_q4_repo_path = "mlx/q4",
+  mlx_q4_ram_gib = 3.3,
   mlx_q8_path = "q8",
-  mlx_q8_ram_gib = 3.2,
+  mlx_q8_repo_path = "mlx/q8",
+  mlx_q8_ram_gib = 3.5,
   gguf_supported = true,
   gguf_q4_path = "MiniCPM-V-4_6-Thinking-Q4_K_M.gguf",
+  gguf_q4_repo_path = "gguf/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf",
   gguf_q4_projector = "mmproj-model-f16.gguf",
+  gguf_q4_projector_repo_path = "gguf/mmproj-model-f16.gguf",
   gguf_q4_ram_gib = 2.2,
   gguf_q8_path = "MiniCPM-V-4_6-Thinking-Q8_0.gguf",
+  gguf_q8_repo_path = "gguf/MiniCPM-V-4_6-Thinking-Q8_0.gguf",
   gguf_q8_projector = "mmproj-model-f16.gguf",
+  gguf_q8_projector_repo_path = "gguf/mmproj-model-f16.gguf",
   gguf_q8_ram_gib = 2.6,
   vllm_supported = false,
   vllm_reason = "Upstream vLLM supports MiniCPM-V 4.6, but vLLM-Metal does not list this vision family",
+}
+
+-- A validation-only control proves that the selected vLLM engine and Mica's
+-- OpenAI proxy work even while the four production catalog architectures stay
+-- disabled behind their model-specific compatibility gates.
+mica.model {
+  id = "vllm-qwen3-06b-control",
+  capability = "text",
+  description = "Validation-only Qwen3 0.6B MLX Q4 control for vLLM-Metal acceptance; not a Mica production model.",
+  tags = {"text-generation", "validation-control", "vllm-metal", "apache-2.0"},
+  source_repo = "mlx-community/Qwen3-0.6B-4bit",
+  mlx_supported = false,
+  mlx_reason = "control is isolated to vLLM profiles",
+  gguf_supported = false,
+  gguf_reason = "control is isolated to vLLM profiles",
+  vllm_repo = "mlx-community/Qwen3-0.6B-4bit",
+  priority = 1,
+  required = false,
+  vllm_required = true,
+  vllm_supported = true,
+  vllm_q4_path = "q4",
+  vllm_q4_ram_gib = 1.5,
 }
 
 mica.profile {
@@ -125,4 +171,116 @@ mica.profile {
   name = "quality",
   quantization = "q8",
   models = {"spark-x25-4b", "granite-speech-5", "audio8-tts-06b", "minicpm-v46-thinking"},
+}
+
+-- Acceptance profiles are real selectable Mica profiles. The three context
+-- tiers use the same public routes while binding one concrete backend and a
+-- deterministic context/concurrency/KV policy. Modality-wide endpoint tests
+-- continue to use `all`; these profiles isolate text context and batching.
+mica.profile {
+  name = "mlx-small",
+  backend = "mlx",
+  quantization = "q4",
+  models = {"spark-x25-4b"},
+  max_input_tokens = 512,
+  max_output_tokens = 256,
+  max_total_tokens = 1024,
+  max_concurrent_requests = 4,
+  kv_cache_precision = "q8",
+}
+
+mica.profile {
+  name = "mlx-medium",
+  backend = "mlx",
+  quantization = "q4",
+  models = {"spark-x25-4b"},
+  max_input_tokens = 4096,
+  max_output_tokens = 512,
+  max_total_tokens = 4608,
+  max_concurrent_requests = 2,
+  kv_cache_precision = "q8",
+}
+
+mica.profile {
+  name = "mlx-long",
+  backend = "mlx",
+  quantization = "q4",
+  models = {"spark-x25-4b"},
+  max_input_tokens = 16384,
+  max_output_tokens = 1024,
+  max_total_tokens = 17408,
+  max_concurrent_requests = 1,
+  kv_cache_precision = "q4",
+}
+
+mica.profile {
+  name = "gguf-small",
+  backend = "gguf",
+  quantization = "q4",
+  models = {"spark-x25-4b"},
+  max_input_tokens = 512,
+  max_output_tokens = 256,
+  max_total_tokens = 1024,
+  max_concurrent_requests = 4,
+  kv_cache_precision = "q8",
+}
+
+mica.profile {
+  name = "gguf-medium",
+  backend = "gguf",
+  quantization = "q4",
+  models = {"spark-x25-4b"},
+  max_input_tokens = 4096,
+  max_output_tokens = 512,
+  max_total_tokens = 4608,
+  max_concurrent_requests = 2,
+  kv_cache_precision = "q8",
+}
+
+mica.profile {
+  name = "gguf-long",
+  backend = "gguf",
+  quantization = "q4",
+  models = {"spark-x25-4b"},
+  max_input_tokens = 16384,
+  max_output_tokens = 1024,
+  max_total_tokens = 17408,
+  max_concurrent_requests = 1,
+  kv_cache_precision = "q4",
+}
+
+mica.profile {
+  name = "vllm-small",
+  backend = "vllm",
+  quantization = "q4",
+  models = {"vllm-qwen3-06b-control"},
+  max_input_tokens = 512,
+  max_output_tokens = 256,
+  max_total_tokens = 1024,
+  max_concurrent_requests = 4,
+  kv_cache_precision = "auto",
+}
+
+mica.profile {
+  name = "vllm-medium",
+  backend = "vllm",
+  quantization = "q4",
+  models = {"vllm-qwen3-06b-control"},
+  max_input_tokens = 4096,
+  max_output_tokens = 512,
+  max_total_tokens = 4608,
+  max_concurrent_requests = 2,
+  kv_cache_precision = "auto",
+}
+
+mica.profile {
+  name = "vllm-long",
+  backend = "vllm",
+  quantization = "q4",
+  models = {"vllm-qwen3-06b-control"},
+  max_input_tokens = 16384,
+  max_output_tokens = 1024,
+  max_total_tokens = 17408,
+  max_concurrent_requests = 1,
+  kv_cache_precision = "auto",
 }

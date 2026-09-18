@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "created_unix_seconds": 1789692767.318646,
+  "model": "spark-x25-4b",
+  "backend": "gguf",
+  "quantization": "q4",
+  "base_url": "http://127.0.0.1:8081",
+  "max_output_tokens": 256,
+  "peak_rss_gib": null,
+  "hardware": null,
+  "cases": [
+    {
+      "task": "summary",
+      "target_context_tokens": 4096,
+      "concurrency": 2,
+      "runs": 1,
+      "summary": {
+        "request_count": 2,
+        "batch_wall_seconds": 42.336882082992815,
+        "latency_seconds": {
+          "min": 42.26474225000129,
+          "median": 42.299935396004,
+          "p95": 42.335128542006714,
+          "max": 42.335128542006714
+        },
+        "actual_prompt_tokens": {
+          "min": 4072,
+          "max": 4072,
+          "mean": 4072.0
+        },
+        "completion_tokens": 512,
+        "aggregate_completion_tokens_per_second": 12.093474408349875,
+        "mean_backend_decode_tokens_per_second": 17.24976307069977,
+        "all_stopped_normally": false
+      },
+      "requests": [
+        {
+          "wall_seconds": 42.335128542006714,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 256,
+            "prompt_tokens": 4072,
+            "prompt_tokens_details": {
+              "cached_tokens": 9
+            },
+            "total_tokens": 4328
+          },
+          "timings": {
+            "cache_n": 9,
+            "predicted_ms": 13867.612,
+            "predicted_n": 256,
+            "predicted_per_second": 18.38816949882936,
+            "predicted_per_token_ms": 54.38279215686274,
+            "prompt_ms": 28437.016,
+            "prompt_n": 4063,
+            "prompt_per_second": 142.87715701253603,
+            "prompt_per_token_ms": 6.999019443760768
+          },
+          "reasoning": "We need answer user. Need parse context. User says \"Context: ... Task: Summarize the supplied synthetic project log in five concise bullets, preserving the first milestone, final milestone, and all risks.\"\n\nWe need produce five concise bullets. Need identify from context. Context: \"The first milestone is alpha. The final milestone is omega. The open risks are memory, latency, and quality.\" Then repeated \"record record record...\" likely synthetic log. Need summarize in five concise bullets preserving first milestone, final milestone, all risks.\n\nNeed maybe five bullets:\n1. First milestone: alpha.\n2. Final milestone: omega.\n3. Open risks include memory, latency, quality.\n4. ... maybe project log? Need five concise bullets. Need preserve first milestone, final milestone, all risks. Could structure:\n- Project begins with first milestone: alpha.\n- Project concludes with final milestone: omega.\n- Key open risks identified: memory, latency, quality.\n- These risks require ongoing monitoring and mitigation.\n- Overall project log tracks these milestones and risks.\n\nBut user says \"Summarize the supplied synthetic project log in five concise bullets, preserving the first milestone, final milestone, and all risks",
+          "output": ""
+        },
+        {
+          "wall_seconds": 42.26474225000129,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 256,
+            "prompt_tokens": 4072,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 4328
+          },
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 15827.345,
+            "predicted_n": 256,
+            "predicted_per_second": 16.111356642570186,
+            "predicted_per_token_ms": 62.068019607843134,
+            "prompt_ms": 26406.933,
+            "prompt_n": 4072,
+            "prompt_per_second": 154.2019287131906,
+            "prompt_per_token_ms": 6.485003192534381
+          },
+          "reasoning": "We need answer user. Need parse context. User says \"Context: ... Task: Summarize the supplied synthetic project log in five concise bullets, preserving the first milestone, final milestone, and all risks.\"\n\nWe need produce five concise bullets. Need identify from context. Context: \"The first milestone is alpha. The final milestone is omega. The open risks are memory, latency, and quality.\" Then repeated \"record record record...\" likely synthetic log. Need summarize in five concise bullets preserving first milestone, final milestone, all risks.\n\nNeed maybe five bullets:\n1. First milestone: alpha.\n2. Final milestone: omega.\n3. Open risks include memory.\n4. Open risks include latency.\n5. Open risks include quality.\n\nBut \"five concise bullets\" maybe need exactly five bullets. Could combine risks into one bullet? But preserving all risks maybe separate? Need five concise bullets. Could be:\n- First milestone: alpha.\n- Final milestone: omega.\n- Open risks: memory.\n- Open risks: latency.\n- Open risks: quality.\n\nThat's five bullets. But maybe \"all risks\" plural, so maybe bullet: \"Open risks are memory, latency, and quality",
+          "output": ""
+        }
+      ]
+    }
+  ]
+}

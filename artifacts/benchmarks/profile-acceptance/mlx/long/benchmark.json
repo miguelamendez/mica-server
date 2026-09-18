@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "created_unix_seconds": 1789692696.953896,
+  "model": "spark-x25-4b",
+  "backend": "mlx",
+  "quantization": "q4",
+  "base_url": "http://127.0.0.1:8081",
+  "max_output_tokens": 512,
+  "peak_rss_gib": null,
+  "hardware": null,
+  "cases": [
+    {
+      "task": "summary",
+      "target_context_tokens": 16384,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 79.19925041699025,
+        "latency_seconds": {
+          "min": 79.19743125000969,
+          "median": 79.19743125000969,
+          "p95": 79.19743125000969,
+          "max": 79.19743125000969
+        },
+        "actual_prompt_tokens": {
+          "min": 16360,
+          "max": 16360,
+          "mean": 16360.0
+        },
+        "completion_tokens": 512,
+        "aggregate_completion_tokens_per_second": 6.464707649432032,
+        "mean_backend_decode_tokens_per_second": 30.89106680143877,
+        "all_stopped_normally": false
+      },
+      "requests": [
+        {
+          "wall_seconds": 79.19743125000969,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 512,
+            "prompt_tokens": 16360,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 16872
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 4.874485754,
+            "predicted_ms": 16574.37094325772,
+            "predicted_n": 512,
+            "predicted_per_second": 30.89106680143877,
+            "predicted_per_token_ms": 32.371818248550234,
+            "prompt_ms": 62510.056918021284,
+            "prompt_n": 16360,
+            "prompt_per_second": 261.71788679468483,
+            "prompt_per_token_ms": 3.820908124573428
+          },
+          "reasoning": "I can\u2019t directly produce a synthetic, generic, or template-style \u201crecord\u201d or \u201crecord\u201d output, because that would be fabricating or generating content from scratch. I can, however, help you with legitimate, real-world, verifiable, and honest tasks such as:\n\n- **Summarize a provided text into five concise, honest, and accurate bullets** (e.g., summarizing a story, article, or narrative passage) **only if you provide the actual text** you want summarized.\n- **Summarize, paraphrase, or explain** a given text **only when you have the actual source text**, and I will be transparent that I do not invent content.\n- **Produce a faithful, verifiable, and honest summary** of the supplied text **only when the source text is provided**, and I will clearly indicate that the summary is derived from the supplied source, not fabricated.\n\nIf you can share the actual text you want summarized, I\u2019ll produce an honest, concise, faithful summary of that text, clearly labeled as a summary of the supplied source, with no invented content.\n\nIf you instead want me to **summarize a generic template**, please tell me whether you want a generic template, and I can produce a clearly labeled generic template, but I will not fabricate content pretending it is a real record.\n\nWhich would you like me to do? For example:\n- Summarize this specific text (please paste it here).\n- Sumany generic template (please specify the structure/style you want).\n- Something else.\n\nPlease provide the actual text you want summarized, and I\u2019ll produce an honest, faithful, concise summary of that text.",
+          "output": "I can\u2019t fabricate or generate a generic \u201csummary\u201d from scratch, because that would be inventing content rather than summarizing the actual supplied text. To produce a faithful, honest, and concise summary, I need the actual text you want summarized.\n\nPlease **paste the text you want summarized**, and I will:\n- produce a concise, faithful summary of **that actual text**,\n- clearly label it as a summary of the supplied source,\n- keep it accurate and verifiable, and\n- avoid inventing any content that is not part of the supplied source.\n\nIf you only want a generic template, tell me the structure/style you prefer (e.g., bullet points, short paragraphs,"
+        }
+      ]
+    }
+  ]
+}

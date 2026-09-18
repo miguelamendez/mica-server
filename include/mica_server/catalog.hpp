@@ -25,6 +25,15 @@ struct QuantizeModelOptions {
   Backend backend{Backend::gguf};
   Quantization quantization{Quantization::q4};
   int group_size{64};
+  std::string vllm_algorithm;
+  std::string vllm_scheme;
+  std::string quantization_device{"auto"};
+  std::string calibration_dataset;
+  std::string calibration_dataset_split;
+  int calibration_samples{0};
+  int calibration_sequence_length{0};
+  int calibration_batch_size{0};
+  int auto_round_iterations{0};
   bool dry_run{false};
 };
 

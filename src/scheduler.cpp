@@ -81,4 +81,22 @@ std::vector<ResidentModel> rank_eviction_candidates(
   return residents;
 }
 
+std::optional<double> vllm_memory_utilization(
+    VllmDevice device, double max_ram_gib, double max_vram_gib,
+    double accelerator_memory_gib) {
+  if (accelerator_memory_gib <= 0) return std::nullopt;
+
+  double limit_gib = 0;
+  if (device == VllmDevice::metal) {
+    limit_gib = max_ram_gib;
+  } else if (device == VllmDevice::cuda || device == VllmDevice::rocm ||
+             device == VllmDevice::xpu) {
+    limit_gib = max_vram_gib;
+  } else {
+    return std::nullopt;
+  }
+  if (limit_gib <= 0) return std::nullopt;
+  return std::clamp(limit_gib / accelerator_memory_gib, 0.01, 0.95);
+}
+
 }  // namespace mica

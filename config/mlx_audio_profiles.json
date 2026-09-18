@@ -33,6 +33,32 @@
         "codec contains the learned acoustic encoder, quantizers, and waveform decoder; it stays at source precision until objective and listening tests justify narrower exclusions."
       ],
       "validation": "Pending BF16/Q4/Q8 waveform, non-silence, round-trip ASR, and listening comparisons. This profile must not be described as quality-validated yet."
+    },
+    "audio8-q4-fast-q8": {
+      "extends": "audio8-quality",
+      "status": "experimental component ablation; listening validation pending",
+      "mixed_precision": [
+        {
+          "prefix": "model.fast_layers",
+          "bits": 8,
+          "group_size": 64,
+          "mode": "affine"
+        }
+      ],
+      "validation": "Component ablation A: the 24-layer slow semantic generator remains Q4 while all four fast residual-codebook transformer layers use Q8. The codec, embeddings, codebook embeddings, and output boundaries remain at source precision. Compare against the fixed-seed BF16, uniform-backbone Q4, and selective Q8 samples before acceptance."
+    },
+    "audio8-q4-slow-q8": {
+      "extends": "audio8-quality",
+      "status": "experimental component ablation; listening validation pending",
+      "mixed_precision": [
+        {
+          "prefix": "model.layers",
+          "bits": 8,
+          "group_size": 64,
+          "mode": "affine"
+        }
+      ],
+      "validation": "Component ablation B: all 24 slow semantic transformer layers use Q8 while the four fast residual-codebook transformer layers remain Q4. The codec, embeddings, codebook embeddings, and output boundaries remain at source precision. Compare against the fixed-seed BF16, uniform-backbone Q4, and selective Q8 samples before acceptance."
     }
   }
 }

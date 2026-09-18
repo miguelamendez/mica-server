@@ -1,0 +1,153 @@
+{
+  "schema": 1,
+  "format": "llm_compressor",
+  "group_size": 128,
+  "resource_policy": {
+    "max_process_tree_rss_gib": 16,
+    "max_threads": 2
+  },
+  "tools": {
+    "python": "3.12"
+  },
+  "toolchains": {
+    "current": {
+      "transformers": "5.14.1",
+      "datasets": "5.0.1",
+      "auto_round": "0.14.2",
+      "compressed_tensors": "0.18.0",
+      "llmcompressor": "0.13.0"
+    },
+    "granite-transformers517": {
+      "transformers": "5.17.0",
+      "datasets": "5.0.1",
+      "auto_round": "0.14.2",
+      "compressed_tensors": "0.18.1a20260914",
+      "llmcompressor": "0.13.1a20260824"
+    },
+    "spark-transformers4": {
+      "transformers": "4.57.1",
+      "datasets": "4.8.5",
+      "auto_round": "0.14.2",
+      "compressed_tensors": "0.17.0",
+      "llmcompressor": "0.11.0"
+    }
+  },
+  "defaults": {
+    "dataset": "HuggingFaceH4/ultrachat_200k",
+    "dataset_split": "train_sft",
+    "seed": 42,
+    "q4": {
+      "scheme": "W4A16",
+      "primary_algorithm": "auto_round",
+      "control_algorithm": "gptq",
+      "calibration_samples": 512,
+      "calibration_sequence_length": 2048,
+      "batch_size": 8,
+      "auto_round_iterations": 1000
+    },
+    "q8": {
+      "scheme": "W8A16",
+      "primary_algorithm": "gptq",
+      "calibration_samples": 512,
+      "calibration_sequence_length": 2048,
+      "batch_size": 4,
+      "auto_round_iterations": 200
+    }
+  },
+  "models": {
+    "spark-x25-4b": {
+      "capability": "text",
+      "toolchain": "spark-transformers4",
+      "preferred_algorithms": {
+        "q4": "gptq",
+        "q8": "gptq"
+      },
+      "ignore_layers": [
+        "model.embedding",
+        "lm_head"
+      ],
+      "calibration": "chat-text",
+      "runtime_status": "candidate-only",
+      "runtime_note": "The current vLLM/Transformers stack must first accept Spark's custom architecture and RoPE configuration."
+    },
+    "granite-speech-5": {
+      "capability": "asr",
+      "toolchain": "granite-transformers517",
+      "engine": "unsupported-vllm-core",
+      "calibration_dependencies": {
+        "soundfile": "0.14.0",
+        "torchaudio": "2.11.0"
+      },
+      "preferred_algorithms": {
+        "q4": "gptq",
+        "q8": "gptq"
+      },
+      "calibration_overrides": {
+        "q4": {"batch_size": 1},
+        "q8": {"batch_size": 1}
+      },
+      "ignore_layers": [
+        "encoder.input_linear",
+        "encoder.out",
+        "encoder.out_mid",
+        "ctc_head"
+      ],
+      "calibration": "audio-required",
+      "runtime_status": "blocked-loader",
+      "runtime_note": "GraniteSpeech5ForCTC is not registered by vLLM core; candidates remain research artifacts until a native transcription runner exists."
+    },
+    "audio8-tts-06b": {
+      "capability": "tts",
+      "toolchain": "current",
+      "engine": "vllm-omni",
+      "calibration_dependencies": {
+        "soundfile": "0.14.0"
+      },
+      "preferred_algorithms": {
+        "q4": "gptq",
+        "q8": "gptq"
+      },
+      "calibration_overrides": {
+        "q4": {"batch_size": 1},
+        "q8": {"batch_size": 1}
+      },
+      "ignore_layers": [
+        "embeddings",
+        "codebook_embeddings",
+        "fast_embeddings",
+        "fast_output",
+        "decoder"
+      ],
+      "calibration": "tts-required",
+      "runtime_status": "candidate-only",
+      "runtime_note": "vLLM-Omni lists Audio8 0.6B, but the compressed candidate still requires native CUDA inference, waveform quality, cloning, and batch validation."
+    },
+    "minicpm-v46-thinking": {
+      "capability": "vision",
+      "toolchain": "current",
+      "engine": "vllm",
+      "calibration_dependencies": {
+        "pillow": "12.3.0",
+        "torchvision": "0.26.0"
+      },
+      "preferred_algorithms": {
+        "q4": "gptq",
+        "q8": "gptq"
+      },
+      "calibration_overrides": {
+        "q4": {"batch_size": 1},
+        "q8": {"batch_size": 1}
+      },
+      "ignore_layers": [
+        "model.language_model.embed_tokens",
+        "lm_head",
+        "model.vision_tower.*",
+        "model.merger.*",
+        "model.language_model.layers.*.linear_attn.*"
+      ],
+      "calibration": "multimodal-preferred",
+      "runtime_status": "candidate-only",
+      "runtime_note": "Upstream vLLM now registers MiniCPMV4_6ForConditionalGeneration; the candidate must still pass native image/video inference and batch validation."
+    }
+  }
+}

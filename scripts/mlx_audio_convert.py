@@ -2,32 +2,90 @@
 """Mica MLX-audio conversion profiles and artifact model cards."""
 
 import argparse
+import importlib
 import json
 from pathlib import Path
 
 
 def load_profile(path: str, profile: str) -> dict:
     document = json.loads(Path(path).read_text())
-    try:
-        return document["profiles"][profile]
-    except KeyError as error:
-        raise ValueError(f"unknown MLX-audio quantization profile: {profile}") from error
+    profiles = document["profiles"]
+
+    def resolve(name: str, stack: tuple[str, ...] = ()) -> dict:
+        if name in stack:
+            raise ValueError(f"cyclic MLX-audio profile inheritance: {name}")
+        try:
+            specification = dict(profiles[name])
+        except KeyError as error:
+            raise ValueError(
+                f"unknown MLX-audio quantization profile: {name}"
+            ) from error
+        parent = specification.pop("extends", None)
+        if parent is None:
+            return specification
+        return resolve(parent, stack + (name,)) | specification
+
+    return resolve(profile)
 
 
 def apply_profile(profile: str, specification: dict) -> None:
     preserved = tuple(specification["preserve_prefixes"])
+    mixed_precision = specification.get("mixed_precision", [])
 
     if profile == "granite-speech5-quality":
         from mlx_audio.stt.models.granite_speech5_ctc.granite_speech5 import Model
-    elif profile == "audio8-quality":
+    elif profile.startswith("audio8-"):
         from mlx_audio.tts.models.arktts.arktts import Model
+
+        # Audio8 publishes the language model as safetensors and its 44.1 kHz
+        # codec as a separate PyTorch state dict. mlx-audio's generic converter
+        # currently reads only safetensors, so install the model package hook
+        # that the converter already supports for architecture-specific source
+        # loading.
+        import mlx.core as mx
+        import torch
+
+        def load_source_weights(model_path: Path) -> dict:
+            weights = {}
+            for source in sorted(model_path.glob("*.safetensors")):
+                if "tokenizer" not in source.name:
+                    weights.update(mx.load(str(source)))
+            codec_path = model_path / "codec.pth"
+            if not codec_path.exists():
+                raise FileNotFoundError(f"Audio8 codec not found: {codec_path}")
+            codec = torch.load(
+                codec_path,
+                map_location="cpu",
+                weights_only=True,
+                mmap=True,
+            )
+            weights.update(
+                {
+                    name: mx.array(tensor.detach().contiguous().numpy())
+                    for name, tensor in codec.items()
+                }
+            )
+            return weights
+
+        package = importlib.import_module("mlx_audio.tts.models.arktts")
+        package.load_source_weights = load_source_weights
     else:
         raise ValueError(f"profile has no converter implementation: {profile}")
 
     original = getattr(Model, "model_quant_predicate", lambda self, path, module: True)
 
     def quality_predicate(self, path, module):
-        return original(self, path, module) and not path.startswith(preserved)
+        original_result = original(self, path, module)
+        if not original_result or path.startswith(preserved):
+            return False
+        for rule in mixed_precision:
+            if path.startswith(rule["prefix"]):
+                return {
+                    "bits": rule["bits"],
+                    "group_size": rule.get("group_size", 64),
+                    "mode": rule.get("mode", "affine"),
+                }
+        return original_result
 
     Model.model_quant_predicate = quality_predicate
 
@@ -38,12 +96,14 @@ def write_model_card(args, specification: dict, config: dict) -> None:
     group_size = quantization.get("group_size", args.q_group_size)
     preserved = specification["preserve_prefixes"]
     reasons = specification["reasons"]
+    mixed_precision = specification.get("mixed_precision", [])
 
     metadata = {
         "profile": args.profile,
         "status": specification["status"],
         "preserved_modules": preserved,
         "preservation_reasons": reasons,
+        "mixed_precision": mixed_precision,
         "validation": specification["validation"],
     }
     config["mica_quantization"] = metadata
@@ -74,6 +134,13 @@ def write_model_card(args, specification: dict, config: dict) -> None:
         "",
     ]
     card.extend(f"- `{module}`" for module in preserved)
+    if mixed_precision:
+        card.extend(["", "Mixed-precision overrides:", ""])
+        card.extend(
+            f"- `{rule['prefix']}`: {rule['bits']}-bit affine, group size "
+            f"{rule.get('group_size', 64)}"
+            for rule in mixed_precision
+        )
     card.extend(["", "Reasons:", ""])
     card.extend(f"- {reason}" for reason in reasons)
     card.extend(
@@ -144,6 +211,13 @@ def write_model_card(args, specification: dict, config: dict) -> None:
         ]
     )
     repository_card.extend(f"- `{module}`" for module in preserved)
+    if mixed_precision:
+        repository_card.extend(["", "Mixed-precision overrides:", ""])
+        repository_card.extend(
+            f"- `{rule['prefix']}`: {rule['bits']}-bit affine, group size "
+            f"{rule.get('group_size', 64)}"
+            for rule in mixed_precision
+        )
     repository_card.extend(["", "Reasons:", ""])
     repository_card.extend(f"- {reason}" for reason in reasons)
     repository_card.extend(

@@ -1,0 +1,65 @@
+{
+  "accelerators": [
+    {
+      "apis": [
+        "metal"
+      ],
+      "architecture": "10-core",
+      "driver": "26.5.1",
+      "id": "0",
+      "memory_gib": 24.0,
+      "name": "Apple M4",
+      "runtime": "metal",
+      "type": "gpu",
+      "unified_memory": true,
+      "vendor": "apple"
+    }
+  ],
+  "backend_targets": {
+    "audio": {
+      "device": "metal"
+    },
+    "gguf": {
+      "device": "metal"
+    },
+    "mlx": {
+      "device": "metal"
+    },
+    "vllm": {
+      "device": "metal"
+    }
+  },
+  "build_policy": {
+    "max_memory_gib": 16,
+    "max_parallel_jobs": 2
+  },
+  "cpu": {
+    "logical_cores": 10,
+    "model": "Apple M4",
+    "physical_cores": 10,
+    "vendor": "apple"
+  },
+  "memory": {
+    "system_ram_gib": 24.0,
+    "unified_memory_gib": 24.0
+  },
+  "schema": 1,
+  "system": {
+    "apple_silicon": true,
+    "arch": "arm64",
+    "os": "macos",
+    "version": "26.5.1",
+    "wsl": false
+  },
+  "toolchains": {
+    "cmake": true,
+    "cuda": false,
+    "cxx": true,
+    "metal": true,
+    "python": true,
+    "rocm": false,
+    "uv": true,
+    "vulkan": false,
+    "xpu": false
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "base_url": "http://127.0.0.1:8080",
+  "passed": true,
+  "cases": [
+    {
+      "name": "health",
+      "status": 200,
+      "seconds": 0.008356708989595063,
+      "passed": true,
+      "detail": {}
+    },
+    {
+      "name": "ready",
+      "status": 200,
+      "seconds": 0.00026791599520947784,
+      "passed": true,
+      "detail": {}
+    },
+    {
+      "name": "authentication-rejection",
+      "status": 401,
+      "seconds": 0.00025704200379550457,
+      "passed": true
+    },
+    {
+      "name": "models",
+      "status": 200,
+      "seconds": 0.0003153750003548339,
+      "passed": true,
+      "detail": {
+        "model_count": 4
+      }
+    },
+    {
+      "name": "admin-models",
+      "status": 200,
+      "seconds": 0.0002496660017641261,
+      "passed": true,
+      "detail": {
+        "model_count": 3
+      }
+    },
+    {
+      "name": "chat-completions",
+      "status": 200,
+      "seconds": 0.39245608399505727,
+      "passed": true,
+      "detail": {
+        "characters": 16
+      }
+    },
+    {
+      "name": "completions",
+      "status": 200,
+      "seconds": 0.4133890840021195,
+      "passed": true,
+      "detail": {
+        "characters": 14
+      }
+    },
+    {
+      "name": "parallel-chat-batch",
+      "status": 200,
+      "seconds": 0.5725991250074003,
+      "passed": true,
+      "detail": {
+        "batch_size": 2
+      }
+    },
+    {
+      "name": "audio-transcriptions",
+      "status": 200,
+      "seconds": 0.030879249999998137,
+      "passed": true,
+      "detail": {
+        "characters": 26
+      }
+    },
+    {
+      "name": "audio-speech",
+      "status": 200,
+      "seconds": 4.9519356660021,
+      "passed": true,
+      "detail": {
+        "bytes": 602156
+      }
+    },
+    {
+      "name": "image-chat",
+      "status": 200,
+      "seconds": 7.069222833000822,
+      "passed": true,
+      "detail": {
+        "characters": 144
+      }
+    },
+    {
+      "name": "video-chat",
+      "status": 200,
+      "seconds": 3.047440790993278,
+      "passed": true,
+      "detail": {
+        "characters": 146
+      }
+    }
+  ]
+}

@@ -316,11 +316,6 @@ std::string add_custom_model(const AddModelOptions& options) {
 
 void quantize_model(const QuantizeModelOptions& options) {
   if (options.group_size <= 0) throw std::invalid_argument("group size must be positive");
-  if (options.backend == Backend::vllm) {
-    throw std::invalid_argument(
-        "vLLM is a serving backend, not a generic Q4/Q8 converter; quantize with MLX or "
-        "GGUF, or configure a vLLM-supported AWQ/GPTQ/compressed-tensors repository");
-  }
   if (options.quantization == Quantization::native) {
     throw std::invalid_argument("native is only valid for a vLLM source repository");
   }
@@ -331,6 +326,9 @@ void quantize_model(const QuantizeModelOptions& options) {
   std::string modality;
   std::string mlx_converter;
   std::string mlx_quantization_profile;
+  std::string configured_gguf_artifact;
+  std::string configured_gguf_projector;
+  std::string gguf_family;
   bool mlx_extract_mtp = false;
   if (custom) {
     source_repo = custom_model->at("source_repo").get<std::string>();
@@ -348,7 +346,16 @@ void quantize_model(const QuantizeModelOptions& options) {
                         ? default_mlx_converter(modality)
                         : definition.mlx_converter;
     mlx_quantization_profile = definition.mlx_quantization_profile;
+    gguf_family = definition.gguf_family;
     mlx_extract_mtp = definition.mlx_extract_mtp;
+    const auto backend = definition.artifacts.find(Backend::gguf);
+    if (backend != definition.artifacts.end()) {
+      const auto quantization = backend->second.find(options.quantization);
+      if (quantization != backend->second.end()) {
+        configured_gguf_artifact = quantization->second.pattern;
+        configured_gguf_projector = quantization->second.projector_pattern;
+      }
+    }
   }
   if (source_repo.empty()) {
     throw std::runtime_error("model has no original Hugging Face source repository: " +
@@ -361,6 +368,140 @@ void quantize_model(const QuantizeModelOptions& options) {
   }
   const auto backend_name = to_string(options.backend);
   const auto quant_name = to_string(options.quantization);
+  json vllm_profiles;
+  std::string vllm_algorithm;
+  std::string vllm_scheme;
+  std::string vllm_candidate;
+  int calibration_samples = options.calibration_samples;
+  int calibration_sequence_length = options.calibration_sequence_length;
+  int calibration_batch_size = options.calibration_batch_size;
+  const bool calibration_batch_overridden = calibration_batch_size > 0;
+  int auto_round_iterations = options.auto_round_iterations;
+  std::string vllm_calibration_mode;
+  std::string vllm_toolchain = "current";
+  if (options.backend == Backend::vllm) {
+    static const std::set<std::string> quantization_devices = {
+        "auto", "cpu", "cuda", "xpu"};
+    if (!quantization_devices.contains(options.quantization_device)) {
+      throw std::invalid_argument(
+          "vLLM quantization device must be auto, cpu, cuda, or xpu");
+    }
+    const auto profiles_path = options.config_directory / "vllm_quantization_profiles.json";
+    std::ifstream profiles_file(profiles_path);
+    if (!profiles_file) {
+      throw std::runtime_error("missing vLLM quantization profiles: " +
+                               profiles_path.string());
+    }
+    vllm_profiles = json::parse(profiles_file);
+    if (vllm_profiles.value("schema", 0) != 1) {
+      throw std::runtime_error("unsupported vLLM quantization profile schema");
+    }
+    if (!vllm_profiles.at("tools").contains("python")) {
+      throw std::runtime_error("missing pinned vLLM tool: python");
+    }
+    if (!vllm_profiles.contains("toolchains")) {
+      throw std::runtime_error("missing vLLM quantization toolchains");
+    }
+    const auto& defaults = vllm_profiles.at("defaults").at(quant_name);
+    vllm_algorithm = options.vllm_algorithm.empty()
+                         ? defaults.at("primary_algorithm").get<std::string>()
+                         : options.vllm_algorithm;
+    vllm_scheme = options.vllm_scheme.empty()
+                       ? defaults.at("scheme").get<std::string>()
+                       : options.vllm_scheme;
+    if (vllm_algorithm != "auto_round" && vllm_algorithm != "gptq") {
+      throw std::invalid_argument("vLLM algorithm must be auto_round or gptq");
+    }
+    const auto required_scheme = options.quantization == Quantization::q4
+                                     ? std::string("W4A16")
+                                     : std::string("W8A16");
+    if (vllm_scheme != required_scheme) {
+      throw std::invalid_argument(quant_name + " requires vLLM scheme " + required_scheme);
+    }
+    if (calibration_samples <= 0) {
+      calibration_samples = defaults.at("calibration_samples").get<int>();
+    }
+    if (calibration_sequence_length <= 0) {
+      calibration_sequence_length =
+          defaults.at("calibration_sequence_length").get<int>();
+    }
+    if (calibration_batch_size <= 0) {
+      calibration_batch_size = defaults.at("batch_size").get<int>();
+    }
+    if (auto_round_iterations <= 0) {
+      auto_round_iterations = defaults.at("auto_round_iterations").get<int>();
+    }
+    const auto model_profiles = vllm_profiles.at("models");
+    if (model_profiles.contains(options.id)) {
+      const auto& model_profile = model_profiles.at(options.id);
+      vllm_toolchain = model_profile.value("toolchain", "current");
+      if (options.vllm_algorithm.empty() &&
+          model_profile.contains("preferred_algorithms") &&
+          model_profile.at("preferred_algorithms").contains(quant_name)) {
+        vllm_algorithm =
+            model_profile.at("preferred_algorithms").at(quant_name).get<std::string>();
+      }
+      if (model_profile.at("capability").get<std::string>() !=
+          modality_capability(modality)) {
+        throw std::runtime_error("vLLM quantization profile capability mismatch for " +
+                                 options.id);
+      }
+      vllm_calibration_mode = model_profile.at("calibration").get<std::string>();
+      if (!calibration_batch_overridden &&
+          model_profile.contains("calibration_overrides") &&
+          model_profile.at("calibration_overrides").contains(quant_name)) {
+        calibration_batch_size =
+            model_profile.at("calibration_overrides").at(quant_name)
+                .value("batch_size", calibration_batch_size);
+      }
+      if (vllm_calibration_mode == "custom-required") {
+        throw std::runtime_error(
+            options.id +
+            " requires a modality-specific calibration adapter; source download and "
+            "text-only vLLM quantization are refused");
+      }
+    } else {
+      vllm_calibration_mode =
+          modality_capability(modality) == "text" ? "chat-text" : "custom-required";
+      if (vllm_calibration_mode == "custom-required") {
+        throw std::runtime_error(
+            options.id +
+            " requires a modality-specific calibration adapter; source download and "
+            "text-only vLLM quantization are refused");
+      }
+    }
+    if (vllm_calibration_mode != "chat-text" &&
+        options.calibration_dataset.empty()) {
+      throw std::runtime_error(
+          options.id +
+          " requires --calibration-dataset with an audited modality JSONL manifest");
+    }
+    if (vllm_calibration_mode != "chat-text" &&
+        vllm_algorithm == "auto_round") {
+      throw std::runtime_error(
+          "AutoRound CLI cannot consume Mica modality manifests; use GPTQ");
+    }
+    if (vllm_algorithm != "auto_round" && vllm_algorithm != "gptq") {
+      throw std::invalid_argument("vLLM algorithm must be auto_round or gptq");
+    }
+    if (!vllm_profiles.at("toolchains").contains(vllm_toolchain)) {
+      throw std::runtime_error("missing vLLM quantization toolchain: " +
+                               vllm_toolchain);
+    }
+    const auto& selected_tools = vllm_profiles.at("toolchains").at(vllm_toolchain);
+    for (const auto& field : {"transformers", "datasets", "auto_round",
+                              "compressed_tensors", "llmcompressor"}) {
+      if (!selected_tools.contains(field)) {
+        throw std::runtime_error(std::string("missing pinned vLLM toolchain field: ") +
+                                 field);
+      }
+    }
+    auto scheme_slug = vllm_scheme;
+    std::transform(scheme_slug.begin(), scheme_slug.end(), scheme_slug.begin(),
+                   [](unsigned char value) { return static_cast<char>(std::tolower(value)); });
+    vllm_candidate = vllm_algorithm + "-" + scheme_slug + "-g" +
+                     std::to_string(vllm_profiles.at("group_size").get<int>());
+  }
   if (custom && custom_model->contains("variants") &&
       (*custom_model)["variants"].contains(backend_name) &&
       (*custom_model)["variants"][backend_name].contains(quant_name) &&
@@ -372,7 +513,10 @@ void quantize_model(const QuantizeModelOptions& options) {
   const int bits = options.quantization == Quantization::q4 ? 4 : 8;
   const auto output_root = options.root / "checkpoints" / to_string(options.backend) /
                            options.id;
-  const auto marker = output_root / (".mica-complete-" + quant_name);
+  const auto marker = output_root /
+      (options.backend == Backend::vllm
+           ? ".mica-candidate-" + vllm_candidate
+           : ".mica-complete-" + quant_name);
   if (std::filesystem::exists(marker)) {
     throw std::runtime_error("quantized variant already exists: " + options.id + "@" +
                              backend_name + ":" + quant_name);
@@ -418,6 +562,95 @@ void quantize_model(const QuantizeModelOptions& options) {
   std::filesystem::path projector;
   std::filesystem::path drafter;
 
+  if (options.backend == Backend::vllm) {
+    artifact = output_root / "candidates" / vllm_candidate;
+    const auto script = options.config_directory.parent_path() /
+                        "scripts/vllm_quantize.py";
+    const auto profiles_path = options.config_directory /
+                               "vllm_quantization_profiles.json";
+    if (!options.dry_run && !std::filesystem::exists(script)) {
+      throw std::runtime_error("missing vLLM quantizer: " + script.string());
+    }
+    const auto& global_tools = vllm_profiles.at("tools");
+    const auto& tools = vllm_profiles.at("toolchains").at(vllm_toolchain);
+    const auto resource_policy = vllm_profiles.at("resource_policy");
+    const auto memory_limit = resource_policy.at("max_process_tree_rss_gib").get<double>();
+    const auto max_threads = resource_policy.at("max_threads").get<int>();
+    const auto memory_wrapper = options.config_directory.parent_path() /
+                                "scripts/run_memory_limited.py";
+    if (!options.dry_run && !std::filesystem::exists(memory_wrapper)) {
+      throw std::runtime_error("missing conversion memory watchdog: " +
+                               memory_wrapper.string());
+    }
+    std::vector<std::string> command = {
+        "python3", memory_wrapper.string(), "--limit-gib", std::to_string(memory_limit),
+        "--", "env", "OMP_NUM_THREADS=" + std::to_string(max_threads),
+        "VECLIB_MAXIMUM_THREADS=" + std::to_string(max_threads),
+        "TOKENIZERS_PARALLELISM=false",
+        "UV_CACHE_DIR=" + (options.root / "cache/uv").string(),
+        "HF_HOME=" + (options.root / "cache/huggingface").string(),
+        "uv", "run", "--isolated", "--python",
+        global_tools.at("python").get<std::string>()};
+    if (vllm_algorithm == "auto_round") {
+      command.insert(command.end(), {
+          "--with", "auto-round==" + tools.at("auto_round").get<std::string>(),
+          "--with", "compressed-tensors==" +
+                        tools.at("compressed_tensors").get<std::string>()});
+    } else {
+      command.insert(command.end(), {
+          "--with", "llmcompressor==" + tools.at("llmcompressor").get<std::string>()});
+    }
+    command.insert(command.end(), {
+        "--with", "datasets==" + tools.at("datasets").get<std::string>(),
+        "--with", "transformers==" + tools.at("transformers").get<std::string>()});
+    const auto& model_profile = vllm_profiles.at("models").contains(options.id)
+                                    ? vllm_profiles.at("models").at(options.id)
+                                    : json::object();
+    if (model_profile.contains("calibration_dependencies")) {
+      for (const auto& [package, version] :
+           model_profile.at("calibration_dependencies").items()) {
+        command.insert(command.end(), {
+            "--with", package + "==" + version.get<std::string>()});
+      }
+    }
+    command.insert(command.end(), {
+        "--", "python", script.string(),
+        "--profiles", profiles_path.string(),
+        "--model-id", options.id,
+        "--capability", modality_capability(modality),
+        "--source", source.string(),
+        "--source-repo", source_repo,
+        "--source-revision", source_revision,
+        "--source-license", license.empty() ? "unknown" : license,
+        "--output", artifact.string(),
+        "--quant", quant_name,
+        "--algorithm", vllm_algorithm,
+        "--scheme", vllm_scheme,
+        "--device", options.quantization_device,
+        "--calibration-samples", std::to_string(calibration_samples),
+        "--calibration-sequence-length", std::to_string(calibration_sequence_length),
+        "--batch-size", std::to_string(calibration_batch_size),
+        "--iterations", std::to_string(auto_round_iterations)});
+    if (!options.calibration_dataset.empty()) {
+      command.insert(command.end(), {"--dataset", options.calibration_dataset});
+    }
+    if (!options.calibration_dataset_split.empty()) {
+      command.insert(command.end(), {"--dataset-split", options.calibration_dataset_split});
+    }
+    run_or_print(command, options.dry_run);
+    if (options.dry_run) return;
+    if (!std::filesystem::exists(artifact / "mica-vllm-candidate.json")) {
+      throw std::runtime_error("vLLM quantizer completed without candidate metadata: " +
+                               artifact.string());
+    }
+    std::filesystem::create_directories(output_root);
+    std::ofstream marker_file(marker, std::ios::trunc);
+    marker_file << source_repo << '@' << source_revision << '\n';
+    std::cout << "Created unvalidated vLLM candidate " << options.id << '@'
+              << vllm_candidate << " at " << artifact << '\n';
+    return;
+  }
+
   if (options.backend == Backend::mlx) {
     artifact = output_root / to_string(options.quantization);
     const auto python = (options.root / "environment-mlx/bin/python").string();
@@ -457,17 +690,46 @@ void quantize_model(const QuantizeModelOptions& options) {
     const auto python = (options.root / "environment-tools/bin/python").string();
     if (modality == "tts" || modality == "asr") {
       artifact = output_root /
-                 (options.id + "-" +
-                  (options.quantization == Quantization::q4 ? "q4_k" : "q8_0") + ".gguf");
+                 (configured_gguf_artifact.empty()
+                      ? options.id + "-" +
+                            (options.quantization == Quantization::q4 ? "q4_k" : "q8_0") +
+                            ".gguf"
+                      : configured_gguf_artifact);
       if (!options.dry_run) std::filesystem::create_directories(output_root);
-      const auto tensor_source = options.dry_run
-                                     ? source / "model.safetensors"
-                                     : find_audio_tensor_source(source);
-      run_or_print({(options.root / "runtime/audio.cpp/build-mica/bin/audiocpp_gguf").string(),
-                    "--input", tensor_source.string(), "--root", source.string(), "--output",
-                    artifact.string(), "--type",
-                    options.quantization == Quantization::q4 ? "q4_k" : "q8_0"},
-                   options.dry_run);
+      const auto audio_cpp = options.root / "runtime/audio.cpp";
+      const auto converter = audio_cpp / "build-mica/bin/audiocpp_gguf";
+      const auto quant_type =
+          options.quantization == Quantization::q4 ? "q4_k" : "q8_0";
+      std::vector<std::string> command;
+      if (gguf_family == "audio8_tts") {
+        const auto codec_safetensors = source / "codec.safetensors";
+        if (options.dry_run || !std::filesystem::exists(codec_safetensors)) {
+          run_or_print(
+              {python,
+               (audio_cpp / "tools/community_models/convert_audio8_tts_codec.py").string(),
+               (source / "codec.pth").string(), codec_safetensors.string()},
+              options.dry_run);
+        }
+        command = {converter.string(),
+                   "--input", "model_weights=" + (source / "model.safetensors").string(),
+                   "--input", "codec_weights=" + codec_safetensors.string(),
+                   "--root", source.string(),
+                   "--model-spec", (audio_cpp / "model_specs/audio8_tts.json").string(),
+                   "--output", artifact.string(), "--type",
+                   options.quantization == Quantization::q4 ? "q4_0" : "q8_0",
+                   "--family", "audio8_tts"};
+      } else {
+        const auto tensor_source = options.dry_run
+                                       ? source / "model.safetensors"
+                                       : find_audio_tensor_source(source);
+        command = {converter.string(), "--input", tensor_source.string(),
+                   "--root", source.string(), "--output", artifact.string(),
+                   "--type", quant_type};
+      }
+      if (!gguf_family.empty() && gguf_family != "audio8_tts") {
+        command.insert(command.end(), {"--family", gguf_family});
+      }
+      run_or_print(command, options.dry_run);
     } else {
       const auto llama = options.root / "runtime/llama.cpp";
       if (!options.dry_run) std::filesystem::create_directories(output_root);
@@ -483,14 +745,20 @@ void quantize_model(const QuantizeModelOptions& options) {
         if (!options.dry_run) {
           const auto generated_projector = find_mmproj(staging);
           if (!generated_projector.empty()) {
-            projector = output_root / generated_projector.filename();
+            projector = output_root /
+                        (configured_gguf_projector.empty()
+                             ? generated_projector.filename()
+                             : std::filesystem::path(configured_gguf_projector));
             std::filesystem::copy_file(generated_projector, projector);
           }
         }
       }
       artifact = output_root /
-                 (options.id + "-" +
-                  (options.quantization == Quantization::q4 ? "Q4_K_M" : "Q8_0") + ".gguf");
+                 (configured_gguf_artifact.empty()
+                      ? options.id + "-" +
+                            (options.quantization == Quantization::q4 ? "Q4_K_M" : "Q8_0") +
+                            ".gguf"
+                      : configured_gguf_artifact);
       run_or_print({(llama / "build-mica/bin/llama-quantize").string(), base.string(),
                     artifact.string(),
                     options.quantization == Quantization::q4 ? "Q4_K_M" : "Q8_0"},

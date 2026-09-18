@@ -1,0 +1,102 @@
+{
+  "hardware": {
+    "accelerators": [
+      {
+        "apis": [
+          "metal"
+        ],
+        "architecture": "10-core",
+        "driver": "26.5.1",
+        "id": "0",
+        "memory_gib": 24.0,
+        "name": "Apple M4",
+        "runtime": "metal",
+        "type": "gpu",
+        "unified_memory": true,
+        "vendor": "apple"
+      }
+    ],
+    "backend_targets": {
+      "audio": {
+        "device": "metal"
+      },
+      "gguf": {
+        "device": "metal"
+      },
+      "mlx": {
+        "device": "metal"
+      },
+      "vllm": {
+        "device": "metal"
+      }
+    },
+    "build_policy": {
+      "max_memory_gib": 16.0,
+      "max_parallel_jobs": 2
+    },
+    "capabilities": {
+      "recommended_backend": "mlx",
+      "recommended_vllm_device": "metal",
+      "supports_gguf": true,
+      "supports_mlx": true,
+      "supports_vllm": true
+    },
+    "cpu": {
+      "logical_cores": 10,
+      "model": "Apple M4",
+      "physical_cores": 10,
+      "vendor": "apple"
+    },
+    "memory": {
+      "system_ram_gib": 24.0,
+      "unified_memory_gib": 24.0
+    },
+    "schema": 1,
+    "system": {
+      "apple_silicon": true,
+      "arch": "arm64",
+      "os": "macos",
+      "version": "26.5.1",
+      "wsl": false
+    },
+    "toolchains": {
+      "cmake": true,
+      "cuda": false,
+      "cxx": true,
+      "metal": true,
+      "python": true,
+      "rocm": false,
+      "uv": true,
+      "vulkan": false,
+      "xpu": false
+    }
+  },
+  "installed_backends": [
+    "gguf"
+  ],
+  "model_download": "first_server_start",
+  "profile": "gguf-small",
+  "quantizations": [
+    "q4"
+  ],
+  "ram_budget_gib": 8.0,
+  "startup_by_backend": {
+    "gguf": {
+      "q4": {
+        "admitted": [
+          "spark-x25-4b"
+        ],
+        "error": "",
+        "reserved_gib": 4.8,
+        "skipped": []
+      }
+    }
+  },
+  "vllm_device": "metal",
+  "vram_budget_gib": 0.0
+}
+Native runtime build guard: at most 2 compiler jobs within the 16 GiB compilation budget.
+Native GGUF runtimes already exist; use --refresh to rebuild.
+[test] validate loopback bind: /Users/miguel/models/environment-tools/bin/python -c 'import socket; s=socket.socket(); s.bind(('\''127.0.0.1'\'', 0)); print(s.getsockname()[1]); s.close()'
+[test] validate llama.cpp runtime: /Users/miguel/models/runtime/llama.cpp/build-mica/bin/llama-server --version
+[test] validate audio.cpp runtime: /Users/miguel/models/runtime/audio.cpp/build-mica/bin/audiocpp_server --help

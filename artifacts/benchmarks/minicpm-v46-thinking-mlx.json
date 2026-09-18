@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "date": "2026-09-16",
+  "model": "openbmb/MiniCPM-V-4.6-Thinking",
+  "source_revision": "93d8f4b60ad5d1f763442cf4c19f2a71fa95af4a",
+  "runtime": {
+    "mlx": "0.32.2",
+    "mlx_lm": "0.31.3",
+    "mlx_vlm": "0.7.1"
+  },
+  "variants": {
+    "bf16": {
+      "weight_bytes": 2600957528,
+      "text": {"prefill_tps": 512.427, "decode_tps": 59.212, "peak_memory_gb": 2.698},
+      "image": {"prefill_tps": 335.046, "decode_tps": 58.302, "peak_memory_gb": 3.260}
+    },
+    "q4": {
+      "weight_bytes": 2157823786,
+      "sha256": "02618a1891a802e3f69ad77b432ff6c5ce86fae6a6faa64f8e65bdc480d8454f",
+      "effective_bits_per_weight": 13.274,
+      "text": {"prefill_tps": 451.006, "decode_tps": 80.607, "peak_memory_gb": 2.274},
+      "image": {"prefill_tps": 183.348, "decode_tps": 78.239, "peak_memory_gb": 2.814},
+      "video": {"prefill_tps": 333.055, "decode_tps": 84.645, "peak_memory_gb": 3.029},
+      "server": {"prefill_tps": 203.594, "decode_tps": 81.006, "ttft_seconds": 0.109, "peak_memory_gb": 2.239}
+    },
+    "q8": {
+      "weight_bytes": 2311964514,
+      "sha256": "c0928bf32a570e87979b8da433fec141aed7b553124437527cbc380cde27fa7a",
+      "effective_bits_per_weight": 14.222,
+      "text": {"prefill_tps": 454.142, "decode_tps": 71.886, "peak_memory_gb": 2.429},
+      "image": {"prefill_tps": 335.928, "decode_tps": 70.226, "peak_memory_gb": 2.971},
+      "video": {"prefill_tps": 339.342, "decode_tps": 77.737, "peak_memory_gb": 3.176},
+      "server": {"prefill_tps": 235.825, "decode_tps": 70.828, "ttft_seconds": 0.089, "peak_memory_gb": 2.395},
+      "streaming_server_passed": true
+    }
+  },
+  "quality": {
+    "text_baseline_note": "BF16, Q4, and Q8 all answered the deliberately tricky sheep prompt incorrectly with 8 instead of 9; this is baseline model behavior, not a quantization-only regression.",
+    "image": {
+      "expected": "MICA 31415; blue upper-left; red lower-right",
+      "bf16": "passed with requested JSON-like structure",
+      "q4": "core facts passed; requested JSON suffix omitted",
+      "q8": "passed and matched BF16 response text"
+    },
+    "video": {
+      "expected": "FIRST=red; SECOND=green; THIRD=blue",
+      "q4": "exact pass",
+      "q8": "exact pass",
+      "sampled_frames": 12
+    },
+    "api": {
+      "q4": "non-streaming exact-answer pass",
+      "q8": "non-streaming and streaming exact-answer pass",
+      "thinking_fields": "reasoning_content streamed separately from content"
+    }
+  }
+}

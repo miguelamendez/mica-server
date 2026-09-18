@@ -10,7 +10,7 @@ namespace mica {
 
 enum class Backend { mlx, gguf, vllm };
 enum class Quantization { q4, q8, native };
-enum class VllmDevice { automatic, cpu, cuda, metal };
+enum class VllmDevice { automatic, cpu, cuda, metal, rocm, xpu, tpu };
 
 std::string to_string(Backend value);
 std::string to_string(Quantization value);
@@ -20,15 +20,43 @@ std::string to_string(VllmDevice value);
 VllmDevice parse_vllm_device(const std::string& value);
 
 struct HardwareInfo {
+  struct Accelerator {
+    std::string id;
+    std::string type;
+    std::string vendor;
+    std::string name;
+    std::string runtime;
+    std::string architecture;
+    std::string driver;
+    double memory_gib{0.0};
+    bool unified_memory{false};
+    std::vector<std::string> apis;
+  };
+
   std::string os;
   std::string os_version;
   std::string arch;
+  std::string cpu_vendor;
+  std::string cpu_model;
+  int physical_cpu_cores{0};
+  int logical_cpu_cores{0};
   bool apple_silicon{false};
   bool wsl{false};
   double ram_gib{0.0};
+  double unified_memory_gib{0.0};
+  std::vector<Accelerator> accelerators;
+  std::string mlx_target{"unsupported"};
+  std::string gguf_target{"cpu"};
+  std::string audio_target{"cpu"};
+  std::string vllm_target{"cpu"};
+  std::map<std::string, bool> toolchains;
+  double build_memory_limit_gib{16.0};
+  int build_parallelism{2};
   bool nvidia_detected{false};
   std::vector<double> nvidia_vram_gib;
 
+  [[nodiscard]] bool has_runtime(const std::string& runtime) const;
+  [[nodiscard]] double largest_memory_gib(const std::string& runtime) const;
   [[nodiscard]] bool supports_mlx() const;
   [[nodiscard]] bool supports_gguf() const;
   [[nodiscard]] bool supports_vllm() const;
@@ -39,9 +67,11 @@ struct HardwareInfo {
 struct Artifact {
   bool supported{false};
   std::string pattern;
+  std::string repository_pattern;
   std::string reason;
   double reservation_gib{0.0};
   std::string projector_pattern;
+  std::string projector_repository_pattern;
 };
 
 struct ModelDefinition {
@@ -52,6 +82,9 @@ struct ModelDefinition {
   std::string source_repo;
   std::string mlx_converter;
   std::string mlx_quantization_profile;
+  std::string gguf_family;
+  int gguf_context_tokens{8192};
+  int gguf_parallel_slots{1};
   bool mlx_extract_mtp{false};
   std::map<Backend, std::string> repositories;
   int startup_priority{100};
@@ -69,6 +102,12 @@ struct Profile {
   std::string name;
   Quantization quantization{Quantization::q4};
   std::vector<std::string> models;
+  std::optional<Backend> backend;
+  int max_input_tokens{7168};
+  int max_output_tokens{1024};
+  int max_total_tokens{8192};
+  int max_concurrent_requests{1};
+  std::string kv_cache_precision{"q8"};
 };
 
 struct Policy {
@@ -79,6 +118,20 @@ struct Policy {
   int queue_timeout_seconds{60};
 };
 
+struct VlmToolDefinition {
+  bool enabled{false};
+  std::string name{"vlm_tool"};
+  std::string description;
+  std::string model_id{"minicpm-v46-thinking"};
+  int max_images_per_call{8};
+  int max_videos_per_call{1};
+  int max_document_pages_per_call{8};
+  int max_video_frames{32};
+  int max_total_visual_items{8};
+  int max_agent_steps{4};
+  std::uint64_t max_upload_bytes{50ULL * 1024ULL * 1024ULL};
+};
+
 struct Registry {
   std::string default_hf_repo;
   std::string llama_cpp_revision;
@@ -86,6 +139,7 @@ struct Registry {
   std::vector<ModelDefinition> models;
   std::map<std::string, Profile> profiles;
   Policy policy;
+  VlmToolDefinition vlm_tool;
 
   [[nodiscard]] const ModelDefinition& model(const std::string& id) const;
   [[nodiscard]] const Profile& profile(const std::string& name) const;

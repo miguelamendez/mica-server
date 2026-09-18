@@ -23,21 +23,22 @@ void usage() {
   std::cout << R"(mica-server
 
 Usage:
-  mica-server detect [--config-dir PATH]
+  mica-server detect [--output PATH]
   mica-server plan  [setup options]
   mica-server setup [setup options]
   mica-server add-model --url URL --modality MODALITY [--id ID] [quantize options]
-  mica-server quantize --model ID --backend mlx|gguf --quant q4|q8 [options]
+  mica-server quantize --model ID --backend mlx|gguf|vllm --quant q4|q8 [options]
   mica-server serve --backend mlx|gguf|vllm [--root PATH] [--host HOST] [--port PORT]
 
 Setup options:
   --backends auto|mlx|gguf|vllm|LIST
                             Install one or more runtime stacks (default: auto)
-  --profile all|core|quality
+  --profile NAME            all|core|quality or BACKEND-small|medium|long
   --quant q4|q8|q4,q8       Cache one or both quantizations
   --ram-gib N               Hard model RAM admission budget (default 8)
   --vram-gib N              NVIDIA VRAM budget (vLLM CUDA auto-fills when zero)
-  --vllm-device VALUE       auto|cpu|cuda|metal (default: hardware-selected)
+  --vllm-device VALUE       auto|cpu|cuda|metal|rocm|xpu|tpu
+  --hardware-profile PATH   Use a saved detector profile (JSON schema 1)
   --hf-repo OWNER/REPO      Catalog repository (model artifacts use per-model repos)
   --root PATH               Runtime/model root (default ~/models)
   --refresh                 Resolve current runtime/package versions again
@@ -51,9 +52,18 @@ Custom model options:
   --modality VALUE          tts|asr|text-to-text|img-text-to-text
   --id ID                   Optional stable local id (defaults from repo name)
   --description TEXT        Optional catalog description
-  --backend mlx|gguf        Quantization backend (must be installed)
+  --backend mlx|gguf|vllm   Quantization backend (must be installed)
   --quant q4|q8             Quantization size
   --group-size N            MLX affine group size (default 64)
+  --algorithm VALUE         vLLM auto_round or gptq (quality default by size)
+  --scheme VALUE            vLLM W4A16 or W8A16 (derived from --quant)
+  --quant-device VALUE      vLLM conversion device: auto|cpu|cuda|xpu
+  --calibration-dataset ID  Override the vLLM calibration dataset
+  --calibration-split NAME  Override its split (default train_sft)
+  --calibration-samples N   Override the quality profile sample count
+  --calibration-seqlen N    Override the quality profile token length
+  --calibration-batch N     Override the calibration batch size
+  --autoround-iters N       Override AutoRound optimization iterations
   --revision REVISION       Pin the original Hugging Face source revision
   --config-dir PATH         Lua model registry (required for built-in models)
   --backend vllm            Register the HF repository for lazy vLLM loading
@@ -119,6 +129,9 @@ mica::SetupOptions parse_setup(const std::vector<std::string>& args) {
     else if (args[i] == "--hf-repo") options.hf_repo = value_after(args, i);
     else if (args[i] == "--root") options.root = value_after(args, i);
     else if (args[i] == "--config-dir") options.config_directory = value_after(args, i);
+    else if (args[i] == "--hardware-profile") {
+      options.hardware_profile = value_after(args, i);
+    }
     else if (args[i] == "--refresh") options.refresh = true;
     else if (args[i] == "--dry-run") options.dry_run = true;
     else throw std::invalid_argument("unknown option: " + args[i]);
@@ -128,16 +141,15 @@ mica::SetupOptions parse_setup(const std::vector<std::string>& args) {
 }
 
 json hardware_json(const mica::HardwareInfo& hardware) {
-  return {{"os", hardware.os}, {"os_version", hardware.os_version},
-          {"arch", hardware.arch},
-          {"apple_silicon", hardware.apple_silicon}, {"wsl", hardware.wsl},
-          {"ram_gib", hardware.ram_gib}, {"nvidia_detected", hardware.nvidia_detected},
-          {"nvidia_vram_gib", hardware.nvidia_vram_gib},
-          {"supports_mlx", hardware.supports_mlx()},
-          {"supports_gguf", hardware.supports_gguf()},
-          {"supports_vllm", hardware.supports_vllm()},
-          {"recommended_vllm_device", mica::to_string(hardware.recommended_vllm_device())},
-          {"recommended_backend", mica::to_string(hardware.recommended_backend())}};
+  auto result = mica::hardware_to_json(hardware);
+  result["capabilities"] = {{"supports_mlx", hardware.supports_mlx()},
+                            {"supports_gguf", hardware.supports_gguf()},
+                            {"supports_vllm", hardware.supports_vllm()},
+                            {"recommended_vllm_device",
+                             mica::to_string(hardware.recommended_vllm_device())},
+                            {"recommended_backend",
+                             mica::to_string(hardware.recommended_backend())}};
+  return result;
 }
 
 }  // namespace
@@ -150,7 +162,14 @@ int main(int argc, char** argv) {
       return args.size() < 2 ? 1 : 0;
     }
     if (args[1] == "detect") {
-      std::cout << std::setw(2) << hardware_json(mica::detect_hardware()) << '\n';
+      std::filesystem::path output_path;
+      for (std::size_t i = 2; i < args.size(); ++i) {
+        if (args[i] == "--output") output_path = value_after(args, i);
+        else throw std::invalid_argument("unknown detect option: " + args[i]);
+      }
+      const auto hardware = mica::detect_hardware();
+      if (!output_path.empty()) mica::write_hardware_profile(hardware, output_path);
+      std::cout << std::setw(2) << hardware_json(hardware) << '\n';
       return 0;
     }
     if (args[1] == "plan" || args[1] == "setup") {
@@ -161,10 +180,15 @@ int main(int argc, char** argv) {
       json backends = json::array();
       json startups = json::object();
       bool has_error = false;
+      const auto default_quantization = resolved.options.quantizations.front();
       for (const auto backend : resolved.backends) {
         backends.push_back(mica::to_string(backend));
         for (const auto& [quantization, startup] : resolved.startups.at(backend)) {
-          has_error = has_error || startup.error.has_value();
+          // Alternate precisions are on-demand cache choices, not simultaneous
+          // startup requirements. Only the default precision gates setup.
+          if (quantization == default_quantization) {
+            has_error = has_error || startup.error.has_value();
+          }
           startups[mica::to_string(backend)][mica::to_string(quantization)] = {
               {"admitted", startup.admitted}, {"skipped", startup.skipped},
               {"reserved_gib", startup.reserved_gib},
@@ -257,6 +281,24 @@ int main(int argc, char** argv) {
           has_quantization = true;
         } else if (args[i] == "--group-size") {
           options.group_size = std::stoi(value_after(args, i));
+        } else if (args[i] == "--algorithm") {
+          options.vllm_algorithm = value_after(args, i);
+        } else if (args[i] == "--scheme") {
+          options.vllm_scheme = value_after(args, i);
+        } else if (args[i] == "--quant-device") {
+          options.quantization_device = value_after(args, i);
+        } else if (args[i] == "--calibration-dataset") {
+          options.calibration_dataset = value_after(args, i);
+        } else if (args[i] == "--calibration-split") {
+          options.calibration_dataset_split = value_after(args, i);
+        } else if (args[i] == "--calibration-samples") {
+          options.calibration_samples = std::stoi(value_after(args, i));
+        } else if (args[i] == "--calibration-seqlen") {
+          options.calibration_sequence_length = std::stoi(value_after(args, i));
+        } else if (args[i] == "--calibration-batch") {
+          options.calibration_batch_size = std::stoi(value_after(args, i));
+        } else if (args[i] == "--autoround-iters") {
+          options.auto_round_iterations = std::stoi(value_after(args, i));
         } else if (args[i] == "--root") options.root = value_after(args, i);
         else if (args[i] == "--config-dir") options.config_directory = value_after(args, i);
         else if (args[i] == "--revision") options.source_revision = value_after(args, i);

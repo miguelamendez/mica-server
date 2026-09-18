@@ -1,0 +1,1 @@
+{"schema":1,"system":{"os":"linux","version":"6.8","arch":"x86_64","wsl":false,"apple_silicon":false},"cpu":{"vendor":"amd","model":"fixture","physical_cores":8,"logical_cores":16},"memory":{"system_ram_gib":32,"unified_memory_gib":0},"accelerators":[],"backend_targets":{"mlx":{"device":"unsupported"},"gguf":{"device":"cpu"},"audio":{"device":"cpu"},"vllm":{"device":"cpu"}}}
