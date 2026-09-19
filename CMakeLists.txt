@@ -41,7 +41,7 @@ if(NOT MICA_HTTPLIB_INCLUDE_DIR)
   FetchContent_Declare(
     cpp_httplib
     GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
-    GIT_TAG v0.18.3
+    GIT_TAG v0.27.0
     GIT_SHALLOW TRUE
   )
   FetchContent_MakeAvailable(cpp_httplib)
@@ -78,7 +78,11 @@ else()
 endif()
 
 if(APPLE)
-  target_link_libraries(mica_server_core PRIVATE "-framework Security")
+  target_link_libraries(mica_server_core PRIVATE
+    "-framework CoreFoundation"
+    "-framework CFNetwork"
+    "-framework Security"
+  )
 endif()
 
 target_compile_options(mica_server_core PRIVATE -Wall -Wextra -Wpedantic)

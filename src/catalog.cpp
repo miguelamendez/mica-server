@@ -906,8 +906,11 @@ void merge_custom_models(Registry& registry, const std::filesystem::path& root) 
   const auto catalog = read_catalog(root);
   for (const auto& [id, entry] : catalog["models"].items()) {
     if (!entry.value("enabled", true)) continue;
-    const auto duplicate = std::find_if(registry.models.begin(), registry.models.end(),
-                                        [&](const auto& model) { return model.id == id; });
+    const auto duplicate = std::find_if(
+        registry.models.begin(), registry.models.end(),
+        [candidate_id = std::string(id)](const auto& model) {
+          return model.id == candidate_id;
+        });
     if (duplicate != registry.models.end()) {
       throw std::runtime_error("custom model id conflicts with built-in model: " + id);
     }
