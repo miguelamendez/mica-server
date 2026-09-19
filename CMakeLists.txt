@@ -38,6 +38,15 @@ if(NOT MICA_JSON_INCLUDE_DIR)
 endif()
 
 if(NOT MICA_HTTPLIB_INCLUDE_DIR)
+  # Mica uses cpp-httplib only for local, uncompressed HTTP traffic. Disable
+  # opportunistic optional features so release builds do not vary with the
+  # host's partially installed compression/TLS packages.
+  set(HTTPLIB_USE_OPENSSL_IF_AVAILABLE OFF CACHE BOOL "" FORCE)
+  set(HTTPLIB_USE_ZLIB_IF_AVAILABLE OFF CACHE BOOL "" FORCE)
+  set(HTTPLIB_USE_BROTLI_IF_AVAILABLE OFF CACHE BOOL "" FORCE)
+  set(HTTPLIB_USE_ZSTD_IF_AVAILABLE OFF CACHE BOOL "" FORCE)
+  set(HTTPLIB_USE_CERTS_FROM_MACOSX_KEYCHAIN OFF CACHE BOOL "" FORCE)
+  set(HTTPLIB_USE_NON_BLOCKING_GETADDRINFO OFF CACHE BOOL "" FORCE)
   FetchContent_Declare(
     cpp_httplib
     GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
@@ -274,9 +283,11 @@ if(MICA_SERVER_BUILD_TESTS)
   add_test(
     NAME mica-server-gguf-build-resource-guard
     COMMAND $<TARGET_FILE:mica-server> setup --backend gguf --profile all
-            --quant q4 --dry-run --root
+            --quant q4 --dry-run --ram-gib 8 --root
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/custom-root
             --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/mac-metal.json
   )
   set_tests_properties(mica-server-gguf-build-resource-guard PROPERTIES
     PASS_REGULAR_EXPRESSION "AUDIOCPP_MODEL_SET=custom.*AUDIOCPP_MODELS=granite5asr,audio8_tts.*audiocpp_server audiocpp_gguf --parallel 2"
