@@ -32,7 +32,7 @@ if(NOT MICA_JSON_INCLUDE_DIR)
   FetchContent_Declare(
     nlohmann_json
     URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
-    URL_HASH SHA256=d6c65aca6b1ed68b4e7f541b3967fb4c52a0c6f9c7bf3e6ec8ef52d24f3a33d1
+    URL_HASH SHA256=d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d
   )
   FetchContent_MakeAvailable(nlohmann_json)
 endif()
