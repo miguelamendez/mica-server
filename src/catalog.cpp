@@ -22,7 +22,7 @@ namespace {
 using json = nlohmann::json;
 
 std::filesystem::path catalog_path(const std::filesystem::path& root) {
-  return root / "mica-server/custom-models.json";
+  return root / "config/custom-models.json";
 }
 
 json read_catalog(const std::filesystem::path& root) {
@@ -141,6 +141,48 @@ std::string capability_modality(const std::string& capability) {
   throw std::runtime_error("unsupported model capability for quantization: " + capability);
 }
 
+std::string artifact_engine(Backend backend, const std::string& capability) {
+  if (backend == Backend::mlx) {
+    if (capability == "text") return "mlx-lm";
+    if (capability == "vision") return "mlx-vlm";
+    return "mlx-audio";
+  }
+  if (backend == Backend::gguf) {
+    return capability == "text" || capability == "vision"
+               ? "llama-cpp"
+               : "audio-cpp";
+  }
+  return "vllm";
+}
+
+std::string artifact_format(Backend backend) {
+  if (backend == Backend::mlx) return "mlx";
+  if (backend == Backend::gguf) return "gguf";
+  return "compressed-tensors";
+}
+
+double bytes_to_gib(std::uint64_t bytes) {
+  return static_cast<double>(bytes) / (1024.0 * 1024.0 * 1024.0);
+}
+
+std::string generated_quantization_type(Backend backend, Quantization quantization,
+                                        int group_size,
+                                        const std::string& capability,
+                                        const std::string& gguf_family,
+                                        const std::string& vllm_scheme) {
+  if (backend == Backend::mlx) {
+    return "mlx-affine-" + to_string(quantization) + "-g" +
+           std::to_string(group_size);
+  }
+  if (backend == Backend::gguf) {
+    if (quantization == Quantization::q8) return "Q8_0";
+    if (gguf_family == "audio8_tts") return "Q4_0";
+    if (capability == "tts" || capability == "asr") return "Q4_K";
+    return "Q4_K_M";
+  }
+  return vllm_scheme.empty() ? to_string(quantization) : "GPTQ-" + vllm_scheme;
+}
+
 std::string default_mlx_converter(const std::string& modality) {
   if (modality == "text-to-text") return "mlx_lm.convert";
   if (modality == "img-text-to-text") return "mlx_vlm.convert";
@@ -159,7 +201,7 @@ void write_json_atomically(const std::filesystem::path& path, const json& value)
 }
 
 json read_runtime(const std::filesystem::path& root) {
-  std::ifstream file(root / "mica-server/runtime.json");
+  std::ifstream file(root / "state/runtime.json");
   if (!file) throw std::runtime_error("run mica-server setup before quantizing models");
   return json::parse(file);
 }
@@ -169,7 +211,7 @@ void record_runtime_variant(const std::filesystem::path& root, const std::string
                             const std::filesystem::path& artifact,
                             const std::string& source_repo,
                             const std::string& source_revision) {
-  const auto path = root / "mica-server/runtime.json";
+  const auto path = root / "state/runtime.json";
   std::ifstream input(path);
   auto runtime = json::parse(input);
   auto& model = runtime["configured_models"][id];
@@ -197,7 +239,7 @@ void record_runtime_variant(const std::filesystem::path& root, const std::string
 
 void record_runtime_selection(const std::filesystem::path& root, const std::string& id,
                               Backend backend, Quantization quantization) {
-  const auto path = root / "mica-server/runtime.json";
+  const auto path = root / "state/runtime.json";
   std::ifstream input(path);
   auto runtime = json::parse(input);
   auto& model = runtime["configured_models"][id];
@@ -269,10 +311,14 @@ std::filesystem::path find_mmproj(const std::filesystem::path& root) {
 }  // namespace
 
 std::string normalize_modality(const std::string& value) {
-  if (value == "tts" || value == "asr" || value == "text-to-text" ||
-      value == "img-text-to-text") return value;
+  if (value == "tts" || value == "asr" || value == "text-to-text") return value;
+  if (value == "img-text-to-text" || value == "image-text-to-text" ||
+      value == "video-text-to-text" || value == "image-video-to-text") {
+    return "img-text-to-text";
+  }
   throw std::invalid_argument(
-      "modality must be tts, asr, text-to-text, or img-text-to-text");
+      "modality must be tts, asr, text-to-text, image-text-to-text, "
+      "video-text-to-text, or image-video-to-text");
 }
 
 std::string modality_capability(const std::string& modality) {
@@ -511,7 +557,7 @@ void quantize_model(const QuantizeModelOptions& options) {
                              backend_name + ":" + quant_name);
   }
   const int bits = options.quantization == Quantization::q4 ? 4 : 8;
-  const auto output_root = options.root / "checkpoints" / to_string(options.backend) /
+  const auto output_root = options.root / "models" / to_string(options.backend) /
                            options.id;
   const auto marker = output_root /
       (options.backend == Backend::vllm
@@ -542,7 +588,7 @@ void quantize_model(const QuantizeModelOptions& options) {
   }
   const auto staging = options.root / "staging" / options.id / source_revision;
   const auto source = staging / "source";
-  const auto hf = (options.root / "environment-tools/bin/hf").string();
+  const auto hf = (options.root / "environments/tools/bin/hf").string();
   run_or_print({hf, "download", source_repo, "--revision", source_revision,
                 "--local-dir", source.string()},
                options.dry_run);
@@ -653,7 +699,7 @@ void quantize_model(const QuantizeModelOptions& options) {
 
   if (options.backend == Backend::mlx) {
     artifact = output_root / to_string(options.quantization);
-    const auto python = (options.root / "environment-mlx/bin/python").string();
+    const auto python = (options.root / "environments/mlx/bin/python").string();
     std::vector<std::string> command;
     if (!mlx_quantization_profile.empty()) {
       const auto script = options.config_directory.parent_path() /
@@ -687,7 +733,7 @@ void quantize_model(const QuantizeModelOptions& options) {
     }
     run_or_print(command, options.dry_run);
   } else {
-    const auto python = (options.root / "environment-tools/bin/python").string();
+    const auto python = (options.root / "environments/tools/bin/python").string();
     if (modality == "tts" || modality == "asr") {
       artifact = output_root /
                  (configured_gguf_artifact.empty()
@@ -696,7 +742,7 @@ void quantize_model(const QuantizeModelOptions& options) {
                             ".gguf"
                       : configured_gguf_artifact);
       if (!options.dry_run) std::filesystem::create_directories(output_root);
-      const auto audio_cpp = options.root / "runtime/audio.cpp";
+      const auto audio_cpp = options.root / "runtimes/audio.cpp";
       const auto converter = audio_cpp / "build-mica/bin/audiocpp_gguf";
       const auto quant_type =
           options.quantization == Quantization::q4 ? "q4_k" : "q8_0";
@@ -731,7 +777,7 @@ void quantize_model(const QuantizeModelOptions& options) {
       }
       run_or_print(command, options.dry_run);
     } else {
-      const auto llama = options.root / "runtime/llama.cpp";
+      const auto llama = options.root / "runtimes/llama.cpp";
       if (!options.dry_run) std::filesystem::create_directories(output_root);
       run_or_print({"uv", "pip", "install", "--python", python, "-r",
                     (llama / "requirements.txt").string()}, options.dry_run);
@@ -781,7 +827,18 @@ void quantize_model(const QuantizeModelOptions& options) {
   marker_file << source_repo << '@' << source_revision << '\n';
   marker_file.close();
   const auto relative = std::filesystem::relative(artifact, output_root).string();
+  const auto artifact_size_bytes = directory_size(artifact);
+  const auto projector_size_bytes = projector.empty() ? 0 : directory_size(projector);
   json variant = {{"status", "ready"}, {"artifact", relative},
+                  {"engine", artifact_engine(options.backend,
+                                             modality_capability(modality))},
+                  {"format", artifact_format(options.backend)},
+                  {"quantization_type", generated_quantization_type(
+                       options.backend, options.quantization, options.group_size,
+                       modality_capability(modality), gguf_family, vllm_scheme)},
+                  {"size_bytes", artifact_size_bytes},
+                  {"projector_size_bytes", projector_size_bytes},
+                  {"size_source", "measured-local-artifact"},
                   {"reservation_gib", estimated_reservation(artifact, projector)},
                   {"reservation_source", "provisional-file-size-estimate"},
                   {"group_size", options.group_size}};
@@ -825,6 +882,12 @@ void configure_vllm_custom_model(const ConfigureVllmModelOptions& options) {
   }
   variant = {{"status", "ready"},
              {"artifact", "model"},
+             {"engine", "vllm"},
+             {"format", "safetensors"},
+             {"quantization_type", "native"},
+             {"size_bytes", 0},
+             {"projector_size_bytes", 0},
+             {"size_source", "remote-size-unknown"},
              {"reservation_gib", options.reservation_gib},
              {"reservation_source", "user-declared"}};
   if (options.dry_run) {
@@ -871,8 +934,21 @@ void merge_custom_models(Registry& registry, const std::filesystem::path& root) 
             entry["variants"][backend_name].contains(quant_name)) {
           const auto& variant = entry["variants"][backend_name][quant_name];
           artifact.supported = variant.value("status", "") == "ready";
+          artifact.engine = variant.value(
+              "engine", artifact_engine(backend, model.capability));
+          artifact.format = variant.value("format", artifact_format(backend));
+          artifact.quantization_type = variant.value(
+              "quantization_type", quant_name);
           artifact.pattern = variant.value("artifact", "");
           artifact.projector_pattern = variant.value("projector", "");
+          artifact.repository_pattern = artifact.pattern;
+          artifact.projector_repository_pattern = artifact.projector_pattern;
+          artifact.size_bytes = variant.value("size_bytes", std::uint64_t{0});
+          artifact.projector_size_bytes = variant.value(
+              "projector_size_bytes", std::uint64_t{0});
+          artifact.size_source = variant.value(
+              "size_source", artifact.size_bytes > 0 ? "measured-local-artifact"
+                                                       : "unknown");
           artifact.reservation_gib = variant.value("reservation_gib", 0.0);
           if (artifact.supported) artifact.reason.clear();
         }
@@ -887,7 +963,8 @@ void merge_custom_models(Registry& registry, const std::filesystem::path& root) 
 nlohmann::json registry_catalog(const Registry& registry,
                                 const std::optional<std::string>& capability,
                                 const std::optional<Backend>& backend,
-                                bool check_remote) {
+                                bool check_remote,
+                                const std::optional<std::string>& engine) {
   json models = json::array();
   std::map<std::string, bool> remote_status;
   const auto modality_for = [](const std::string& value) {
@@ -896,21 +973,48 @@ nlohmann::json registry_catalog(const Registry& registry,
     return value;
   };
   for (const auto& model : registry.models) {
+    if (!model.catalog_visible) continue;
     if (capability && model.capability != *capability) continue;
     json repositories = json::object();
     json revisions = json::object();
     json variants = json::object();
+    json quantizations_by_backend = json::object();
     for (const auto& [candidate_backend, artifacts] : model.artifacts) {
       if (backend && candidate_backend != *backend) continue;
       json quantizations = json::array();
+      json artifact_variants = json::array();
       for (const auto& [quantization, artifact] : artifacts) {
-        if (artifact.supported) quantizations.push_back(to_string(quantization));
+        if (!artifact.supported || (engine && artifact.engine != *engine)) continue;
+        const auto quantization_name = to_string(quantization);
+        const auto download_bytes = artifact.size_bytes + artifact.projector_size_bytes;
+        quantizations.push_back(quantization_name);
+        json variant = {
+            {"engine", artifact.engine},
+            {"artifact_family", to_string(candidate_backend)},
+            {"format", artifact.format},
+            {"quantization", quantization_name},
+            {"quantization_type", artifact.quantization_type},
+            {"artifact_path", artifact.repository_pattern},
+            {"size_bytes", artifact.size_bytes},
+            {"size_gib", bytes_to_gib(artifact.size_bytes)},
+            {"size_source", artifact.size_source},
+            {"download_size_bytes", download_bytes},
+            {"download_size_gib", bytes_to_gib(download_bytes)},
+            {"memory_reservation_gib", artifact.reservation_gib}};
+        if (!artifact.projector_repository_pattern.empty()) {
+          variant["projector"] = {
+              {"path", artifact.projector_repository_pattern},
+              {"size_bytes", artifact.projector_size_bytes},
+              {"size_gib", bytes_to_gib(artifact.projector_size_bytes)}};
+        }
+        artifact_variants.push_back(std::move(variant));
       }
       if (quantizations.empty()) continue;
       const auto repository = model.repositories.find(candidate_backend);
       if (repository == model.repositories.end() || repository->second.empty()) continue;
       const auto backend_name = to_string(candidate_backend);
-      variants[backend_name] = quantizations;
+      variants[backend_name] = std::move(artifact_variants);
+      quantizations_by_backend[backend_name] = std::move(quantizations);
       repositories[backend_name] = repository->second;
       const auto revision = model.repository_revisions.find(candidate_backend);
       revisions[backend_name] = revision == model.repository_revisions.end()
@@ -926,14 +1030,32 @@ nlohmann::json registry_catalog(const Registry& registry,
       }
     }
     if (variants.empty()) continue;
+    json modalities = json::array();
+    if (model.capability == "vision") {
+      modalities.push_back("image-text-to-text");
+      modalities.push_back("video-text-to-text");
+    } else {
+      modalities.push_back(modality_for(model.capability));
+    }
+    std::string license;
+    for (const auto& tag : model.tags) {
+      if (tag.starts_with("license:")) license = tag.substr(8);
+      if (tag == "apache-2.0" || tag == "mit" || tag == "bsd-2-clause" ||
+          tag == "bsd-3-clause" || tag == "isc") {
+        license = tag;
+      }
+    }
     json item = {{"id", model.id},
                  {"capability", model.capability},
                  {"modality", modality_for(model.capability)},
+                 {"modalities", modalities},
                  {"description", model.description},
+                 {"license", license.empty() ? "unknown" : license},
                  {"tags", model.tags},
                  {"source_repository", model.source_repo},
                  {"repositories", repositories},
                  {"revisions", revisions},
+                 {"quantizations", quantizations_by_backend},
                  {"variants", variants}};
     if (check_remote) {
       json availability = json::object();
@@ -946,7 +1068,7 @@ nlohmann::json registry_catalog(const Registry& registry,
     }
     models.push_back(std::move(item));
   }
-  return {{"schema", 1}, {"object", "model_registry"}, {"data", models}};
+  return {{"schema", 2}, {"object", "model_registry"}, {"data", models}};
 }
 
 }  // namespace mica

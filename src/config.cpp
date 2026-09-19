@@ -55,10 +55,38 @@ Registry* registry_from_upvalue(lua_State* state) {
   return static_cast<Registry*>(lua_touserdata(state, lua_upvalueindex(1)));
 }
 
+std::string default_engine(Backend backend, const std::string& capability) {
+  if (backend == Backend::mlx) {
+    if (capability == "text") return "mlx-lm";
+    if (capability == "vision") return "mlx-vlm";
+    return "mlx-audio";
+  }
+  if (backend == Backend::gguf) {
+    return capability == "text" || capability == "vision"
+               ? "llama-cpp"
+               : "audio-cpp";
+  }
+  return "vllm";
+}
+
+std::string default_format(Backend backend) {
+  if (backend == Backend::mlx) return "mlx";
+  if (backend == Backend::gguf) return "gguf";
+  return "compressed-tensors";
+}
+
 Artifact artifact_from(lua_State* state, int index, const char* prefix,
+                       Backend backend, const std::string& capability,
                        bool backend_supported, const std::string& reason) {
   const std::string base(prefix);
   Artifact artifact;
+  artifact.engine = string_field(
+      state, index, (base + "_engine").c_str(), default_engine(backend, capability));
+  artifact.format = string_field(
+      state, index, (base + "_format").c_str(), default_format(backend));
+  artifact.quantization_type = string_field(
+      state, index, (base + "_quant_type").c_str(),
+      base.ends_with("q4") ? "q4" : base.ends_with("q8") ? "q8" : "native");
   artifact.pattern = string_field(state, index, (base + "_path").c_str());
   artifact.repository_pattern =
       string_field(state, index, (base + "_repo_path").c_str(), artifact.pattern);
@@ -69,6 +97,13 @@ Artifact artifact_from(lua_State* state, int index, const char* prefix,
       artifact.projector_pattern);
   artifact.reservation_gib =
       number_field(state, index, (base + "_ram_gib").c_str(), 0.0);
+  artifact.size_bytes = static_cast<std::uint64_t>(
+      number_field(state, index, (base + "_size_bytes").c_str(), 0.0));
+  artifact.projector_size_bytes = static_cast<std::uint64_t>(number_field(
+      state, index, (base + "_projector_size_bytes").c_str(), 0.0));
+  artifact.size_source = string_field(
+      state, index, (base + "_size_source").c_str(),
+      artifact.size_bytes > 0 ? "measured-local-artifact" : "unknown");
   artifact.supported = backend_supported && !artifact.pattern.empty();
   artifact.reason = artifact.supported ? "" : reason;
   return artifact;
@@ -90,6 +125,7 @@ int register_model(lua_State* state) {
   model.id = string_field(state, 1, "id");
   model.capability = string_field(state, 1, "capability");
   model.description = string_field(state, 1, "description");
+  model.catalog_visible = bool_field(state, 1, "catalog_visible", true);
   model.tags = string_array_field(state, 1, "tags");
   model.source_repo = string_field(state, 1, "source_repo");
   model.mlx_converter = string_field(state, 1, "mlx_converter");
@@ -129,19 +165,26 @@ int register_model(lua_State* state) {
   const auto vllm_reason = string_field(
       state, 1, "vllm_reason", "vLLM-compatible artifact is not configured");
   model.artifacts[Backend::mlx][Quantization::q4] =
-      artifact_from(state, 1, "mlx_q4", mlx_supported, mlx_reason);
+      artifact_from(state, 1, "mlx_q4", Backend::mlx, model.capability,
+                    mlx_supported, mlx_reason);
   model.artifacts[Backend::mlx][Quantization::q8] =
-      artifact_from(state, 1, "mlx_q8", mlx_supported, mlx_reason);
+      artifact_from(state, 1, "mlx_q8", Backend::mlx, model.capability,
+                    mlx_supported, mlx_reason);
   model.artifacts[Backend::gguf][Quantization::q4] =
-      artifact_from(state, 1, "gguf_q4", gguf_supported, gguf_reason);
+      artifact_from(state, 1, "gguf_q4", Backend::gguf, model.capability,
+                    gguf_supported, gguf_reason);
   model.artifacts[Backend::gguf][Quantization::q8] =
-      artifact_from(state, 1, "gguf_q8", gguf_supported, gguf_reason);
+      artifact_from(state, 1, "gguf_q8", Backend::gguf, model.capability,
+                    gguf_supported, gguf_reason);
   model.artifacts[Backend::vllm][Quantization::q4] =
-      artifact_from(state, 1, "vllm_q4", vllm_supported, vllm_reason);
+      artifact_from(state, 1, "vllm_q4", Backend::vllm, model.capability,
+                    vllm_supported, vllm_reason);
   model.artifacts[Backend::vllm][Quantization::q8] =
-      artifact_from(state, 1, "vllm_q8", vllm_supported, vllm_reason);
+      artifact_from(state, 1, "vllm_q8", Backend::vllm, model.capability,
+                    vllm_supported, vllm_reason);
   model.artifacts[Backend::vllm][Quantization::native] =
-      artifact_from(state, 1, "vllm_native", vllm_supported, vllm_reason);
+      artifact_from(state, 1, "vllm_native", Backend::vllm, model.capability,
+                    vllm_supported, vllm_reason);
   registry->models.push_back(std::move(model));
   return 0;
 }
@@ -151,6 +194,7 @@ int register_profile(lua_State* state) {
   luaL_checktype(state, 1, LUA_TTABLE);
   Profile profile;
   profile.name = string_field(state, 1, "name");
+  profile.catalog_visible = bool_field(state, 1, "catalog_visible", true);
   profile.quantization =
       parse_quantization(string_field(state, 1, "quantization", "q4"));
   profile.models = string_array_field(state, 1, "models");
@@ -339,6 +383,8 @@ void load_profiles_v2(lua_State* state, Registry& registry,
     profile.name = profile_name;
     profile.schema = 2;
     profile.mode = string_field(state, profile_table, "mode", "interactive");
+    profile.catalog_visible = bool_field(
+        state, profile_table, "catalog_visible", profile.mode != "validation");
     profile.maximum_ram_gib = number_field(state, profile_table, "maximum_ram_gib", 0.0);
     profile.maximum_vram_gib = number_field(state, profile_table, "maximum_vram_gib", 0.0);
     profile.memory_safety_reserve_gib =

@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <optional>
@@ -30,7 +31,7 @@ void usage() {
 
 Usage:
   mica-server detect [--output PATH]
-  mica-server registry list|ping [--modality VALUE] [--backend VALUE] [--root PATH]
+  mica-server registry list|ping [--modality VALUE] [--engine VALUE] [--backend VALUE]
   mica-server profile list [--remote] [--root PATH] [--catalog-url URL]
   mica-server profile show ID [--root PATH]
   mica-server profile validate FILE [--root PATH]
@@ -56,17 +57,19 @@ Setup options:
   --hardware-profile PATH   Use a saved detector profile (JSON schema 1)
   --api-key-file PATH       Import an API token from a file (never passed inline)
   --hf-repo OWNER/REPO      Catalog repository (model artifacts use per-model repos)
-  --root PATH               Runtime/model root (default ~/models)
+  --root PATH               Application home (default $MICA_HOME or ~/.mica)
   --refresh                 Resolve current runtime/package versions again
   --dry-run                 Print actions without changing the machine
 
 Serve options:
   --backend mlx|gguf|vllm   Legacy-profile backend selection; schema 2 pins engines
+  --server-config PATH      Server JSON (default ~/.mica/config/server.json)
+  --api-key TOKEN           Override API token (prefer a file; arguments are visible)
   --api-key-file PATH       Override the configured API-token file
 
 Custom model options:
   --url URL                 Hugging Face model URL or OWNER/REPO
-  --modality VALUE          tts|asr|text-to-text|img-text-to-text
+  --modality VALUE          tts|asr|text-to-text|image-text-to-text|video-text-to-text
   --id ID                   Optional stable local id (defaults from repo name)
   --description TEXT        Optional catalog description
   --backend mlx|gguf|vllm   Quantization backend (must be installed)
@@ -137,9 +140,45 @@ std::filesystem::path locate_executable(const std::string& command) {
 }
 
 std::filesystem::path default_root() {
+  const char* configured = std::getenv("MICA_HOME");
+  if (configured && std::string(configured).empty() == false) {
+    return std::filesystem::path(configured);
+  }
   const char* home = std::getenv("HOME");
   if (!home) throw std::runtime_error("HOME is not set");
-  return std::filesystem::path(home) / "models";
+  return std::filesystem::path(home) / ".mica";
+}
+
+std::filesystem::path expand_user_path(const std::filesystem::path& input) {
+  const auto text = input.string();
+  if (text == "~" || text.starts_with("~/")) {
+    const char* home = std::getenv("HOME");
+    if (!home) throw std::runtime_error("HOME is not set");
+    return text == "~" ? std::filesystem::path(home)
+                       : std::filesystem::path(home) / text.substr(2);
+  }
+  return input;
+}
+
+void apply_server_config(mica::ServerOptions& options,
+                         const std::filesystem::path& path) {
+  if (!std::filesystem::exists(path)) return;
+  std::ifstream stream(path);
+  if (!stream) throw std::runtime_error("cannot read server config: " + path.string());
+  json document;
+  stream >> document;
+  if (!document.is_object()) {
+    throw std::runtime_error("server config must contain a JSON object: " + path.string());
+  }
+  if (document.contains("host")) options.host = document.at("host").get<std::string>();
+  if (document.contains("port")) options.port = document.at("port").get<int>();
+  if (document.contains("api_key")) {
+    options.api_key = document.at("api_key").get<std::string>();
+  }
+  if (document.contains("api_key_file")) {
+    options.api_key_file = expand_user_path(
+        document.at("api_key_file").get<std::string>());
+  }
 }
 
 mica::SetupOptions parse_setup(const std::vector<std::string>& args) {
@@ -198,13 +237,14 @@ mica::SetupOptions parse_setup(const std::vector<std::string>& args) {
 
 std::filesystem::path installed_profile_path(const std::filesystem::path& root,
                                              const std::string& id) {
-  return root / "mica-server/profiles" / (id + ".json");
+  return root / "config/profiles" / (id + ".json");
 }
 
 json local_profile_list(const mica::Registry& registry,
                         const std::filesystem::path& root) {
   json profiles = json::array();
   for (const auto& [id, profile] : registry.profiles) {
+    if (!profile.catalog_visible) continue;
     const bool installed = std::filesystem::exists(installed_profile_path(root, id));
     json engines = json::array();
     json artifact_families = json::array();
@@ -260,6 +300,10 @@ int main(int argc, char** argv) {
   try {
     executable_directory = locate_executable(argv[0]).parent_path();
     std::vector<std::string> args(argv, argv + argc);
+    if (args.size() == 2 && args[1] == "--version") {
+      std::cout << "mica-server " << MICA_SERVER_VERSION << '\n';
+      return 0;
+    }
     if (args.size() < 2 || args[1] == "--help" || args[1] == "-h") {
       usage();
       return args.size() < 2 ? 1 : 0;
@@ -422,6 +466,7 @@ int main(int argc, char** argv) {
       std::filesystem::path root = default_root();
       std::optional<std::string> capability;
       std::optional<mica::Backend> backend;
+      std::optional<std::string> engine;
       for (std::size_t i = 3; i < args.size(); ++i) {
         if (args[i] == "--modality") {
           capability = mica::modality_capability(
@@ -430,6 +475,8 @@ int main(int argc, char** argv) {
           capability = value_after(args, i);
         } else if (args[i] == "--backend") {
           backend = mica::parse_backend(value_after(args, i));
+        } else if (args[i] == "--engine") {
+          engine = value_after(args, i);
         } else if (args[i] == "--config-dir") {
           config_directory = value_after(args, i);
         } else if (args[i] == "--root") {
@@ -443,7 +490,7 @@ int main(int argc, char** argv) {
       mica::merge_installed_profiles(registry, root);
       std::cout << std::setw(2)
                 << mica::registry_catalog(registry, capability, backend,
-                                          args[2] == "ping")
+                                          args[2] == "ping", engine)
                 << '\n';
       return 0;
     }
@@ -597,19 +644,31 @@ int main(int argc, char** argv) {
     if (args[1] == "serve") {
       mica::ServerOptions options;
       options.config_directory = default_config();
+      options.root = default_root();
+      std::filesystem::path server_config;
+      for (std::size_t i = 2; i + 1 < args.size(); ++i) {
+        if (args[i] == "--root") options.root = value_after(args, i);
+        else if (args[i] == "--server-config") server_config = value_after(args, i);
+      }
+      if (server_config.empty()) server_config = options.root / "config/server.json";
+      apply_server_config(options, expand_user_path(server_config));
       for (std::size_t i = 2; i < args.size(); ++i) {
         if (args[i] == "--root") options.root = value_after(args, i);
+        else if (args[i] == "--server-config") value_after(args, i);
         else if (args[i] == "--config-dir") options.config_directory = value_after(args, i);
         else if (args[i] == "--host") options.host = value_after(args, i);
         else if (args[i] == "--port") options.port = std::stoi(value_after(args, i));
-        else if (args[i] == "--api-key-file") options.api_key_file = value_after(args, i);
+        else if (args[i] == "--api-key") options.api_key = value_after(args, i);
+        else if (args[i] == "--api-key-file") {
+          options.api_key.clear();
+          options.api_key_file = value_after(args, i);
+        }
         else if (args[i] == "--backend") {
           const auto selected = value_after(args, i);
           options.active_backend = mica::parse_backend(selected);
         }
         else throw std::invalid_argument("unknown option: " + args[i]);
       }
-      if (options.root.empty()) options.root = default_root();
       auto registry = mica::load_registry(options.config_directory);
       mica::merge_custom_models(registry, options.root);
       mica::merge_installed_profiles(registry, options.root);

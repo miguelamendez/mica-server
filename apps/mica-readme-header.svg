@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-labelledby="title description">
   <title id="title">Mica Server</title>
-  <desc id="description">Mica's overlapping diamond symbol beside a geometric Mica wordmark and the phrase Local models, one adaptive server.</desc>
+  <desc id="description">Mica's overlapping diamond symbol beside the Mica wordmark and the phrase Democratizing local AI. Run all your models through one adaptive server.</desc>
   <defs>
     <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#11111b"/>
@@ -50,15 +50,15 @@
     <path d="M184 96 276 188 184 280 92 188Z" fill="#cba6f7" fill-opacity=".06" stroke="url(#diamond)" stroke-width="14" stroke-linejoin="round"/>
   </g>
 
-  <!-- Geometric vector wordmark; it does not depend on a remote font. -->
-  <g fill="none" stroke="url(#wordmark)" stroke-width="16" stroke-linecap="square" stroke-linejoin="miter">
-    <path d="M356 203V91l47 67 47-67v112"/>
-    <path d="M506 91v112"/>
-    <path d="M652 112c-17-17-47-25-70-12-31 17-35 69-8 91 22 18 57 13 78-7"/>
-    <path d="m699 203 48-112 48 112M718 159h58"/>
-  </g>
-
-  <text x="356" y="254" fill="#a6adc8" font-family="Avenir Next, Inter, Segoe UI, sans-serif" font-size="19" font-weight="600" letter-spacing="4.8">LOCAL MODELS · ONE ADAPTIVE SERVER</text>
+  <text x="350" y="196" fill="url(#wordmark)"
+        font-family="ui-rounded, 'Avenir Next', 'SF Pro Rounded', Inter, 'Segoe UI', sans-serif"
+        font-size="118" font-weight="700" letter-spacing="-4">Mica</text>
+  <text x="356" y="236" fill="#cba6f7"
+        font-family="ui-rounded, 'Avenir Next', Inter, 'Segoe UI', sans-serif"
+        font-size="18" font-weight="700" letter-spacing="3.4">DEMOCRATIZING LOCAL AI</text>
+  <text x="356" y="268" fill="#a6adc8"
+        font-family="ui-rounded, 'Avenir Next', Inter, 'Segoe UI', sans-serif"
+        font-size="17" font-weight="600" letter-spacing="1.1">RUN ALL YOUR MODELS THROUGH ONE ADAPTIVE SERVER</text>
 
   <g transform="translate(908 65)" font-family="Avenir Next, Inter, Segoe UI, sans-serif" font-size="15" font-weight="700" text-anchor="middle">
     <g>

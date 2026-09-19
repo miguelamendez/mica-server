@@ -69,9 +69,15 @@ struct HardwareInfo {
 
 struct Artifact {
   bool supported{false};
+  std::string engine;
+  std::string format;
+  std::string quantization_type;
   std::string pattern;
   std::string repository_pattern;
   std::string reason;
+  std::uint64_t size_bytes{0};
+  std::uint64_t projector_size_bytes{0};
+  std::string size_source;
   double reservation_gib{0.0};
   std::string projector_pattern;
   std::string projector_repository_pattern;
@@ -81,6 +87,7 @@ struct ModelDefinition {
   std::string id;
   std::string capability;
   std::string description;
+  bool catalog_visible{true};
   std::vector<std::string> tags;
   std::string source_repo;
   std::string mlx_converter;
@@ -123,6 +130,7 @@ struct Profile {
   std::string name;
   int schema{1};
   std::string mode{"interactive"};
+  bool catalog_visible{true};
   Quantization quantization{Quantization::q4};
   std::vector<std::string> models;
   std::optional<Backend> backend;

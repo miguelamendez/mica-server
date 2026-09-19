@@ -70,7 +70,7 @@ def run_case(args: argparse.Namespace, backend: str, tier: str) -> dict:
         command = [
             sys.executable, str(ROOT / "scripts/benchmark_matrix.py"),
             "--base-url", f"http://127.0.0.1:{args.port}",
-            "--api-key-file", str(args.model_root / "mica-server/api-key"),
+            "--api-key-file", str(args.model_root / "secrets/api-key"),
             "--model", MODELS[backend], "--backend", backend, "--quant", "q4",
             "--tasks", "summary", "--context-sizes", str(definition["context"]),
             "--concurrency", str(definition["concurrency"]), "--runs", "1",
@@ -105,7 +105,7 @@ def run_case(args: argparse.Namespace, backend: str, tier: str) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--binary", type=Path, default=ROOT / "build/mica-server")
-    parser.add_argument("--model-root", type=Path, default=Path.home() / "models")
+    parser.add_argument("--model-root", type=Path, default=Path.home() / ".mica")
     parser.add_argument("--hardware-profile", type=Path,
                         default=ROOT / "artifacts/hardware-profile.json")
     parser.add_argument("--backends", default="mlx,gguf,vllm")

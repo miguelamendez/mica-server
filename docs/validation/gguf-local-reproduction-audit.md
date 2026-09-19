@@ -8,7 +8,7 @@ runs and a 512 MiB maximum tensor buffer; no inference workers were active.
 This audit answers whether the adopted Spark-X2.5 and MiniCPM-V GGUFs contain a
 special tensor-precision recipe that mica-server should reproduce. The local
 comparison artifacts were disposable and were removed after the audit. The
-accepted files under `~/models/checkpoints/gguf` were not modified.
+accepted files under `~/.mica/models/gguf` were not modified.
 
 ## Tool and source pins
 
@@ -33,40 +33,40 @@ The paths below show the exact procedure. The `comparisons/gguf-local` outputs
 no longer exist.
 
 ```sh
-CONVERT=~/models/runtime/llama.cpp/convert_hf_to_gguf.py
-QUANTIZE=~/models/runtime/llama.cpp/build-mica/bin/llama-quantize
-PYTHON=~/models/environment-mlx/bin/python
+CONVERT=~/.mica/runtimes/llama.cpp/convert_hf_to_gguf.py
+QUANTIZE=~/.mica/runtimes/llama.cpp/build-mica/bin/llama-quantize
+PYTHON=~/.mica/environments/mlx/bin/python
 
 # MiniCPM text tower and full-precision multimodal projector
 $PYTHON $CONVERT \
-  ~/models/staging/minicpm-v46-thinking/93d8f4b60ad5d1f763442cf4c19f2a71fa95af4a/source \
-  --outfile ~/models/comparisons/gguf-local/minicpm-v46-thinking/model-f16.gguf \
+  ~/.mica/staging/minicpm-v46-thinking/93d8f4b60ad5d1f763442cf4c19f2a71fa95af4a/source \
+  --outfile ~/.mica/comparisons/gguf-local/minicpm-v46-thinking/model-f16.gguf \
   --outtype f16 --use-temp-file
 $PYTHON $CONVERT \
-  ~/models/staging/minicpm-v46-thinking/93d8f4b60ad5d1f763442cf4c19f2a71fa95af4a/source \
-  --outfile ~/models/comparisons/gguf-local/minicpm-v46-thinking/projector-f16.gguf \
+  ~/.mica/staging/minicpm-v46-thinking/93d8f4b60ad5d1f763442cf4c19f2a71fa95af4a/source \
+  --outfile ~/.mica/comparisons/gguf-local/minicpm-v46-thinking/projector-f16.gguf \
   --outtype f16 --mmproj --use-temp-file
 $QUANTIZE --max-buffer-size 512 \
-  ~/models/comparisons/gguf-local/minicpm-v46-thinking/model-f16.gguf \
-  ~/models/comparisons/gguf-local/minicpm-v46-thinking/model-local-Q4_K_M.gguf \
+  ~/.mica/comparisons/gguf-local/minicpm-v46-thinking/model-f16.gguf \
+  ~/.mica/comparisons/gguf-local/minicpm-v46-thinking/model-local-Q4_K_M.gguf \
   Q4_K_M 2
 $QUANTIZE --max-buffer-size 512 \
-  ~/models/comparisons/gguf-local/minicpm-v46-thinking/model-f16.gguf \
-  ~/models/comparisons/gguf-local/minicpm-v46-thinking/model-local-Q8_0.gguf \
+  ~/.mica/comparisons/gguf-local/minicpm-v46-thinking/model-f16.gguf \
+  ~/.mica/comparisons/gguf-local/minicpm-v46-thinking/model-local-Q8_0.gguf \
   Q8_0 2
 
 # Spark
 $PYTHON $CONVERT \
-  ~/models/staging/spark-x25-4b/0bcb35678590218655dff3765b9e61c83b35e9c4/source \
-  --outfile ~/models/comparisons/gguf-local/spark-x25-4b/model-f16.gguf \
+  ~/.mica/staging/spark-x25-4b/0bcb35678590218655dff3765b9e61c83b35e9c4/source \
+  --outfile ~/.mica/comparisons/gguf-local/spark-x25-4b/model-f16.gguf \
   --outtype f16 --use-temp-file
 $QUANTIZE --max-buffer-size 512 \
-  ~/models/comparisons/gguf-local/spark-x25-4b/model-f16.gguf \
-  ~/models/comparisons/gguf-local/spark-x25-4b/model-local-Q4_K_M.gguf \
+  ~/.mica/comparisons/gguf-local/spark-x25-4b/model-f16.gguf \
+  ~/.mica/comparisons/gguf-local/spark-x25-4b/model-local-Q4_K_M.gguf \
   Q4_K_M 2
 $QUANTIZE --max-buffer-size 512 \
-  ~/models/comparisons/gguf-local/spark-x25-4b/model-f16.gguf \
-  ~/models/comparisons/gguf-local/spark-x25-4b/model-local-Q8_0.gguf \
+  ~/.mica/comparisons/gguf-local/spark-x25-4b/model-f16.gguf \
+  ~/.mica/comparisons/gguf-local/spark-x25-4b/model-local-Q8_0.gguf \
   Q8_0 2
 ```
 

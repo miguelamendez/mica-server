@@ -45,9 +45,9 @@ The source and derivatives are Apache-2.0 licensed.
 
 The runtime configuration, conversion policy, and validation evidence are
 maintained in the [Mica Server repository](https://github.com/miguelamendez/mica-server).
-Validated artifacts are staged for publication together in the
+Validated artifacts are published together in the
 [`miguelamendez/mica-minicpm-v46-thinking`](https://huggingface.co/miguelamendez/mica-minicpm-v46-thinking)
-repository; this card does not claim the remote upload has completed.
+repository, with manifests recording their source, size, and digest.
 
 ## Model facts and provenance
 

@@ -20,12 +20,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p "$test_root/mica-server"
+mkdir -p "$test_root/state"
 token_file="$test_root/input-token"
 printf '%s\n' 'mica_test_token_0123456789abcdef' > "$token_file"
 chmod 600 "$token_file"
 
-cat > "$test_root/mica-server/runtime.json" <<'JSON'
+cat > "$test_root/state/runtime.json" <<'JSON'
 {
   "schema": 4,
   "installed_backends": ["gguf"],
@@ -49,26 +49,32 @@ JSON
 # The authentication route does not need inference. Empty cache fixtures keep
 # the background prewarmer offline and make this QA deterministic.
 mkdir -p \
-  "$test_root/checkpoints/gguf/spark-x25-4b" \
-  "$test_root/checkpoints/gguf/granite-speech-5" \
-  "$test_root/checkpoints/gguf/audio8-tts-06b" \
-  "$test_root/checkpoints/gguf/minicpm-v46-thinking"
-: > "$test_root/checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q4_K_M.gguf"
-: > "$test_root/checkpoints/gguf/granite-speech-5/granite-speech-5.0-470m-turboctc-q4_k.gguf"
-: > "$test_root/checkpoints/gguf/audio8-tts-06b/audio8-tts-preview-0.6b-q4_0.gguf"
-: > "$test_root/checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf"
-: > "$test_root/checkpoints/gguf/minicpm-v46-thinking/mmproj-model-f16.gguf"
+  "$test_root/models/gguf/spark-x25-4b" \
+  "$test_root/models/gguf/granite-speech-5" \
+  "$test_root/models/gguf/audio8-tts-06b" \
+  "$test_root/models/gguf/minicpm-v46-thinking"
+: > "$test_root/models/gguf/spark-x25-4b/Spark-X2.5-4B-Q4_K_M.gguf"
+: > "$test_root/models/gguf/granite-speech-5/granite-speech-5.0-470m-turboctc-q4_k.gguf"
+: > "$test_root/models/gguf/audio8-tts-06b/audio8-tts-preview-0.6b-q4_0.gguf"
+: > "$test_root/models/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf"
+: > "$test_root/models/gguf/minicpm-v46-thinking/mmproj-model-f16.gguf"
 for model in spark-x25-4b granite-speech-5 audio8-tts-06b minicpm-v46-thinking; do
-  : > "$test_root/checkpoints/gguf/$model/.mica-complete-q4"
+  : > "$test_root/models/gguf/$model/.mica-complete-q4"
 done
 
 port=$((22000 + ($$ % 20000)))
+server_config="$test_root/server.json"
+cat > "$server_config" <<JSON
+{
+  "host": "127.0.0.1",
+  "port": $port,
+  "api_key": "mica_test_token_0123456789abcdef"
+}
+JSON
 "$server_binary" serve \
   --root "$test_root" \
   --config-dir "$config_directory" \
-  --api-key-file "$token_file" \
-  --host 127.0.0.1 \
-  --port "$port" > "$test_root/server.log" 2>&1 &
+  --server-config "$server_config" > "$test_root/server.log" 2>&1 &
 server_pid=$!
 
 healthy=false
@@ -102,4 +108,44 @@ status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
   "http://127.0.0.1:$port/admin/models")
 [[ "$status" == "200" ]]
 
-echo "API bearer-token authentication passed"
+kill "$server_pid"
+wait "$server_pid" 2>/dev/null || true
+server_pid=""
+
+# An explicit argument overrides a configured key. This is supported for
+# automation, although a key file is safer for normal use.
+port=$((port + 1))
+cat > "$server_config" <<JSON
+{
+  "host": "127.0.0.1",
+  "port": $port,
+  "api_key": "configured_but_overridden_0123456789"
+}
+JSON
+"$server_binary" serve \
+  --root "$test_root" \
+  --config-dir "$config_directory" \
+  --server-config "$server_config" \
+  --api-key mica_test_token_0123456789abcdef > "$test_root/server-argument.log" 2>&1 &
+server_pid=$!
+
+healthy=false
+for _ in {1..80}; do
+  if curl --silent --fail "http://127.0.0.1:$port/health" >/dev/null; then
+    healthy=true
+    break
+  fi
+  if ! kill -0 "$server_pid" 2>/dev/null; then
+    cat "$test_root/server-argument.log" >&2
+    exit 1
+  fi
+  sleep 0.05
+done
+[[ "$healthy" == true ]]
+
+status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+  -H 'Authorization: Bearer mica_test_token_0123456789abcdef' \
+  "http://127.0.0.1:$port/admin/models")
+[[ "$status" == "200" ]]
+
+echo "API bearer-token authentication passed (config and argument sources)"

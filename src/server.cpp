@@ -44,6 +44,10 @@ using namespace std::chrono_literals;
 
 std::atomic<httplib::Server*> active_http_server{nullptr};
 
+double bytes_to_gib(std::uint64_t bytes) {
+  return static_cast<double>(bytes) / (1024.0 * 1024.0 * 1024.0);
+}
+
 void stop_http_server(int) {
   if (auto* server = active_http_server.load()) server->stop();
 }
@@ -579,7 +583,7 @@ std::string read_trimmed(const std::filesystem::path& path) {
 }
 
 RuntimeState load_runtime_state(const std::filesystem::path& root) {
-  std::ifstream file(root / "mica-server/runtime.json");
+  std::ifstream file(root / "state/runtime.json");
   if (!file) throw std::runtime_error("runtime is not configured; run mica-server setup");
   const auto state = json::parse(file);
   RuntimeState result;
@@ -767,7 +771,7 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
   const auto& kv_cache_precision = model_policy ? model_policy->kv_cache_precision
                                                  : profile.kv_cache_precision;
   if (worker.backend == Backend::mlx) {
-    const auto python = (root / "environment-mlx/bin/python").string();
+    const auto python = (root / "environments/mlx/bin/python").string();
     if (worker.model->capability == "text") {
       const auto server = worker.model->mlx_converter == "mlx_vlm.convert"
                               ? "mlx_vlm.server"
@@ -783,7 +787,7 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
   }
   if (worker.backend == Backend::vllm) {
     std::vector<std::string> command = {
-        (root / "environment-vllm/bin/vllm").string(), "serve",
+        (root / "environments/vllm/bin/vllm").string(), "serve",
         worker.artifact_path.string(), "--served-model-name", worker.model->id,
         "--host", "127.0.0.1", "--port", port};
     if (const auto utilization = vllm_memory_utilization(
@@ -805,7 +809,7 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
     const auto parallel = max_concurrent_requests;
     const auto total_context = max_total_tokens * parallel;
     std::vector<std::string> command = {
-        (root / "runtime/llama.cpp/build-mica/bin/llama-server").string(),
+        (root / "runtimes/llama.cpp/build-mica/bin/llama-server").string(),
         "-m", worker.artifact_path.string(), "--host", "127.0.0.1", "--port", port,
         "--ctx-size", std::to_string(total_context), "--parallel",
         std::to_string(parallel)};
@@ -823,8 +827,8 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
     }
     return command;
   }
-  return {(root / "runtime/audio.cpp/build-mica/bin/audiocpp_server").string(),
-          "--config", (root / "mica-server/workers" /
+  return {(root / "runtimes/audio.cpp/build-mica/bin/audiocpp_server").string(),
+          "--config", (root / "run/workers" /
                        (worker.model->id + "-" + to_string(worker.backend) + "-" +
                         to_string(worker.quantization) + ".json")).string()};
 }
@@ -835,8 +839,8 @@ class WorkerManager {
                 std::filesystem::path root, std::vector<Backend> active_backends)
       : registry_(registry), state_(state), root_(std::move(root)),
         active_backends_(std::move(active_backends)) {
-    std::filesystem::create_directories(root_ / "mica-server/workers");
-    std::filesystem::create_directories(root_ / "mica-server/logs");
+    std::filesystem::create_directories(root_ / "run/workers");
+    std::filesystem::create_directories(root_ / "logs");
   }
 
   ~WorkerManager() {
@@ -868,7 +872,7 @@ class WorkerManager {
           candidate.backend = policy.backend;
           candidate.quantization = policy.quantization;
           candidate.artifact = artifact;
-          candidate.artifact_path = root_ / "checkpoints" /
+          candidate.artifact_path = root_ / "models" /
                                     to_string(policy.backend) / model.id /
                                     artifact.pattern;
           ensure_artifact(candidate);
@@ -914,7 +918,7 @@ class WorkerManager {
             candidate.backend = backend;
             candidate.quantization = quantization;
             candidate.artifact = artifact;
-            candidate.artifact_path = root_ / "checkpoints" / to_string(backend) /
+            candidate.artifact_path = root_ / "models" / to_string(backend) /
                                       model.id / artifact.pattern;
             ensure_artifact(candidate);
           }
@@ -1009,7 +1013,7 @@ class WorkerManager {
     worker->backend = backend;
     worker->quantization = quantization;
     worker->artifact = artifact;
-    worker->artifact_path = root_ / "checkpoints" / to_string(backend) / model.id /
+    worker->artifact_path = root_ / "models" / to_string(backend) / model.id /
                             artifact.pattern;
     worker->port = allocate_port();
     worker->in_flight = 1;
@@ -1017,12 +1021,12 @@ class WorkerManager {
     if (backend == Backend::gguf &&
         (model.capability == "asr" || model.capability == "tts")) {
       write_audio_config(*worker, state_,
-                         root_ / "mica-server/workers" /
+                         root_ / "run/workers" /
                              (model.id + "-" + to_string(backend) + "-" +
                               to_string(quantization) + ".json"));
     }
     worker->pid = spawn_worker(worker_command(*worker, state_, profile, root_),
-                               root_ / "mica-server/logs" /
+                               root_ / "logs" /
                                    (model.id + "-" + to_string(backend) + "-" +
                                     to_string(quantization) + ".log"));
     try {
@@ -1065,6 +1069,7 @@ class WorkerManager {
           if (backend_it == definition.artifacts.end()) continue;
           const auto artifact_it = backend_it->second.find(quantization);
           if (artifact_it == backend_it->second.end() || !artifact_it->second.supported) continue;
+          const auto& artifact = artifact_it->second;
           const auto key = worker_key(id, backend, quantization);
           const auto loaded = workers_.find(key);
           const auto unambiguous = selected_quantizations.size() == 1;
@@ -1074,6 +1079,17 @@ class WorkerManager {
                           {"description", definition.description}, {"tags", definition.tags},
                           {"backend", to_string(backend)},
                           {"quantization", to_string(quantization)},
+                          {"engine", artifact.engine},
+                          {"format", artifact.format},
+                          {"quantization_type", artifact.quantization_type},
+                          {"artifact_size_bytes", artifact.size_bytes},
+                          {"artifact_size_gib", bytes_to_gib(artifact.size_bytes)},
+                          {"download_size_bytes", artifact.size_bytes +
+                                                      artifact.projector_size_bytes},
+                          {"download_size_gib", bytes_to_gib(
+                                                    artifact.size_bytes +
+                                                    artifact.projector_size_bytes)},
+                          {"memory_reservation_gib", artifact.reservation_gib},
                           {"repository", definition.repositories.at(backend)},
                           {"state", loaded == workers_.end() ? "stopped" : "ready"}};
           if (const auto* policy = profile.policy_for(id)) {
@@ -1221,7 +1237,7 @@ class WorkerManager {
                                    : base;
     if (remap) std::filesystem::remove_all(download_root);
     std::vector<std::string> command = {
-        (root_ / "environment-tools/bin/hf").string(), "download", repository_it->second,
+        (root_ / "environments/tools/bin/hf").string(), "download", repository_it->second,
         "--revision", revision};
     if (worker.backend == Backend::vllm) {
       command.insert(command.end(), {"--local-dir", worker.artifact_path.string()});
@@ -1267,7 +1283,7 @@ class WorkerManager {
   }
 
   void record_download(const Worker& worker, const std::string& repository) const {
-    const auto path = root_ / "mica-server/runtime.json";
+    const auto path = root_ / "state/runtime.json";
     std::ifstream input(path);
     auto state = json::parse(input);
     const auto key = worker_key(worker.model->id, worker.backend, worker.quantization);
@@ -1288,7 +1304,7 @@ class WorkerManager {
   }
 
   void record_smoke_validation(const Worker& worker) const {
-    const auto path = root_ / "mica-server/runtime.json";
+    const auto path = root_ / "state/runtime.json";
     std::ifstream input(path);
     auto state = json::parse(input);
     const auto key = worker_key(worker.model->id, worker.backend, worker.quantization);
@@ -1371,7 +1387,7 @@ class WorkerManager {
   }
 
   std::filesystem::path asr_fixture() const {
-    const auto path = root_ / "mica-server/workers/asr-warmup.wav";
+    const auto path = root_ / "run/workers/asr-warmup.wav";
     if (std::filesystem::exists(path)) return path;
 #ifdef __APPLE__
     const auto command = std::vector<std::string>{
@@ -1838,7 +1854,8 @@ int run_server(const Registry& registry, const ServerOptions& options) {
   const auto api_key_path = options.api_key_file.empty()
                                 ? state.api_key_file
                                 : options.api_key_file;
-  const auto api_key = read_trimmed(api_key_path);
+  const auto api_key = options.api_key.empty() ? read_trimmed(api_key_path)
+                                                : options.api_key;
   if (api_key.size() < 16 || api_key.size() > 512 ||
       std::any_of(api_key.begin(), api_key.end(),
                   [](unsigned char value) { return std::iscntrl(value); })) {
@@ -1884,6 +1901,7 @@ int run_server(const Registry& registry, const ServerOptions& options) {
     try {
       std::optional<std::string> capability;
       std::optional<Backend> backend;
+      std::optional<std::string> engine;
       if (request.has_param("modality")) {
         capability = modality_capability(
             normalize_modality(request.get_param_value("modality")));
@@ -1893,7 +1911,11 @@ int run_server(const Registry& registry, const ServerOptions& options) {
       if (request.has_param("backend")) {
         backend = parse_backend(request.get_param_value("backend"));
       }
-      response.set_content(registry_catalog(registry, capability, backend).dump(),
+      if (request.has_param("engine")) {
+        engine = request.get_param_value("engine");
+      }
+      response.set_content(registry_catalog(registry, capability, backend, false,
+                                            engine).dump(),
                            "application/json");
     } catch (const std::exception& error) {
       json_error(response, 400, "invalid_catalog_filter", error.what());
@@ -2172,7 +2194,7 @@ int run_server(const Registry& registry, const ServerOptions& options) {
                  const httplib::Request& request, httplib::Response& response) {
     if (!require_auth(request, response)) return;
     const auto session_id = request.matches[1].str();
-    const auto session_directory = root / "mica-server/tmp/sessions" / session_id;
+    const auto session_directory = root / "run/sessions" / session_id;
     const auto session_path = session_directory / "session.json";
     std::lock_guard lock(*session_mutex);
     if (!std::filesystem::is_regular_file(session_path)) {
@@ -2255,7 +2277,7 @@ int run_server(const Registry& registry, const ServerOptions& options) {
     }
 
     std::lock_guard lock(*session_mutex);
-    const auto sessions_directory = root / "mica-server/tmp/sessions";
+    const auto sessions_directory = root / "run/sessions";
     std::filesystem::create_directories(sessions_directory);
     const auto temporary = sessions_directory /
                            (".import-" + std::to_string(monotonic_ns()));
@@ -2334,7 +2356,7 @@ int run_server(const Registry& registry, const ServerOptions& options) {
         const auto session_id = request.matches[1].str();
         const auto message_index = std::stoull(request.matches[2].str());
         const auto media_index = std::stoull(request.matches[3].str());
-        const auto session_directory = root / "mica-server/tmp/sessions" / session_id;
+        const auto session_directory = root / "run/sessions" / session_id;
         const auto session_path = session_directory / "session.json";
         std::lock_guard lock(*session_mutex);
         try {
@@ -2410,7 +2432,7 @@ int run_server(const Registry& registry, const ServerOptions& options) {
                  const httplib::Request& request, httplib::Response& response) {
     if (!require_auth(request, response)) return;
     const auto session_id = request.matches[1].str();
-    const auto path = root / "mica-server/tmp/sessions" / session_id / "session.json";
+    const auto path = root / "run/sessions" / session_id / "session.json";
     std::lock_guard lock(*session_mutex);
     if (!std::filesystem::exists(path)) {
       response.set_content(
@@ -2447,7 +2469,7 @@ int run_server(const Registry& registry, const ServerOptions& options) {
           "session_id may contain only letters, digits, dot, dash, and underscore");
     }
     const auto session_directory =
-        root / "mica-server/tmp/sessions" / session_id;
+        root / "run/sessions" / session_id;
     const auto upload_directory = session_directory / "uploads";
     const auto render_directory = session_directory / "rendered";
     const auto session_path = session_directory / "session.json";

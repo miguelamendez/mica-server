@@ -1,0 +1,83 @@
+name: Release binaries
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            label: macOS ARM64
+          - runner: ubuntu-24.04
+            label: Linux x86-64
+          - runner: ubuntu-24.04-arm
+            label: Linux ARM64
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install macOS build dependencies
+        if: runner.os == 'macOS'
+        run: brew install cmake lua
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes cmake g++ liblua5.4-dev python3
+
+      - name: Configure a static-Lua release build
+        shell: bash
+        run: |
+          if [[ "${RUNNER_OS}" == "macOS" ]]; then
+            lua_prefix=$(brew --prefix lua)
+            lua_include="$lua_prefix/include/lua"
+            lua_library="$lua_prefix/lib/liblua.a"
+          else
+            multiarch=$(gcc -print-multiarch)
+            lua_include="/usr/include/lua5.4"
+            lua_library="/usr/lib/$multiarch/liblua5.4.a"
+          fi
+          cmake -S . -B build-release \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DMICA_LUA_INCLUDE_DIR="$lua_include" \
+            -DMICA_LUA_LIBRARY="$lua_library"
+
+      - name: Build within the resource cap
+        run: cmake --build build-release --parallel 2
+
+      - name: Test
+        run: ctest --test-dir build-release --output-on-failure -j2
+
+      - name: Package
+        run: ./scripts/package_release.sh build-release "${GITHUB_REF_NAME}" dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.label }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist/*

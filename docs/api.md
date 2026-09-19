@@ -5,7 +5,7 @@ profile. Unless otherwise noted, routes require a bearer token.
 
 ```sh
 export MICA_BASE_URL=http://127.0.0.1:8080
-export MICA_API_KEY="$(< "$HOME/models/mica-server/api-key")"
+export MICA_API_KEY="$(< "$HOME/.mica/secrets/api-key")"
 ```
 
 Send authentication as:
@@ -17,8 +17,11 @@ Authorization: Bearer <token>
 Setup generates a random token by default. To provide one without exposing it
 in shell history, store it in a mode-0600 file and use
 `setup --api-key-file PATH`. `serve --api-key-file PATH` provides a runtime
-override suitable for rotation and secret managers. Tokens must contain 16 to
-512 printable characters.
+override suitable for rotation and secret managers. `serve --api-key TOKEN`
+also works but may expose the token in shell history and process listings.
+The same `api_key` or `api_key_file` fields may be set in
+`~/.mica/config/server.json`; CLI values take precedence. Tokens must contain
+16 to 512 printable characters.
 
 ## Health and discovery
 
@@ -27,21 +30,28 @@ override suitable for rotation and secret managers. Tokens must contain 16 to
 | `GET /health` | No | Process liveness. |
 | `GET /ready` | No | Warmup/readiness; returns 503 while required startup work fails. |
 | `GET /v1/models` | Yes | Models and variants enabled by the active profile. |
-| `GET /v1/catalog` | Yes | Complete curated registry, filterable by modality/capability/backend. |
+| `GET /v1/catalog` | Yes | Complete curated registry, filterable by modality, capability, engine, or artifact family. |
 | `GET /admin/models` | Yes | Active profile, memory budget, policies, and resident workers. |
 
 Registry examples:
 
 ```sh
-curl "$MICA_BASE_URL/v1/catalog?modality=asr&backend=gguf" \
+curl "$MICA_BASE_URL/v1/catalog?modality=asr&engine=mlx-audio" \
   -H "Authorization: Bearer $MICA_API_KEY"
 
-./build/mica-server registry list --modality img-text-to-text --backend mlx
+./build/mica-server registry list --modality video-text-to-text --engine mlx-vlm
 ./build/mica-server registry ping --modality asr
 ```
 
 `registry ping` performs a remote availability check for each selected curated
 Hugging Face repository. It does not download weights.
+
+`engine` selects a concrete runtime such as `mlx-lm`, `mlx-vlm`, `mlx-audio`,
+`llama-cpp`, or `audio-cpp`. The legacy `backend` filter selects an artifact
+family (`mlx`, `gguf`, or `vllm`). Each schema-2 ledger entry includes its
+description, modalities, license, repositories/revisions, and variant records
+with format, exact quantization type, artifact/download bytes, projector size,
+size provenance, and memory reservation.
 
 ## Model IDs
 

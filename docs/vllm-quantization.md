@@ -69,7 +69,7 @@ it does not validate the catalog models.
 ## Reproducible candidate workflow
 
 The C++ command creates candidates under
-`~/models/checkpoints/vllm/<model>/candidates/`. It never registers them as
+`~/.mica/models/vllm/<model>/candidates/`. It never registers them as
 servable variants. The defaults live in
 `config/vllm_quantization_profiles.json`; every candidate writes
 `mica-vllm-candidate.json` with its source revision, license, protected layers,

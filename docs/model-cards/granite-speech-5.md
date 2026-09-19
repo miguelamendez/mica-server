@@ -40,9 +40,9 @@ The selected checkpoint is Apache-2.0; it is not the separate non-commercial
 
 The runtime configuration, conversion policy, and validation evidence are
 maintained in the [Mica Server repository](https://github.com/miguelamendez/mica-server).
-Validated artifacts are staged for publication together in the
+Validated artifacts are published together in the
 [`miguelamendez/mica-granite-speech-5`](https://huggingface.co/miguelamendez/mica-granite-speech-5)
-repository; this card does not claim the remote upload has completed.
+repository, with manifests recording their source, size, and digest.
 
 ## Model facts and provenance
 

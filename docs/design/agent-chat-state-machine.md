@@ -90,7 +90,7 @@ for the final JSON and uses the ordinary WAV response.
 ## Temporary layout
 
 ```text
-<mica-root>/mica-server/tmp/sessions/<session-id>/
+<mica-root>/run/sessions/<session-id>/
 ├── session.json
 ├── uploads/
 ├── rendered/

@@ -60,7 +60,10 @@ target_include_directories(mica_server_core
   PUBLIC include
   PRIVATE ${MICA_LUA_INCLUDE_DIR}
 )
-target_link_libraries(mica_server_core PUBLIC ${MICA_LUA_LIBRARY})
+target_link_libraries(mica_server_core PUBLIC ${MICA_LUA_LIBRARY} ${CMAKE_DL_LIBS})
+if(UNIX)
+  target_link_libraries(mica_server_core PUBLIC m)
+endif()
 
 if(MICA_JSON_INCLUDE_DIR)
   target_include_directories(mica_server_core PUBLIC "${MICA_JSON_INCLUDE_DIR}")
@@ -82,6 +85,8 @@ target_compile_options(mica_server_core PRIVATE -Wall -Wextra -Wpedantic)
 
 add_executable(mica-server src/main.cpp src/server.cpp)
 target_link_libraries(mica-server PRIVATE mica_server_core)
+target_compile_definitions(mica-server PRIVATE
+  MICA_SERVER_VERSION="${PROJECT_VERSION}")
 
 include(GNUInstallDirs)
 
@@ -101,7 +106,7 @@ if(MICA_SERVER_BUILD_TESTS)
   )
   set_tests_properties(mica-server-schema2-gguf-profile PROPERTIES
     PASS_REGULAR_EXPRESSION "installed_backends.*gguf.*validate native loopback bind"
-    FAIL_REGULAR_EXPRESSION "uv venv|environment-tools|environment-mlx|environment-vllm"
+    FAIL_REGULAR_EXPRESSION "uv venv|environments/tools|environments/mlx|environments/vllm"
   )
   add_test(
     NAME mica-server-schema2-reject-quant-override
@@ -542,6 +547,15 @@ if(MICA_SERVER_BUILD_TESTS)
   set_tests_properties(mica-server-vllm-batch-smoke-help PROPERTIES
     PASS_REGULAR_EXPRESSION "batch-sizes"
   )
+  add_test(
+    NAME mica-server-playground-auth
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_playground_auth.py
+  )
+  add_test(
+    NAME mica-server-api-auth
+    COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_api_auth.sh
+            $<TARGET_FILE:mica-server> ${CMAKE_CURRENT_SOURCE_DIR}/config
+  )
 endif()
 
 install(TARGETS mica-server RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
@@ -552,3 +566,7 @@ install(DIRECTORY scripts/ DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/scri
         FILES_MATCHING PATTERN "*.py" PATTERN "__pycache__" EXCLUDE)
 install(FILES profiles/catalog.json
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/profiles)
+install(DIRECTORY apps/ DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps
+        FILES_MATCHING PATTERN "*.py" PATTERN "*.svg" PATTERN "*.html")
+install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/docs
+        FILES_MATCHING PATTERN "*.md")

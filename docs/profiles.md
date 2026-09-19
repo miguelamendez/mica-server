@@ -7,7 +7,7 @@ and evicted.
 Built-in profiles are written in Lua in
 [`config/profiles.lua`](../config/profiles.lua). Shareable and user-created
 profiles use schema-2 JSON. Installed files are kept in
-`<root>/mica-server/profiles/`; the default catalog is
+`<root>/config/profiles/`; the default catalog is
 [`profiles/catalog.json`](../profiles/catalog.json) in this GitHub repository.
 Older `mica.profile` entries in [`config/models.lua`](../config/models.lua)
 remain available for migration and test reproduction.
@@ -51,9 +51,9 @@ guard. It is persisted beside runtime state for auditability.
 | `mica-assistant-gptq` | GPTQ through vLLM | Listed but blocked until all four modalities pass native vLLM certification. |
 
 The first two contain the same logical assistant set: Spark text, Granite ASR,
-Audio8 TTS, and MiniCPM vision/video. The GPTQ profile is not silently reduced
-to the text-only vLLM control model; installation fails clearly while its
-multimodal set remains uncertified.
+Audio8 TTS, and MiniCPM vision/video. The GPTQ profile remains unavailable while
+that multimodal set is uncertified; internal validation fixtures are never
+advertised as supported models.
 
 ## Catalog and local files
 
@@ -100,7 +100,6 @@ artifacts, context, batching, residency, or memory policy changed.
 | `gguf-text-batch` | GGUF | 8 GiB | Native batched text workflow. |
 | `gguf-long-context` | GGUF | 12 GiB | Native single-request context workflow. |
 | `gguf-low-memory` | GGUF | 6 GiB | At most one native worker; no Python environment. |
-| `vllm-control` | vLLM | 8 GiB | Validation profile for the certified control model. |
 
 The command-line RAM/VRAM values are hard upper bounds. A profile may impose a
 smaller cap, but it can never increase the user's limit.

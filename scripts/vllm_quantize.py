@@ -2,7 +2,7 @@
 """Create portable compressed-tensors candidates for later vLLM validation.
 
 This script deliberately does not mark an artifact deployable. The C++ control
-plane stores outputs below checkpoints/vllm/<model>/candidates; promotion only
+plane stores outputs below models/vllm/<model>/candidates; promotion only
 happens after real inference and quality comparison on target hardware.
 """
 

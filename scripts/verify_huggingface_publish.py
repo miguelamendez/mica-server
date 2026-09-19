@@ -26,7 +26,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path,
                         default=PROJECT_ROOT / "config/huggingface_publish.json")
-    parser.add_argument("--model-root", type=Path, default=Path.home() / "models")
+    parser.add_argument("--model-root", type=Path, default=Path.home() / ".mica")
     parser.add_argument("--namespace")
     args = parser.parse_args()
     config = json.loads(args.config.read_text())

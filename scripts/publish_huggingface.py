@@ -149,8 +149,8 @@ def main() -> int:
     parser.add_argument("--config", type=Path,
                         default=PROJECT_ROOT / "config/huggingface_publish.json")
     parser.add_argument("--project-root", type=Path, default=PROJECT_ROOT)
-    parser.add_argument("--model-root", type=Path, default=Path.home() / "models")
-    parser.add_argument("--hf", default=str(Path.home() / "models/environment-tools/bin/hf"))
+    parser.add_argument("--model-root", type=Path, default=Path.home() / ".mica")
+    parser.add_argument("--hf", default=str(Path.home() / ".mica/environments/tools/bin/hf"))
     parser.add_argument("--model", action="append",
                         help="Publish only this model id; may be repeated")
     parser.add_argument("--namespace")

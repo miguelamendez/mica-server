@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <fstream>
 #include <iomanip>
 #include <map>
@@ -200,6 +201,10 @@ ModelDefinition external_model(const json& entry, ProfileModel& policy) {
       artifact_document.value("quantization", std::string("q4")));
   Artifact artifact;
   artifact.supported = true;
+  artifact.engine = policy.engine;
+  artifact.format = format;
+  artifact.quantization_type = artifact_document.value(
+      "quantization_type", to_string(policy.quantization));
   artifact.pattern = artifact_document.at("path").get<std::string>();
   artifact.repository_pattern = artifact.pattern;
   artifact.projector_pattern = artifact_document.value("projector", std::string());
@@ -207,6 +212,18 @@ ModelDefinition external_model(const json& entry, ProfileModel& policy) {
   artifact.reservation_gib = artifact_document.value(
       "reservation_gib", conservative_reservation(artifact_document,
                                                     policy.quantization));
+  if (artifact_document.contains("size_bytes")) {
+    artifact.size_bytes = artifact_document.at("size_bytes").get<std::uint64_t>();
+  } else if (artifact_document.contains("size_gib")) {
+    artifact.size_bytes = static_cast<std::uint64_t>(std::llround(
+        artifact_document.at("size_gib").get<double>() * 1024.0 * 1024.0 * 1024.0));
+  }
+  if (artifact_document.contains("projector_size_bytes")) {
+    artifact.projector_size_bytes =
+        artifact_document.at("projector_size_bytes").get<std::uint64_t>();
+  }
+  artifact.size_source = artifact_document.value(
+      "size_source", artifact.size_bytes > 0 ? "profile-declared" : "unknown");
   if (artifact.pattern.empty() || artifact.pattern.front() == '/' ||
       artifact.pattern.find("..") != std::string::npos) {
     throw std::invalid_argument("artifact path must be a safe repository-relative path");
@@ -295,7 +312,12 @@ void merge_external_model(Registry& registry, ModelDefinition model,
   if (artifact != artifacts.end() &&
       (artifact->second.repository_pattern != incoming.repository_pattern ||
        artifact->second.projector_repository_pattern !=
-           incoming.projector_repository_pattern)) {
+           incoming.projector_repository_pattern ||
+       artifact->second.engine != incoming.engine ||
+       artifact->second.format != incoming.format ||
+       artifact->second.quantization_type != incoming.quantization_type ||
+       artifact->second.size_bytes != incoming.size_bytes ||
+       artifact->second.projector_size_bytes != incoming.projector_size_bytes)) {
     throw std::invalid_argument(
         "external model artifact conflicts with another profile: " + model.id);
   }
@@ -419,7 +441,7 @@ std::string merge_profile_file(Registry& registry, const std::filesystem::path& 
 }
 
 void merge_installed_profiles(Registry& registry, const std::filesystem::path& root) {
-  const auto directory = root / "mica-server/profiles";
+  const auto directory = root / "config/profiles";
   if (!std::filesystem::is_directory(directory)) return;
   std::vector<std::filesystem::path> files;
   for (const auto& item : std::filesystem::directory_iterator(directory)) {
@@ -434,7 +456,7 @@ std::filesystem::path install_profile_file(Registry& registry,
                                            const std::filesystem::path& source) {
   const auto document = read_json(source);
   const auto profile = profile_from_json(registry, document);
-  const auto destination = root / "mica-server/profiles" /
+  const auto destination = root / "config/profiles" /
                            (profile.name + ".json");
   write_json_atomic(destination, document);
   return destination;
@@ -475,7 +497,7 @@ std::filesystem::path install_profile_from_catalog(Registry& registry,
                              ": " + found->value("reason", "not available"));
   }
   const auto profile = profile_from_json(registry, *found);
-  const auto destination = root / "mica-server/profiles" /
+  const auto destination = root / "config/profiles" /
                            (profile.name + ".json");
   write_json_atomic(destination, *found);
   return destination;

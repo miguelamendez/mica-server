@@ -46,6 +46,14 @@ std::filesystem::path home_directory() {
   return home;
 }
 
+std::filesystem::path default_application_home() {
+  const char* configured = std::getenv("MICA_HOME");
+  if (configured && std::string(configured).empty() == false) {
+    return configured;
+  }
+  return home_directory() / ".mica";
+}
+
 void execute_or_print(const std::vector<std::string>& command, bool dry_run) {
   std::cout << (dry_run ? "[plan] " : "[run]  ") << display_command(command) << '\n';
   if (dry_run) return;
@@ -57,7 +65,7 @@ void execute_or_print(const std::vector<std::string>& command, bool dry_run) {
 }
 
 void install_mlx_environment(const Registry& registry, const ResolvedSetup& setup) {
-  const auto environment = setup.options.root / "environment-mlx";
+  const auto environment = setup.options.root / "environments/mlx";
   const bool install_packages = setup.options.refresh ||
                                 !std::filesystem::exists(environment / "bin/python");
   if (install_packages) {
@@ -86,7 +94,7 @@ void install_mlx_environment(const Registry& registry, const ResolvedSetup& setu
 }
 
 void install_download_environment(const ResolvedSetup& setup) {
-  const auto environment = setup.options.root / "environment-tools";
+  const auto environment = setup.options.root / "environments/tools";
   const bool install_packages = setup.options.refresh ||
                                 !std::filesystem::exists(environment / "bin/python");
   if (install_packages) {
@@ -160,7 +168,7 @@ void install_native_gguf_runtimes(const Registry& registry, const ResolvedSetup&
   std::cout << "Native runtime build guard: at most " << build_parallelism
             << " compiler jobs within the " << build_memory_limit
             << " GiB compilation budget.\n";
-  const auto runtime = setup.options.root / "runtime";
+  const auto runtime = setup.options.root / "runtimes";
   const auto llama_source = runtime / "llama.cpp";
   const auto llama_build = llama_source / "build-mica";
   const auto audio_source = runtime / "audio.cpp";
@@ -293,7 +301,7 @@ void install_vllm_metal(const ResolvedSetup& setup,
 }
 
 void install_vllm_environment(const ResolvedSetup& setup) {
-  const auto environment = setup.options.root / "environment-vllm";
+  const auto environment = setup.options.root / "environments/vllm";
   const auto device_marker = environment / ".mica-device";
   std::string installed_device;
   if (std::filesystem::exists(device_marker)) {
@@ -356,7 +364,7 @@ void install_vllm_environment(const ResolvedSetup& setup) {
     return;
   }
   if (setup.hardware.os == "macos") {
-    const auto source = setup.options.root / "runtime/vllm";
+    const auto source = setup.options.root / "runtimes/vllm";
     update_source_tree(source, "https://github.com/vllm-project/vllm.git", "latest",
                        setup.options.refresh, setup.options.dry_run);
     execute_or_print({"uv", "pip", "install", "--python",
@@ -450,7 +458,7 @@ json validate_setup(const Registry& registry, const ResolvedSetup& setup) {
   acceptance["loopback"] = validate_loopback_bind(setup.options.dry_run);
   for (const auto backend : setup.backends) {
     if (backend == Backend::mlx) {
-      const auto python = (setup.options.root / "environment-mlx/bin/python").string();
+      const auto python = (setup.options.root / "environments/mlx/bin/python").string();
       acceptance["backends"]["mlx"] = validate_command(
           "MLX imports and device",
           {python, "-c",
@@ -469,20 +477,20 @@ json validate_setup(const Registry& registry, const ResolvedSetup& setup) {
       if (needs_llama) {
         gguf["llama_cpp"] = validate_command(
             "llama.cpp runtime",
-            {(setup.options.root / "runtime/llama.cpp/build-mica/bin/llama-server").string(),
+            {(setup.options.root / "runtimes/llama.cpp/build-mica/bin/llama-server").string(),
              "--version"},
             setup.options.dry_run);
       }
       if (needs_audio) {
         gguf["audio_cpp"] = validate_command(
             "audio.cpp runtime",
-            {(setup.options.root / "runtime/audio.cpp/build-mica/bin/audiocpp_server").string(),
+            {(setup.options.root / "runtimes/audio.cpp/build-mica/bin/audiocpp_server").string(),
              "--help"},
             setup.options.dry_run);
       }
       acceptance["backends"]["gguf"] = std::move(gguf);
     } else {
-      const auto python = (setup.options.root / "environment-vllm/bin/python").string();
+      const auto python = (setup.options.root / "environments/vllm/bin/python").string();
       acceptance["backends"]["vllm"] = {
           {"device", to_string(setup.vllm_device)},
           {"runtime", validate_command(
@@ -498,7 +506,7 @@ json validate_setup(const Registry& registry, const ResolvedSetup& setup) {
 
 void write_setup_acceptance(const ResolvedSetup& setup, const json& acceptance) {
   if (setup.options.dry_run) return;
-  const auto path = setup.options.root / "mica-server/setup-acceptance.json";
+  const auto path = setup.options.root / "state/setup-acceptance.json";
   std::filesystem::create_directories(path.parent_path());
   std::ofstream file(path, std::ios::trunc);
   if (!file) {
@@ -512,9 +520,11 @@ void write_setup_acceptance(const ResolvedSetup& setup, const json& acceptance) 
 
 void write_runtime_state(const Registry& registry, const ResolvedSetup& setup) {
   if (setup.options.dry_run) return;
-  const auto state_dir = setup.options.root / "mica-server";
+  const auto state_dir = setup.options.root / "state";
   std::filesystem::create_directories(state_dir);
-  const auto key_path = state_dir / "api-key";
+  const auto secrets_dir = setup.options.root / "secrets";
+  std::filesystem::create_directories(secrets_dir);
+  const auto key_path = secrets_dir / "api-key";
   if (!setup.options.api_key_file.empty()) {
     std::ifstream source(setup.options.api_key_file);
     if (!source) {
@@ -617,17 +627,17 @@ void write_runtime_state(const Registry& registry, const ResolvedSetup& setup) {
       {"api_key_file", key_path.string()},
       {"config_directory", setup.options.config_directory.string()},
       {"setup_acceptance_file",
-       (setup.options.root / "mica-server/setup-acceptance.json").string()},
+       (setup.options.root / "state/setup-acceptance.json").string()},
       {"downloads", downloads},
       {"hardware", hardware_to_json(setup.hardware)},
       {"hardware_profile_file",
-       (setup.options.root / "mica-server/hardware-profile.json").string()},
-      {"resolved", {{"llama_cpp", resolved_git_revision(setup.options.root / "runtime/llama.cpp")},
-                    {"audio_cpp", resolved_git_revision(setup.options.root / "runtime/audio.cpp")},
-                    {"mlx_packages", resolved_packages(setup.options.root / "environment-mlx")},
-                    {"vllm_packages", resolved_packages(setup.options.root / "environment-vllm")},
+       (setup.options.root / "state/hardware-profile.json").string()},
+      {"resolved", {{"llama_cpp", resolved_git_revision(setup.options.root / "runtimes/llama.cpp")},
+                    {"audio_cpp", resolved_git_revision(setup.options.root / "runtimes/audio.cpp")},
+                    {"mlx_packages", resolved_packages(setup.options.root / "environments/mlx")},
+                    {"vllm_packages", resolved_packages(setup.options.root / "environments/vllm")},
                     {"download_packages", resolved_packages(setup.options.root /
-                                                             "environment-tools")}}},
+                                                             "environments/tools")}}},
   };
   std::ofstream file(runtime_path, std::ios::trunc);
   file << std::setw(2) << state << '\n';
@@ -744,7 +754,7 @@ ResolvedSetup resolve_setup(const Registry& registry, SetupOptions options) {
       throw std::runtime_error("VRAM budget exceeds the largest detected accelerator");
     }
   }
-  if (options.root.empty()) options.root = home_directory() / "models";
+  if (options.root.empty()) options.root = default_application_home();
   if (options.hf_repo.empty()) options.hf_repo = registry.default_hf_repo;
   resolved.backends = options.backends;
   resolved.options = std::move(options);
@@ -791,13 +801,13 @@ void execute_setup(const Registry& registry, const ResolvedSetup& setup) {
     throw std::runtime_error("set --hf-repo to the destination repository before setup");
   }
   if (!setup.options.dry_run) {
-    std::filesystem::create_directories(setup.options.root / "checkpoints");
-    std::filesystem::create_directories(setup.options.root / "runtime");
+    std::filesystem::create_directories(setup.options.root / "models");
+    std::filesystem::create_directories(setup.options.root / "runtimes");
     write_hardware_profile(setup.hardware,
-                           setup.options.root / "mica-server/hardware-profile.json");
+                           setup.options.root / "state/hardware-profile.json");
   } else {
     std::cout << "[plan] write hardware profile "
-              << setup.options.root / "mica-server/hardware-profile.json" << '\n';
+              << setup.options.root / "state/hardware-profile.json" << '\n';
   }
   const bool needs_python_tools = std::any_of(
       setup.backends.begin(), setup.backends.end(),

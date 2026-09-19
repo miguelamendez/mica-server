@@ -39,7 +39,7 @@ distribute as one binary, and independent of Python package resolution.
 
 ## ADR-002: application home and filesystem layout
 
-Decision: **accepted; planned migration**.
+Decision: **accepted; implemented**.
 
 The default application home is `~/.mica`. `MICA_HOME` overrides the default,
 and an explicit `--root PATH` has highest precedence. All paths must derive from
@@ -82,9 +82,6 @@ temporary staging, logs, process files, and secrets remain separate. Cleaning
 an environment must never delete models; evicting a model from memory must
 never delete its disk cache. The API key is mode `0600`. Authentication tokens
 must not be written into ordinary config or logs.
-
-Current gap: the implementation still defaults to `~/models` and uses the old
-directory names.
 
 ## ADR-003: isolated, demand-created Python environments
 

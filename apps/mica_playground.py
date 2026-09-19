@@ -27,7 +27,7 @@ CHAT_HTML = r"""<!doctype html>
 .composer{border-top:1px solid var(--line);padding:12px 15px 14px;background:#181825ed;backdrop-filter:blur(18px)}.input-shell{border:1px solid var(--surface1);border-radius:22px;background:var(--base);box-shadow:inset 0 1px 2px #11111b80,0 8px 30px #11111b35;overflow:hidden;transition:.15s border-color,.15s box-shadow}.input-shell:focus-within{border-color:var(--lavender);box-shadow:0 0 0 3px #b4befe1c,0 8px 30px #11111b45}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.grow{flex:1}textarea,select,button,input{font:inherit}textarea{display:block;width:100%;min-height:66px;max-height:220px;resize:none;border:0;padding:14px 15px 6px;background:transparent;color:var(--text);outline:none}textarea::placeholder{color:var(--overlay)}button,.button{border:1px solid var(--surface1);border-radius:14px;padding:9px 12px;background:var(--surface0);color:var(--text);cursor:pointer;transition:.15s transform,.15s background,.15s border-color}button:hover,.button:hover{background:var(--surface1);border-color:var(--overlay);transform:translateY(-1px)}button:disabled{opacity:.55;cursor:wait}.icon-button{width:38px;height:38px;display:inline-grid;place-items:center;flex:0 0 38px;padding:0;border-radius:13px}.icon-button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}.primary{background:var(--mauve);border-color:var(--mauve);color:var(--crust);font-weight:700;box-shadow:0 6px 18px #cba6f72b}.primary:hover{background:var(--lavender);border-color:var(--lavender)}.quiet{padding:7px 10px;font-size:12px}.recording{background:#f38ba826;border-color:var(--red);color:var(--red)}.composer-tools{padding:6px 7px 7px}.shortcut-help{color:var(--overlay);font-size:10px;white-space:nowrap}.attachments{display:flex;gap:6px;flex-wrap:wrap;margin:0;padding:0 10px 7px}.attachments:empty{display:none}.chip{background:#89b4fa14;border:1px solid #89b4fa45;color:var(--blue);border-radius:999px;padding:5px 9px;font-size:12px}.status{display:flex;width:fit-content;max-width:100%;align-items:center;gap:7px;margin-top:9px;padding:6px 10px;border:1px solid #94e2d52b;border-radius:999px;background:#94e2d50d;color:var(--teal);font-size:12px;line-height:1.3}.status::before{content:'';width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px #94e2d516}fieldset{margin:12px 0 0;padding:12px;border:1px solid var(--surface0);border-radius:14px;display:grid;grid-template-columns:1fr;gap:9px}label{display:flex;gap:7px;align-items:center}select{min-width:0;flex:1;background:var(--base);color:var(--text);border:1px solid var(--surface1);border-radius:10px;padding:7px}input[type=checkbox]{accent-color:var(--mauve)}audio{width:100%;margin-top:10px}.hidden{display:none}
 .sidebar{position:absolute;z-index:30;inset:0 auto 0 0;width:min(310px,88%);padding:16px;display:flex;flex-direction:column;background:#181825fa;border-right:1px solid var(--surface0);box-shadow:18px 0 60px #11111baa;transform:translateX(-105%);transition:transform .2s ease}.sidebar.open{transform:translateX(0)}.scrim{position:absolute;z-index:25;inset:0;background:#11111b99;backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .2s}.scrim.open{opacity:1;pointer-events:auto}.sidebar-head{display:flex;align-items:center;gap:10px;margin-bottom:16px}.sidebar-head strong{font-size:17px}.new-chat{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border-color:#cba6f74d;background:#cba6f714;color:var(--mauve)}.new-chat svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2}.history-label{margin:18px 4px 8px;color:var(--overlay);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}.session-list{display:flex;flex:1;min-height:0;overflow:auto;flex-direction:column;gap:5px}.session-item{display:block;width:100%;padding:10px 11px;text-align:left;border-color:transparent;background:transparent}.session-item:hover{background:var(--surface0)}.session-item.active{border-color:#b4befe42;background:#b4befe10}.session-title{display:block;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.session-time{display:block;margin-top:3px;color:var(--overlay);font-size:10px}.sidebar-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding-top:12px;border-top:1px solid var(--surface0)}
 .settings-panel{position:absolute;z-index:20;top:68px;right:14px;width:min(390px,calc(100% - 28px));max-height:calc(100% - 84px);overflow:auto;padding:15px;border:1px solid var(--surface1);border-radius:18px;background:#181825f7;box-shadow:0 18px 60px #11111bcc;transform:translateY(-8px) scale(.98);opacity:0;pointer-events:none;transition:.15s}.settings-panel.open{transform:none;opacity:1;pointer-events:auto}.settings-title{display:flex;align-items:center;justify-content:space-between}.settings-title strong{font-size:16px}.setting-row{justify-content:space-between;margin-top:13px;padding:10px 11px;border-radius:13px;background:var(--base);border:1px solid var(--surface0)}.setting-row small{color:var(--overlay)}.settings-panel #limits{display:block;max-width:none;margin-top:10px;white-space:normal}.top .icon-button{border-color:transparent;background:transparent}.top .icon-button:hover{border-color:var(--surface1);background:var(--surface0)}
-.media-strip{display:flex;gap:7px;max-width:100%;margin-top:10px;padding-bottom:2px;overflow-x:auto;scrollbar-width:thin}.media-tile{width:64px;min-width:64px;padding:5px;border:1px solid var(--surface1);border-radius:13px;background:#313244a8;color:var(--subtext);text-decoration:none;cursor:pointer;transition:.15s transform,.15s border-color}.media-tile:hover{border-color:var(--lavender);transform:translateY(-1px)}.media-thumb{width:52px;height:42px;display:grid;place-items:center;border-radius:9px;background:var(--base);overflow:hidden}.media-thumb img{width:100%;height:100%;object-fit:cover}.media-thumb svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.media-tile.image{color:var(--green)}.media-tile.video{color:var(--mauve)}.media-tile.audio{color:var(--peach)}.media-tile.document{color:var(--blue)}.media-name{display:block;margin-top:4px;overflow:hidden;color:var(--subtext);font-size:9px;text-overflow:ellipsis;white-space:nowrap}.attachments .media-strip{margin:0}.attachments .media-tile{width:58px;min-width:58px}.attachments .media-thumb{width:46px;height:36px}.voice-config{margin-top:12px;padding:11px;border:1px solid var(--surface0);border-radius:14px;background:var(--base)}.voice-config>label{justify-content:space-between}.voice-controls{margin-top:10px;padding-top:10px;border-top:1px solid var(--surface0)}.voice-actions{display:flex;gap:6px;flex-wrap:wrap}.voice-actions button,.voice-actions .button{padding:7px 9px;font-size:11px}.voice-file{margin:8px 0 0;color:var(--peach);font-size:11px}.voice-config audio{height:34px;margin:8px 0}.voice-config .transcript{display:block;margin-top:8px;color:var(--subtext);font-size:11px}.voice-config input[type=text]{display:block;width:100%;margin-top:5px;padding:8px 9px;border:1px solid var(--surface1);border-radius:10px;background:var(--mantle);color:var(--text);outline:none}.voice-config input[type=text]:focus{border-color:var(--lavender)}.voice-note{display:block;margin-top:7px;color:var(--overlay);font-size:10px;line-height:1.4}
+.media-strip{display:flex;gap:7px;max-width:100%;margin-top:10px;padding-bottom:2px;overflow-x:auto;scrollbar-width:thin}.media-tile{width:64px;min-width:64px;padding:5px;border:1px solid var(--surface1);border-radius:13px;background:#313244a8;color:var(--subtext);text-decoration:none;cursor:pointer;transition:.15s transform,.15s border-color}.media-tile:hover{border-color:var(--lavender);transform:translateY(-1px)}.media-thumb{width:52px;height:42px;display:grid;place-items:center;border-radius:9px;background:var(--base);overflow:hidden}.media-thumb img{width:100%;height:100%;object-fit:cover}.media-thumb svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.media-tile.image{color:var(--green)}.media-tile.video{color:var(--mauve)}.media-tile.audio{color:var(--peach)}.media-tile.document{color:var(--blue)}.media-name{display:block;margin-top:4px;overflow:hidden;color:var(--subtext);font-size:9px;text-overflow:ellipsis;white-space:nowrap}.attachments .media-strip{margin:0}.attachments .media-tile{width:58px;min-width:58px}.attachments .media-thumb{width:46px;height:36px}.voice-config,.api-key-config{margin-top:12px;padding:11px;border:1px solid var(--surface0);border-radius:14px;background:var(--base)}.voice-config>label{justify-content:space-between}.voice-controls{margin-top:10px;padding-top:10px;border-top:1px solid var(--surface0)}.voice-actions{display:flex;gap:6px;flex-wrap:wrap}.voice-actions button,.voice-actions .button{padding:7px 9px;font-size:11px}.voice-file{margin:8px 0 0;color:var(--peach);font-size:11px}.voice-config audio{height:34px;margin:8px 0}.voice-config .transcript{display:block;margin-top:8px;color:var(--subtext);font-size:11px}.voice-config input[type=text],.api-key-config input{display:block;width:100%;margin-top:5px;padding:8px 9px;border:1px solid var(--surface1);border-radius:10px;background:var(--mantle);color:var(--text);outline:none}.voice-config input[type=text]:focus,.api-key-config input:focus{border-color:var(--lavender)}.voice-note{display:block;margin-top:7px;color:var(--overlay);font-size:10px;line-height:1.4}.api-key-config label{display:block;color:var(--subtext);font-size:11px}.api-key-actions{display:flex;align-items:center;gap:8px;margin-top:8px}.api-key-actions small{color:var(--overlay)}
 .message.media-only{padding:8px 10px}.message.media-only .media-strip{margin-top:0}.message-copy:empty{display:none}.media-tile.audio.voice-bubble{position:relative;width:210px;min-width:210px;height:54px;padding:7px 8px;display:grid;grid-template-columns:34px 1fr 25px;grid-template-rows:1fr 4px;gap:3px 8px;align-items:center;cursor:default}.voice-play{grid-row:1/3;width:34px;height:34px;padding:0;display:grid;place-items:center;border:0;border-radius:50%;background:#fab38720;color:var(--peach)}.voice-play:hover{background:#fab38735;border:0;transform:none}.voice-play svg,.media-open svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.voice-details{min-width:0}.voice-details .media-name{margin:0;font-size:10px;color:var(--text)}.voice-time{display:block;margin-top:2px;color:var(--overlay);font-size:9px}.voice-progress{height:4px;overflow:hidden;border-radius:999px;background:var(--surface1)}.voice-progress span{display:block;width:0;height:100%;border-radius:inherit;background:var(--peach)}.media-open{grid-column:3;grid-row:1/3;width:25px;height:25px;display:grid;place-items:center;border-radius:8px;color:var(--subtext);text-decoration:none}.media-open:hover{background:var(--surface1);color:var(--text)}.attachments .media-tile.audio.voice-bubble{width:190px;min-width:190px}.markdown{white-space:normal}.markdown p,.markdown ul,.markdown ol,.markdown blockquote,.markdown pre,.markdown table{margin:.15em 0 .8em}.markdown>:last-child{margin-bottom:0}.markdown h1,.markdown h2,.markdown h3,.markdown h4{margin:.15em 0 .55em;line-height:1.25;color:var(--rosewater)}.markdown h1{font-size:1.35em}.markdown h2{font-size:1.2em}.markdown h3,.markdown h4{font-size:1.06em}.markdown ul,.markdown ol{padding-left:1.35em}.markdown li+li{margin-top:.25em}.markdown blockquote{padding:.25em .8em;border-left:3px solid var(--mauve);color:var(--subtext);background:#cba6f709;border-radius:0 9px 9px 0}.markdown code{padding:.12em .35em;border:1px solid var(--surface1);border-radius:6px;background:var(--base);color:var(--peach);font:12px ui-monospace,SFMono-Regular,Menlo,monospace}.markdown pre{max-width:min(720px,70vw);padding:11px 12px;overflow:auto;border:1px solid var(--surface1);border-radius:12px;background:var(--crust)}.markdown pre code{padding:0;border:0;background:transparent;color:var(--text);white-space:pre}.markdown a{color:var(--sapphire);text-decoration-thickness:1px;text-underline-offset:2px}.markdown table{display:block;max-width:min(720px,70vw);overflow:auto;border-collapse:collapse}.markdown th,.markdown td{padding:6px 9px;border:1px solid var(--surface1);text-align:left;white-space:nowrap}.markdown th{background:var(--surface0);color:var(--lavender)}.markdown hr{margin:.85em 0;border:0;border-top:1px solid var(--surface1)}
 @media(max-width:680px){body{background:var(--base)}.app{height:100vh;margin:0;border:0;border-radius:0}.session,.top #limits{display:none}.top{padding-inline:10px}.chat{padding:14px}.message-row{max-width:96%}.avatar{width:31px;height:31px;flex-basis:31px}.assistant-avatar img{width:22px;height:22px}.shortcut-help{display:none}.title small{display:none}}
 </style>
@@ -46,6 +46,10 @@ CHAT_HTML = r"""<!doctype html>
 </div>
 <section class="settings-panel" id="settingsPanel" aria-label="Chat settings">
   <div class="settings-title"><strong>Chat settings</strong><button class="icon-button" id="closeSettings" aria-label="Close settings"><svg viewBox="0 0 24 24"><path d="m7 7 10 10M17 7 7 17"/></svg></button></div>
+  <div class="api-key-config">
+    <label><strong>Mica API key</strong><br><small>Kept only in this browser tab</small><input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Required when server authentication is enabled"></label>
+    <div class="api-key-actions"><button id="saveApiKey" type="button">Apply key</button><button id="clearApiKey" type="button">Clear</button><small id="apiKeyState">Not set</small></div>
+  </div>
   <label class="setting-row"><span><strong>Stream responses</strong><br><small>Show text and audio as they arrive</small></span><input id="streamMode" type="checkbox" checked></label>
   <div class="voice-config">
     <label><span><strong>TTS reply voice</strong><br><small>Saved across conversations</small></span><select id="ttsVoiceMode"><option value="default">Built-in default</option><option value="reference">Custom reference</option></select></label>
@@ -80,8 +84,12 @@ CHAT_HTML = r"""<!doctype html>
 const $=id=>document.getElementById(id);let sessionId=localStorage.micaSessionId||crypto.randomUUID();localStorage.micaSessionId=sessionId;
 let rows=[],selectedFiles=[],voiceBlob=null,ctx,stream,node,chunks=[],recording=false;
 let ttsVoiceBlob=null,ttsVoiceFilename='',ttsVoiceCtx=null,ttsVoiceStream=null,ttsVoiceNode=null,ttsVoiceChunks=[],ttsVoiceRecording=false;
+let apiKey=sessionStorage.getItem('micaApiKey')||'';
 const platform=navigator.userAgentData?.platform||navigator.platform||'',isMac=/mac/i.test(platform),historyKey='micaSessionHistory';
 const status=x=>$('status').textContent=x,baseId=x=>x.id.includes('@')?x.id.slice(0,x.id.lastIndexOf('@')):x.id;
+function apiFetch(url,options={}){let headers=new Headers(options.headers||{});if(apiKey)headers.set('X-Mica-API-Key',apiKey);return fetch(url,{...options,headers})}
+function updateApiKeyUi(){if(!$('apiKey'))return;$('apiKey').value=apiKey;$('apiKeyState').textContent=apiKey?'Set for this tab':'Not set'}
+async function requireOk(response){if(response.ok)return response;let result;try{result=await response.clone().json()}catch{result=null}let fallback=(await response.text())||`HTTP ${response.status}`,message=result?.error?.message||result?.message||fallback;if(response.status===401){openSettings(true);$('apiKey').focus()}throw Error(message)}
 function sessionHistory(){try{let value=JSON.parse(localStorage.getItem(historyKey)||'[]');return Array.isArray(value)?value:[]}catch{return[]}}
 function storeHistory(value){localStorage.setItem(historyKey,JSON.stringify(value.slice(0,50)))}
 function ensureSession(title=''){let items=sessionHistory(),item=items.find(x=>x.id===sessionId),now=Date.now();if(!item){item={id:sessionId,title:'New conversation',updatedAt:now};items.push(item)}if(title&&item.title==='New conversation')item.title=title.replace(/\s+/g,' ').trim().slice(0,52)||item.title;if(title)item.updatedAt=now;items.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));storeHistory(items);renderHistory()}
@@ -124,9 +132,9 @@ const stepLabels={receiving_input:'Receiving input',asr_transcribing:'Listening 
 function showAgentStep(state){let activity=$('agentActivity');if(!state||state==='ready'){activity?.remove();return}if(!activity){activity=document.createElement('div');activity.id='agentActivity';activity.className='agent-activity';activity.setAttribute('role','status');activity.setAttribute('aria-live','polite');$('chat').appendChild(activity)}activity.textContent=stepLabels[state]||state.replaceAll('_',' ');$('chat').scrollTop=$('chat').scrollHeight}
 function storedMedia(message,messageIndex){let items=Array.isArray(message.media)?message.media:[];if(!items.length){if(message.voice)items.push(message.voice);if(Array.isArray(message.attachments))items.push(...message.attachments);if(message.audio_path)items.push({name:'Voice reply.wav',kind:'audio',content_type:'audio/wav'});if(Array.isArray(message.audio_paths))items.push(...message.audio_paths.map((path,index)=>({name:`Voice reply ${index+1}.wav`,kind:'audio',content_type:'audio/wav'})))}return items.map((item,index)=>({...item,url:`/api/agent/session/${encodeURIComponent(sessionId)}/media/${messageIndex}/${index}`}))}
 function renderSession(session){$('chat').innerHTML='';(session.messages||[]).forEach((message,index)=>{let text=message.role==='user'&&message.input_mode==='voice'?'':message.content;bubble(message.role,text||'','','',storedMedia(message,index))});$('sessionLabel').textContent=`session ${sessionId.slice(0,8)}`;renderHistory()}
-async function loadSession(){status('Loading conversation…');let sr=await fetch('/api/agent/session/'+encodeURIComponent(sessionId)),sj=await sr.json();if(!sr.ok)throw Error(sj.error?.message||JSON.stringify(sj));renderSession(sj);status('Ready.');return sj}
-async function init(){verifyMarkdownRenderer();let r=await fetch('/api/models'),j=await r.json();rows=j.data||[];capability('llm','text','q4');capability('vlm','vision','q4');capability('asr','asr','q4');capability('tts','tts','q8');
- let tr=await fetch('/api/agent/tools'),tj=await tr.json(),desc=tj.data?.[0]?.function?.description||'';$('limits').textContent=desc.match(/Accepts at most[^.]+./)?.[0]||'';
+async function loadSession(){status('Loading conversation…');let sr=await requireOk(await apiFetch('/api/agent/session/'+encodeURIComponent(sessionId))),sj=await sr.json();renderSession(sj);status('Ready.');return sj}
+async function init(){verifyMarkdownRenderer();updateApiKeyUi();let r=await requireOk(await apiFetch('/api/models')),j=await r.json();rows=j.data||[];capability('llm','text','q4');capability('vlm','vision','q4');capability('asr','asr','q4');capability('tts','tts','q8');
+ let tr=await requireOk(await apiFetch('/api/agent/tools')),tj=await tr.json(),desc=tj.data?.[0]?.function?.description||'';$('limits').textContent=desc.match(/Accepts at most[^.]+./)?.[0]||'';
  try{await loadTtsVoice()}catch{updateTtsVoiceUi()};ensureSession();await loadSession();status('Ready. Voice input automatically enables a spoken reply.')}
 function encodeWav(parts,rate){let n=parts.reduce((a,x)=>a+x.length,0),b=new ArrayBuffer(44+n*2),v=new DataView(b),o=0;const str=s=>{for(let c of s)v.setUint8(o++,c.charCodeAt(0))};str('RIFF');v.setUint32(o,36+n*2,true);o+=4;str('WAVEfmt ');v.setUint32(o,16,true);o+=4;v.setUint16(o,1,true);o+=2;v.setUint16(o,1,true);o+=2;v.setUint32(o,rate,true);o+=4;v.setUint32(o,rate*2,true);o+=4;v.setUint16(o,2,true);o+=2;v.setUint16(o,16,true);o+=2;str('data');v.setUint32(o,n*2,true);o+=4;for(let p of parts)for(let x of p){x=Math.max(-1,Math.min(1,x));v.setInt16(o,x<0?x*32768:x*32767,true);o+=2}return new Blob([b],{type:'audio/wav'})}
 function setRecordButton(active){let button=$('record');button.classList.toggle('recording',active);button.setAttribute('aria-label',active?'Stop recording':'Record voice');button.title=(active?'Stop recording':'Record voice')+(isMac?' (⌥R)':' (Alt+R)');button.innerHTML=active?'<svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>':'<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M9 21h6"/></svg>'}
@@ -135,17 +143,20 @@ async function stopRecording(){node.disconnect();stream.getTracks().forEach(t=>t
 $('record').onclick=()=>{(recording?stopRecording():startRecording()).catch(e=>status('ERROR: '+e))};$('clearVoice').onclick=()=>{voiceBlob=null;$('clearVoice').classList.add('hidden');showFiles();status('Voice note removed.')};
 $('menuButton').onclick=()=>openSidebar(true);$('closeMenu').onclick=()=>openSidebar(false);$('scrim').onclick=()=>openSidebar(false);$('newChat').onclick=newSession;
 $('settingsButton').onclick=()=>openSettings(!$('settingsPanel').classList.contains('open'));$('closeSettings').onclick=()=>openSettings(false);
+$('saveApiKey').onclick=async()=>{apiKey=$('apiKey').value.trim();if(apiKey)sessionStorage.setItem('micaApiKey',apiKey);else sessionStorage.removeItem('micaApiKey');updateApiKeyUi();status(apiKey?'API key applied to this tab. Checking the server…':'API key cleared.');try{await init();openSettings(false)}catch(error){status('ERROR: '+error.message)}};
+$('clearApiKey').onclick=()=>{apiKey='';sessionStorage.removeItem('micaApiKey');updateApiKeyUi();status('API key cleared. Authenticated requests now require a key.');$('apiKey').focus()};
+$('apiKey').onkeydown=event=>{if(event.key==='Enter'){$('saveApiKey').click();event.preventDefault()}};
 $('shortcutHelp').textContent=isMac?'⌘↵ send · ⌥R record':'Ctrl+Enter send · Alt+R record';$('send').title='Send message ('+(isMac?'⌘+Enter':'Ctrl+Enter')+')';setRecordButton(false);
 function resizeComposer(){let input=$('text');input.style.height='auto';input.style.height=Math.min(input.scrollHeight,220)+'px'}
 $('text').addEventListener('input',resizeComposer);$('text').addEventListener('keydown',event=>{if(event.key==='Enter'&&(event.metaKey||event.ctrlKey)){event.preventDefault();if(!$('send').disabled)$('send').click()}});
 document.addEventListener('keydown',event=>{if(event.code==='KeyR'&&event.altKey&&!event.ctrlKey&&!event.metaKey&&!event.repeat){event.preventDefault();$('record').click()}if(event.key==='Escape'){openSidebar(false);openSettings(false)}});
 document.addEventListener('click',event=>{if($('settingsPanel').classList.contains('open')&&!$('settingsPanel').contains(event.target)&&!$('settingsButton').contains(event.target))openSettings(false)});
-$('exportSession').onclick=async()=>{try{status('Exporting conversation…');let response=await fetch('/api/agent/session/'+encodeURIComponent(sessionId)+'/export');if(!response.ok)throw Error(await response.text());let blob=await response.blob(),link=document.createElement('a'),url=URL.createObjectURL(blob);link.href=url;link.download=`mica-session-${sessionId}.zip`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status('Conversation archive exported.')}catch(error){status('ERROR: '+error.message)}};
-$('importSession').onchange=async event=>{let archive=event.target.files[0];if(!archive)return;try{status('Importing conversation…');let form=new FormData();form.append('archive',archive,archive.name);let response=await fetch('/api/agent/session/import',{method:'POST',body:form}),result=await response.json();if(!response.ok)throw Error(result.error?.message||JSON.stringify(result));sessionId=result.session_id;localStorage.micaSessionId=sessionId;ensureSession('Imported conversation');await loadSession();openSidebar(false);status(`Imported ${result.media_files||0} media file(s).`)}catch(error){status('ERROR: '+error.message)}finally{event.target.value=''}};
+$('exportSession').onclick=async()=>{try{status('Exporting conversation…');let response=await requireOk(await apiFetch('/api/agent/session/'+encodeURIComponent(sessionId)+'/export'));let blob=await response.blob(),link=document.createElement('a'),url=URL.createObjectURL(blob);link.href=url;link.download=`mica-session-${sessionId}.zip`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status('Conversation archive exported.')}catch(error){status('ERROR: '+error.message)}};
+$('importSession').onchange=async event=>{let archive=event.target.files[0];if(!archive)return;try{status('Importing conversation…');let form=new FormData();form.append('archive',archive,archive.name);let response=await requireOk(await apiFetch('/api/agent/session/import',{method:'POST',body:form})),result=await response.json();sessionId=result.session_id;localStorage.micaSessionId=sessionId;ensureSession('Imported conversation');await loadSession();openSidebar(false);status(`Imported ${result.media_files||0} media file(s).`)}catch(error){status('ERROR: '+error.message)}finally{event.target.value=''}};
 $('ttsVoiceMode').onchange=()=>updateTtsVoiceUi();
 $('ttsVoiceUpload').onchange=async event=>{let file=event.target.files[0];if(!file)return;try{status('Preparing reference voice…');ttsVoiceBlob=await normalizedVoiceFile(file);ttsVoiceFilename=file.name.replace(/\.[^.]+$/,'.wav');$('ttsVoiceMode').value='reference';await persistTtsVoice();updateTtsVoiceUi();status('TTS reference ready. Add or verify its exact transcript.')}catch(error){status('ERROR: '+error.message)}finally{event.target.value=''}};
 $('ttsVoiceRecord').onclick=()=>{(ttsVoiceRecording?stopTtsVoiceRecording():startTtsVoiceRecording()).catch(error=>status('ERROR: '+error.message))};
-$('ttsVoiceTranscribe').onclick=async()=>{if(!ttsVoiceBlob)return status('Record or upload a reference voice first.');try{status('Transcribing the reference voice…');let form=new FormData();form.append('model',model('asr'));form.append('file',ttsVoiceBlob,'tts-reference.wav');let response=await fetch('/api/transcribe',{method:'POST',body:form}),result=await response.json();if(!response.ok)throw Error(result.error?.message||JSON.stringify(result));$('ttsVoiceText').value=result.text||'';await persistTtsVoice();status('Reference transcript ready. Correct it if necessary.')}catch(error){status('ERROR: '+error.message)}};
+$('ttsVoiceTranscribe').onclick=async()=>{if(!ttsVoiceBlob)return status('Record or upload a reference voice first.');try{status('Transcribing the reference voice…');let form=new FormData();form.append('model',model('asr'));form.append('file',ttsVoiceBlob,'tts-reference.wav');let response=await requireOk(await apiFetch('/api/transcribe',{method:'POST',body:form})),result=await response.json();$('ttsVoiceText').value=result.text||'';await persistTtsVoice();status('Reference transcript ready. Correct it if necessary.')}catch(error){status('ERROR: '+error.message)}};
 $('ttsVoiceText').onchange=()=>persistTtsVoice().catch(error=>status('ERROR: '+error.message));
 $('ttsVoiceRemove').onclick=async()=>{if(ttsVoiceRecording)await stopTtsVoiceRecording();ttsVoiceBlob=null;ttsVoiceFilename='';$('ttsVoiceText').value='';$('ttsVoicePreview').removeAttribute('src');$('ttsVoiceMode').value='default';await voiceSetting('readwrite','tts-reference',null);updateTtsVoiceUi();status('Using the built-in default TTS voice.')};
 function currentInputMedia(){let items=selectedFiles.map(file=>({name:file.name,type:file.type,file}));if(voiceBlob)items.unshift({name:'Voice note.wav',type:'audio/wav',kind:'audio',file:voiceBlob});return items}
@@ -157,9 +168,9 @@ async function uploadFiles(){let out=[];for(let f of selectedFiles){if(textExt.t
 let playbackCtx=null,playbackCursor=0;
 async function playAudioChunk(base64){playbackCtx??=new AudioContext();let raw=atob(base64),bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);let decoded=await playbackCtx.decodeAudioData(bytes.buffer),source=playbackCtx.createBufferSource();source.buffer=decoded;source.connect(playbackCtx.destination);let start=Math.max(playbackCtx.currentTime+.03,playbackCursor);source.start(start);playbackCursor=start+decoded.duration}
 function resetInput(){$('text').value='';$('text').style.height='auto';selectedFiles=[];voiceBlob=null;$('files').value='';$('clearVoice').classList.add('hidden');showFiles()}
-async function appendFinalAssistantMedia(view){let response=await fetch('/api/agent/session/'+encodeURIComponent(sessionId)),session=await response.json();if(!response.ok)throw Error(session.error?.message||JSON.stringify(session));let messages=session.messages||[],index=messages.length-1,message=messages[index];if(!message||message.role!=='assistant')return;let items=storedMedia(message,index);if(!items.length)return;view.box.querySelectorAll(':scope > .media-strip').forEach(node=>node.remove());let strip=mediaStrip(items);if(strip)view.box.appendChild(strip)}
-async function streamAgent(form){let r=await fetch('/api/agent/chat/stream',{method:'POST',body:form});if(!r.ok)throw Error(await r.text());let view=bubble('assistant',''),reader=r.body.getReader(),decoder=new TextDecoder(),pending='',answer='',done=null;playbackCursor=0;while(true){let part=await reader.read();if(part.done)break;pending+=decoder.decode(part.value,{stream:true});for(;;){let end=pending.indexOf('\n\n');if(end<0)break;let block=pending.slice(0,end).replace(/\r/g,''),event='message',data='';pending=pending.slice(end+2);for(let line of block.split('\n')){if(line.startsWith('event:'))event=line.slice(6).trim();else if(line.startsWith('data:'))data+=line.slice(5).trim()}if(!data)continue;let value=JSON.parse(data);if(event==='state'){$('agentState').textContent=value.state.replaceAll('_',' ');showAgentStep(value.state)}else if(event==='transcript_delta')status('ASR: '+(status.transcript=(status.transcript||'')+value.delta));else if(event==='tool_call')status(`Using ${value.name}…`);else if(event==='tool_result')status('Media extracted; generating the answer…');else if(event==='text_delta'){answer+=value.delta;renderMarkdown(view.text,answer);$('chat').scrollTop=$('chat').scrollHeight}else if(event==='audio_chunk')await playAudioChunk(value.audio);else if(event==='done')done=value;else if(event==='error')throw Error(value.message||JSON.stringify(value))}}if(!done)throw Error('The stream ended without a done event.');await appendFinalAssistantMedia(view);showAgentStep(null);resetInput();status('Ready. The reply streamed live and its audio was saved as one final voice note.');return done}
-$('send').onclick=async()=>{if(recording)await stopRecording();if(ttsVoiceRecording)await stopTtsVoiceRecording();let typed=$('text').value.trim();if(!typed&&!voiceBlob&&!selectedFiles.length){status('Add text, a voice note, or attachments first.');return}let useReference=voiceBlob&&$('ttsVoiceMode').value==='reference',referenceText=$('ttsVoiceText').value.trim();if(useReference&&(!ttsVoiceBlob||!referenceText)){status('Custom TTS voice requires a reference clip and its exact transcript.');openSettings(true);return}let title=typed||(voiceBlob?'Voice conversation':selectedFiles[0]?.name||'Media conversation');ensureSession(title);let outgoingMedia=currentInputMedia();bubble('user',typed,'','',outgoingMedia);$('send').disabled=true;$('agentState').textContent='working';showAgentStep('receiving_input');status.transcript='';try{if($('streamMode').checked&&voiceBlob){playbackCtx??=new AudioContext();await playbackCtx.resume()}let f=new FormData();f.append('session_id',sessionId);f.append('text',typed);f.append('llm_model',model('llm'));f.append('vlm_model',model('vlm'));f.append('asr_model',model('asr'));f.append('tts_model',model('tts'));if(voiceBlob)f.append('voice',voiceBlob,'voice.wav');if(useReference){f.append('tts_voice',ttsVoiceBlob,'tts-reference.wav');f.append('tts_voice_text',referenceText)}for(let file of await uploadFiles())f.append('files',file,file.name);status('Uploading → transcribing → agent tools → answering…');if($('streamMode').checked){await streamAgent(f)}else{let r=await fetch('/api/agent/chat',{method:'POST',body:f}),j=await r.json();if(!r.ok)throw Error(j.error?.message||JSON.stringify(j));bubble('assistant',j.answer,'',j.audio||'');resetInput();status('Ready. Non-stream mode waited for one final JSON response.')}}catch(e){bubble('assistant','ERROR: '+e.message);status('ERROR: '+e.message)}finally{showAgentStep(null);$('send').disabled=false;$('agentState').textContent='ready'}};
+async function appendFinalAssistantMedia(view){let response=await requireOk(await apiFetch('/api/agent/session/'+encodeURIComponent(sessionId))),session=await response.json();let messages=session.messages||[],index=messages.length-1,message=messages[index];if(!message||message.role!=='assistant')return;let items=storedMedia(message,index);if(!items.length)return;view.box.querySelectorAll(':scope > .media-strip').forEach(node=>node.remove());let strip=mediaStrip(items);if(strip)view.box.appendChild(strip)}
+async function streamAgent(form){let r=await requireOk(await apiFetch('/api/agent/chat/stream',{method:'POST',body:form}));let view=bubble('assistant',''),reader=r.body.getReader(),decoder=new TextDecoder(),pending='',answer='',done=null;playbackCursor=0;while(true){let part=await reader.read();if(part.done)break;pending+=decoder.decode(part.value,{stream:true});for(;;){let end=pending.indexOf('\n\n');if(end<0)break;let block=pending.slice(0,end).replace(/\r/g,''),event='message',data='';pending=pending.slice(end+2);for(let line of block.split('\n')){if(line.startsWith('event:'))event=line.slice(6).trim();else if(line.startsWith('data:'))data+=line.slice(5).trim()}if(!data)continue;let value=JSON.parse(data);if(event==='state'){$('agentState').textContent=value.state.replaceAll('_',' ');showAgentStep(value.state)}else if(event==='transcript_delta')status('ASR: '+(status.transcript=(status.transcript||'')+value.delta));else if(event==='tool_call')status(`Using ${value.name}…`);else if(event==='tool_result')status('Media extracted; generating the answer…');else if(event==='text_delta'){answer+=value.delta;renderMarkdown(view.text,answer);$('chat').scrollTop=$('chat').scrollHeight}else if(event==='audio_chunk')await playAudioChunk(value.audio);else if(event==='done')done=value;else if(event==='error')throw Error(value.message||JSON.stringify(value))}}if(!done)throw Error('The stream ended without a done event.');await appendFinalAssistantMedia(view);showAgentStep(null);resetInput();status('Ready. The reply streamed live and its audio was saved as one final voice note.');return done}
+$('send').onclick=async()=>{if(recording)await stopRecording();if(ttsVoiceRecording)await stopTtsVoiceRecording();let typed=$('text').value.trim();if(!typed&&!voiceBlob&&!selectedFiles.length){status('Add text, a voice note, or attachments first.');return}let useReference=voiceBlob&&$('ttsVoiceMode').value==='reference',referenceText=$('ttsVoiceText').value.trim();if(useReference&&(!ttsVoiceBlob||!referenceText)){status('Custom TTS voice requires a reference clip and its exact transcript.');openSettings(true);return}let title=typed||(voiceBlob?'Voice conversation':selectedFiles[0]?.name||'Media conversation');ensureSession(title);let outgoingMedia=currentInputMedia();bubble('user',typed,'','',outgoingMedia);$('send').disabled=true;$('agentState').textContent='working';showAgentStep('receiving_input');status.transcript='';try{if($('streamMode').checked&&voiceBlob){playbackCtx??=new AudioContext();await playbackCtx.resume()}let f=new FormData();f.append('session_id',sessionId);f.append('text',typed);f.append('llm_model',model('llm'));f.append('vlm_model',model('vlm'));f.append('asr_model',model('asr'));f.append('tts_model',model('tts'));if(voiceBlob)f.append('voice',voiceBlob,'voice.wav');if(useReference){f.append('tts_voice',ttsVoiceBlob,'tts-reference.wav');f.append('tts_voice_text',referenceText)}for(let file of await uploadFiles())f.append('files',file,file.name);status('Uploading → transcribing → agent tools → answering…');if($('streamMode').checked){await streamAgent(f)}else{let r=await requireOk(await apiFetch('/api/agent/chat',{method:'POST',body:f})),j=await r.json();bubble('assistant',j.answer,'',j.audio||'');resetInput();status('Ready. Non-stream mode waited for one final JSON response.')}}catch(e){bubble('assistant','ERROR: '+e.message);status('ERROR: '+e.message)}finally{showAgentStep(null);$('send').disabled=false;$('agentState').textContent='ready'}};
 init().catch(e=>status('ERROR: '+e));
 </script></html>"""
 
@@ -192,6 +203,7 @@ textarea{width:calc(100% - 1.4rem);min-height:7rem}button{cursor:pointer;margin:
 <div id="status" class="status">Loading models…</div>
 <script>
 const $=id=>document.getElementById(id); let ctx,stream,node,chunks=[],wavBlob,recording=false,pipelineArmed=false,modelRows=[];
+const apiFetch=(url,options={})=>{let headers=new Headers(options.headers||{}),key=sessionStorage.getItem('micaApiKey')||'';if(key)headers.set('X-Mica-API-Key',key);return fetch(url,{...options,headers})};
 const status=x=>$('status').textContent=x;
 const baseId=x=>x.id.includes('@')?x.id.slice(0,x.id.lastIndexOf('@')):x.id;
 function fillQuant(prefix,preferred){let base=$(prefix).value,q=$(prefix+'Quant'),rows=modelRows.filter(x=>baseId(x)===base);q.innerHTML='';
@@ -200,7 +212,7 @@ function fillQuant(prefix,preferred){let base=$(prefix).value,q=$(prefix+'Quant'
 function fillCapability(prefix,cap,preferred){let s=$(prefix),bases=[...new Set(modelRows.filter(x=>x.capability===cap).map(baseId))];s.innerHTML='';
  bases.forEach(x=>s.add(new Option(x,x)));s.onchange=()=>fillQuant(prefix,preferred);fillQuant(prefix,preferred)}
 const selectedModel=prefix=>$(prefix+'Quant').value;
-async function models(){let r=await fetch('/api/models'),j=await r.json();if(!r.ok)throw Error(JSON.stringify(j));modelRows=j.data||[];
+async function models(){let r=await apiFetch('/api/models'),j=await r.json();if(!r.ok)throw Error(j.error?.message||'API key required. Open the main chat settings.');modelRows=j.data||[];
  fillCapability('asr','asr','q4');fillCapability('llm','text','q4');fillCapability('tts','tts','q8');
  status(`Ready. ${modelRows.length} model variants visible. TTS prefers Q8.`)}
 function encodeWav(parts,rate){let n=parts.reduce((a,x)=>a+x.length,0),b=new ArrayBuffer(44+n*2),v=new DataView(b),o=0;
@@ -216,12 +228,12 @@ async function stopRecording(){if(!recording)throw Error('Microphone is not reco
 $('start').onclick=()=>startRecording().catch(e=>status('ERROR: '+e));
 $('stop').onclick=()=>stopRecording().then(()=>{pipelineArmed=false;$('pipeline').textContent='Start full pipeline'}).catch(e=>status('ERROR: '+e));
 async function transcribe(){if(!wavBlob)throw Error('Record audio first.');let f=new FormData();f.append('model',selectedModel('asr'));f.append('file',wavBlob,'microphone.wav');
- status('Transcribing…');let r=await fetch('/api/transcribe',{method:'POST',body:f}),j=await r.json();if(!r.ok)throw Error(JSON.stringify(j));$('transcript').value=j.text||'';return $('transcript').value}
+ status('Transcribing…');let r=await apiFetch('/api/transcribe',{method:'POST',body:f}),j=await r.json();if(!r.ok)throw Error(j.error?.message||JSON.stringify(j));$('transcript').value=j.text||'';return $('transcript').value}
 async function chat(){let text=$('transcript').value.trim();if(!text)throw Error('Transcript/text is empty.');status('Generating response…');
- let r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:selectedModel('llm'),messages:[{role:'user',content:text}],temperature:0,max_tokens:512,stream:false})});
+ let r=await apiFetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:selectedModel('llm'),messages:[{role:'user',content:text}],temperature:0,max_tokens:512,stream:false})});
  let j=await r.json();if(!r.ok)throw Error(JSON.stringify(j));$('answer').value=j.choices?.[0]?.message?.content||'';return $('answer').value}
 async function speak(){let text=$('answer').value.trim();if(!text)throw Error('Model response is empty.');status('Synthesizing speech…');
- let r=await fetch('/api/speech',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:selectedModel('tts'),input:text,response_format:'wav'})});
+ let r=await apiFetch('/api/speech',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:selectedModel('tts'),input:text,response_format:'wav'})});
  if(!r.ok)throw Error(await r.text());let b=await r.blob();$('audio').src=URL.createObjectURL(b);await $('audio').play();status(`Complete. Generated ${(b.size/1024).toFixed(1)} KiB WAV.`)}
 for(let [id,fn] of [['transcribe',transcribe],['chat',chat],['speak',speak]])$(id).onclick=()=>fn().catch(e=>status('ERROR: '+e));
 $('pipeline').onclick=async()=>{if(!pipelineArmed){try{await startRecording();pipelineArmed=true;$('pipeline').textContent='Stop & run ASR → LLM → TTS';status('Full pipeline recording. Click the same button when you finish speaking.')}catch(e){status('ERROR: '+e)}return}
@@ -240,14 +252,15 @@ textarea{display:block;width:calc(100% - 1.4rem);min-height:8rem;margin:.8rem 0}
 <textarea id="prompt">Describe the media accurately and preserve chronological order for video.</textarea>
 <button id="send">Analyze media</button><pre id="output">Loading models…</pre>
 <script>const $=x=>document.getElementById(x);let rows=[];const baseId=x=>x.id.includes('@')?x.id.slice(0,x.id.lastIndexOf('@')):x.id;
+const apiFetch=(url,options={})=>{let headers=new Headers(options.headers||{}),key=sessionStorage.getItem('micaApiKey')||'';if(key)headers.set('X-Mica-API-Key',key);return fetch(url,{...options,headers})};
 function quants(){let q=$('quant'),base=$('model').value,found=rows.filter(x=>baseId(x)===base);q.innerHTML='';found.forEach(x=>q.add(new Option(`${x.quantization.toUpperCase()} · ${x.backend.toUpperCase()} · ${x.state}`,x.id)));let preferred=found.findIndex(x=>x.quantization==='q4');if(preferred>=0)q.selectedIndex=preferred}
-async function init(){let r=await fetch('/api/models'),j=await r.json();if(!r.ok)throw Error(JSON.stringify(j));rows=(j.data||[]).filter(x=>x.capability==='vision');
+async function init(){let r=await apiFetch('/api/models'),j=await r.json();if(!r.ok)throw Error(j.error?.message||'API key required. Open the main chat settings.');rows=(j.data||[]).filter(x=>x.capability==='vision');
  [...new Set(rows.map(baseId))].forEach(x=>$('model').add(new Option(x,x)));$('model').onchange=quants;quants();$('output').textContent='Ready.'}
 function uri(f){return new Promise((ok,no)=>{let r=new FileReader();r.onload=()=>ok(r.result);r.onerror=no;r.readAsDataURL(f)})}
 $('send').onclick=async()=>{try{let f=$('file').files[0];if(!f)throw Error('Choose an image or video.');$('output').textContent='Running inference…';
  let u=await uri(f),video=f.type.startsWith('video/'),media=video?{type:'input_video',input_video:{data:u}}:{type:'image_url',image_url:{url:u}};
  let body={model:$('quant').value,messages:[{role:'user',content:[media,{type:'text',text:$('prompt').value}]}],temperature:0,max_tokens:1024,stream:false};
- let r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),j=await r.json();
+ let r=await apiFetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),j=await r.json();
  if(!r.ok)throw Error(JSON.stringify(j));$('output').textContent=j.choices?.[0]?.message?.content||JSON.stringify(j,null,2)}catch(e){$('output').textContent='ERROR: '+e}};init().catch(e=>$('output').textContent='ERROR: '+e);
 </script></html>"""
 
@@ -264,6 +277,28 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
+
+    def _api_key(self) -> str:
+        return self.headers.get("X-Mica-API-Key", "").strip() or self.server.api_key
+
+    def _authorization_headers(self, content_type: str | None = None) -> dict[str, str] | None:
+        api_key = self._api_key()
+        if not api_key:
+            self._send(
+                401,
+                "application/json",
+                json.dumps({
+                    "error": {
+                        "code": "api_key_required",
+                        "message": "Mica API key required. Enter it in Settings.",
+                    }
+                }).encode(),
+            )
+            return None
+        headers = {"Authorization": f"Bearer {api_key}"}
+        if content_type:
+            headers["Content-Type"] = content_type
+        return headers
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path in ("/", "/chat"):
@@ -311,9 +346,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def _proxy(self, method: str, path: str, body: bytes,
                content_type: str | None) -> None:
-        headers = {"Authorization": f"Bearer {self.server.api_key}"}
-        if content_type:
-            headers["Content-Type"] = content_type
+        headers = self._authorization_headers(content_type)
+        if headers is None:
+            return
         request = urllib.request.Request(
             self.server.mica_url + path, data=body if method == "POST" else None,
             headers=headers, method=method,
@@ -331,12 +366,12 @@ class Handler(BaseHTTPRequestHandler):
                        json.dumps({"error": str(error)}).encode())
 
     def _proxy_stream(self, path: str, body: bytes, content_type: str) -> None:
+        headers = self._authorization_headers(content_type)
+        if headers is None:
+            return
         request = urllib.request.Request(
             self.server.mica_url + path, data=body,
-            headers={
-                "Authorization": f"Bearer {self.server.api_key}",
-                "Content-Type": content_type,
-            },
+            headers=headers,
             method="POST",
         )
         try:
@@ -366,22 +401,71 @@ class Handler(BaseHTTPRequestHandler):
         print(f"{self.address_string()} - {fmt % args}")
 
 
+def load_config(path: Path) -> dict:
+    if not path.is_file():
+        return {}
+    document = json.loads(path.read_text())
+    if not isinstance(document, dict):
+        raise ValueError(f"config must contain a JSON object: {path}")
+    return document
+
+
+def configured_key(args: argparse.Namespace, config: dict) -> str:
+    ui = config.get("ui", {})
+    if not isinstance(ui, dict):
+        raise ValueError("server config field 'ui' must be an object")
+    if args.api_key is not None:
+        return args.api_key.strip()
+    if args.api_key_file is not None:
+        configured_file = args.api_key_file
+    else:
+        direct = ui.get("api_key", config.get("api_key", ""))
+        if direct:
+            return str(direct).strip()
+        configured_file = ui.get("api_key_file", config.get(
+            "api_key_file", "~/.mica/secrets/api-key"))
+    key_file = Path(str(configured_file)).expanduser()
+    return key_file.read_text().strip() if key_file.is_file() else ""
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8090)
-    parser.add_argument("--mica-url", default="http://127.0.0.1:8080")
-    parser.add_argument("--api-key-file", type=Path,
-                        default=Path.home() / "models/mica-server/api-key")
+    parser.add_argument("--config", type=Path,
+                        default=Path.home() / ".mica/config/server.json")
+    parser.add_argument("--host")
+    parser.add_argument("--port", type=int)
+    parser.add_argument("--mica-url")
+    parser.add_argument("--api-key",
+                        help="Fallback API key (prefer --api-key-file to avoid shell history)")
+    parser.add_argument("--api-key-file", type=Path)
     parser.add_argument("--timeout", type=int, default=3600)
     args = parser.parse_args()
-    server = ThreadingHTTPServer((args.host, args.port), Handler)
-    server.mica_url = args.mica_url.rstrip("/")
-    server.api_key = args.api_key_file.read_text().strip()
+    config = load_config(args.config.expanduser())
+    ui = config.get("ui", {})
+    if not isinstance(ui, dict):
+        raise ValueError("server config field 'ui' must be an object")
+    host = args.host or ui.get("host", "127.0.0.1")
+    port = args.port or int(ui.get("port", 8090))
+    if args.mica_url:
+        mica_url = args.mica_url
+    elif ui.get("mica_url"):
+        mica_url = ui["mica_url"]
+    elif config.get("host") or config.get("port"):
+        target_host = config.get("host", "127.0.0.1")
+        if target_host in ("0.0.0.0", "::"):
+            target_host = "127.0.0.1"
+        mica_url = f"http://{target_host}:{int(config.get('port', 8080))}"
+    else:
+        mica_url = "http://127.0.0.1:8080"
+    server = ThreadingHTTPServer((host, port), Handler)
+    server.mica_url = str(mica_url).rstrip("/")
+    server.api_key = configured_key(args, config)
     server.timeout = args.timeout
-    print(f"Voice:      http://{args.host}:{args.port}/voice")
-    print(f"Multimodal: http://{args.host}:{args.port}/multimodal")
-    print(f"Agent chat: http://{args.host}:{args.port}/chat")
+    print(f"Voice:      http://{host}:{port}/voice")
+    print(f"Multimodal: http://{host}:{port}/multimodal")
+    print(f"Agent chat: http://{host}:{port}/chat")
+    if not server.api_key:
+        print("Authentication: API key required in Chat Settings")
     server.serve_forever()
     return 0
 

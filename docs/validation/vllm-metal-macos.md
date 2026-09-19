@@ -7,7 +7,7 @@ catalog models remain disabled for vLLM-Metal
 
 ## Runtime and memory policy
 
-The installed isolated environment is `$MICA_ROOT/environment-vllm`
+The installed isolated environment is `$MICA_ROOT/environments/vllm`
 and occupies approximately 1.6 GiB on disk. The resolved packages were:
 
 | Package | Version |
@@ -97,4 +97,3 @@ Primary upstream references:
 - <https://docs.vllm.ai/projects/vllm-metal/en/stable/installation/>
 - <https://docs.vllm.ai/projects/vllm-metal/en/stable/configuration/>
 - <https://github.com/vllm-project/vllm-metal/blob/main/docs/supported_models.md>
-

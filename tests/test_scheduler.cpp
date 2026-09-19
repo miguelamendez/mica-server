@@ -22,10 +22,17 @@ int main() {
          "miguelamendez/mica-spark-x25-4b");
   assert(!spark.description.empty());
   assert(!spark.tags.empty());
+  assert(spark.catalog_visible);
   assert(spark.gguf_context_tokens == 8192);
   assert(spark.gguf_parallel_slots == 4);
   assert(spark.artifacts.at(mica::Backend::mlx).at(mica::Quantization::q4)
              .repository_pattern == "mlx/q4");
+  assert(spark.artifacts.at(mica::Backend::mlx).at(mica::Quantization::q4)
+             .engine == "mlx-lm");
+  assert(spark.artifacts.at(mica::Backend::mlx).at(mica::Quantization::q4)
+             .quantization_type == "mlx-affine-q4-g64");
+  assert(spark.artifacts.at(mica::Backend::mlx).at(mica::Quantization::q4)
+             .size_bytes == 2327288292ULL);
   const auto& gguf_long = registry.profile("gguf-long");
   assert(gguf_long.backend == mica::Backend::gguf);
   assert(gguf_long.max_input_tokens == 16384);
@@ -79,11 +86,43 @@ int main() {
   assert(schema2_startup.reserved_gib > 7.29 &&
          schema2_startup.reserved_gib < 7.31);
   const auto& vllm_control = registry.model("vllm-qwen3-06b-control");
+  assert(!vllm_control.catalog_visible);
   assert(vllm_control.artifacts.at(mica::Backend::vllm)
              .at(mica::Quantization::q4).supported);
   assert(mica::normalize_modality("tts") == "tts");
+  assert(mica::normalize_modality("video-text-to-text") == "img-text-to-text");
+  assert(mica::normalize_modality("image-video-to-text") == "img-text-to-text");
   assert(mica::modality_capability("text-to-text") == "text");
   assert(mica::modality_capability("img-text-to-text") == "vision");
+  {
+    const auto ledger = mica::registry_catalog(registry);
+    assert(ledger.at("schema") == 2);
+    assert(ledger.at("data").size() == 4);
+    const auto hidden = std::find_if(
+        ledger.at("data").begin(), ledger.at("data").end(), [](const auto& item) {
+          return item.value("id", "") == "vllm-qwen3-06b-control";
+        });
+    assert(hidden == ledger.at("data").end());
+    const auto spark_entry = std::find_if(
+        ledger.at("data").begin(), ledger.at("data").end(), [](const auto& item) {
+          return item.value("id", "") == "spark-x25-4b";
+        });
+    assert(spark_entry != ledger.at("data").end());
+    assert(spark_entry->at("description").is_string());
+    assert(spark_entry->at("license") == "apache-2.0");
+    assert(spark_entry->at("variants").at("mlx").at(0).contains(
+        "quantization_type"));
+    assert(spark_entry->at("variants").at("mlx").at(0).at("size_bytes")
+               .get<std::uint64_t>() > 0);
+  }
+  {
+    const auto audio_ledger = mica::registry_catalog(
+        registry, std::optional<std::string>{"tts"},
+        std::optional<mica::Backend>{mica::Backend::mlx}, false,
+        std::optional<std::string>{"mlx-audio"});
+    assert(audio_ledger.at("data").size() == 1);
+    assert(audio_ledger.at("data").at(0).at("id") == "audio8-tts-06b");
+  }
   assert(mica::parse_backend("vllm") == mica::Backend::vllm);
   assert(mica::parse_vllm_device("cpu") == mica::VllmDevice::cpu);
   assert(mica::parse_vllm_device("rocm") == mica::VllmDevice::rocm);
@@ -131,13 +170,14 @@ int main() {
 
   const auto custom_root = std::filesystem::temp_directory_path() /
                            ("mica-server-test-" + std::to_string(getpid()));
-  std::filesystem::create_directories(custom_root / "mica-server");
+  std::filesystem::create_directories(custom_root / "config");
+  std::filesystem::create_directories(custom_root / "state");
   {
-    std::ofstream custom(custom_root / "mica-server/custom-models.json");
+    std::ofstream custom(custom_root / "config/custom-models.json");
     custom << R"({"schema":1,"models":{"tiny-custom":{"id":"tiny-custom","source_repo":"owner/repo","source_url":"https://huggingface.co/owner/repo","modality":"text-to-text","capability":"text","license":"apache-2.0","description":"test","enabled":true,"variants":{"mlx":{"q4":{"status":"ready","artifact":"q4","reservation_gib":0.5}}}}}})";
   }
   {
-    std::ofstream runtime(custom_root / "mica-server/runtime.json");
+    std::ofstream runtime(custom_root / "state/runtime.json");
     runtime << R"({"installed_backends":["vllm"],"configured_models":{},"downloads":{}})";
   }
   mica::configure_vllm_custom_model({custom_root, "tiny-custom", 1.25, false});
