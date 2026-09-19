@@ -52,6 +52,28 @@ class PlaygroundAuthTests(unittest.TestCase):
             config = {"api_key": "config-token", "api_key_file": str(key_file)}
             self.assertEqual(PLAYGROUND.configured_key(args, config), "cli-token")
 
+    def test_chat_exposes_local_appearance_and_prompt_controls(self) -> None:
+        page = PLAYGROUND.CHAT_HTML
+        for control in (
+            'id="theme"',
+            'id="logoUpload"',
+            'id="logoReset"',
+            'id="llmSystemPrompt"',
+            'id="vlmSystemPrompt"',
+            'id="resetPrompts"',
+        ):
+            self.assertIn(control, page)
+        self.assertIn("f.append('llm_system_prompt'", page)
+        self.assertIn("f.append('vlm_system_prompt'", page)
+        self.assertIn("data-mica-logo", page)
+
+    def test_markdown_renderer_escapes_html_and_rejects_unsafe_links(self) -> None:
+        page = PLAYGROUND.CHAT_HTML
+        self.assertIn("const escapeHtml=", page)
+        self.assertIn("https?:\\/\\/|mailto:|\\/", page)
+        self.assertIn("host.querySelector('img')", page)
+        self.assertIn("host.querySelectorAll('a').length!==1", page)
+
 
 if __name__ == "__main__":
     unittest.main()

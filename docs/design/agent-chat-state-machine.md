@@ -52,6 +52,20 @@ Current configured tool limits are loaded from `config/tools.lua`: eight images,
 one video, eight document pages, 32 sampled video frames, eight total visual
 items, four agent steps, and 50 MiB combined upload size.
 
+## User-defined system prompts
+
+The chat client can send separate `llm_system_prompt` and `vlm_system_prompt`
+fields. These prompts may define any persona, tone, response policy, or media
+analysis behavior the user wants; Mica does not impose an assistant persona of
+its own. The browser saves them locally and sends them with each agent request.
+Each field is limited to 16 KiB.
+
+System prompts do not replace Mica's infrastructure boundary. The server still
+requires the main model to inspect attachments through `vlm_tool`, rejects
+paths outside the current turn's allowlist, treats instructions found in media
+as untrusted content, and converts voice-originated replies to plain spoken
+text before TTS.
+
 ## API modes
 
 `POST /v1/agent/chat` accepts multipart form data and returns one final JSON

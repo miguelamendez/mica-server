@@ -22,8 +22,8 @@ eviction behavior. Switch from an assistant profile to a coding profile without
 reinstalling Mica or deleting cached artifacts.
 
 The included local chat client supports text, voice, images, video, PDFs,
-streaming ASR/TTS, Markdown, voice references, session history, and ZIP
-import/export.
+streaming ASR/TTS, safe Markdown, voice references, custom system prompts,
+themes and branding, session history, and ZIP import/export.
 
 ## Why Mica
 
@@ -32,8 +32,8 @@ import/export.
 - Hardware-aware setup for Apple, NVIDIA, AMD, Intel, CPU, and TPU paths.
 - Deterministic RAM admission, warmup, lazy loading, idle eviction, and model
   swapping.
-- Schema-2 profiles that pin engine, artifact, context, batching, KV cache,
-  priority, and residency per model.
+- Profiles define which models run, which engine and quantization each uses,
+  their memory/context limits, and when Mica loads or unloads them.
 - Q4/Q8 model variants with provenance, sizes, memory reservations, and model
   cards in a filterable registry.
 - Native C++20 control plane and embedded Lua policy; Python exists only behind
@@ -133,7 +133,7 @@ troubleshooting.
 | --- | --- | --- |
 | `mica-assistant-mlx` | Four-model Apple Silicon assistant | Runnable |
 | `mica-assistant-gguf` | Portable native assistant with no Python | Runnable |
-| `mica-assistant-gptq` | Same four capabilities through vLLM/GPTQ | Blocked pending native certification |
+| `mica-assistant-gptq` | Planned four-capability vLLM/GPTQ profile | Awaiting native-hardware certification |
 
 List local or GitHub-hosted profiles:
 

@@ -138,12 +138,20 @@ these differences through `tts_voice` and `tts_voice_text` multipart fields.
 | `tts_model` | Reply voice model; defaults to Audio8. |
 | `tts_voice` | Optional voice-reference audio. |
 | `tts_voice_text` | Exact transcript required with `tts_voice`. |
+| `llm_system_prompt` | Optional main-assistant persona or behavior prompt. |
+| `vlm_system_prompt` | Optional media-analysis behavior prompt. |
+
+Each custom system prompt is limited to 16 KiB. Its content is otherwise
+user-defined. Mica independently retains its infrastructure contract: the LLM
+must route attached media through the bounded VLM tool, attachment paths remain
+allowlisted, and instructions found inside media are treated as untrusted data.
 
 ```sh
 curl "$MICA_BASE_URL/v1/agent/chat" \
   -H "Authorization: Bearer $MICA_API_KEY" \
   -F session_id=demo \
   -F text='Summarize the attachment.' \
+  -F llm_system_prompt='Answer concisely in Spanish.' \
   -F files=@document.pdf
 ```
 

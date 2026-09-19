@@ -566,7 +566,7 @@ install(DIRECTORY scripts/ DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/scri
         FILES_MATCHING PATTERN "*.py" PATTERN "__pycache__" EXCLUDE)
 install(FILES profiles/catalog.json
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/profiles)
-install(DIRECTORY apps/ DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps
-        FILES_MATCHING PATTERN "*.py" PATTERN "*.svg" PATTERN "*.html")
+install(FILES apps/mica_playground.py apps/mica-logo.svg apps/mica-readme-header.svg
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps)
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/docs
         FILES_MATCHING PATTERN "*.md")
