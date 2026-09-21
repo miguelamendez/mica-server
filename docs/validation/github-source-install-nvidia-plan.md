@@ -1,6 +1,6 @@
 # GitHub source-install and NVIDIA validation plan
 
-Status: active; local release candidate in progress
+Status: active; Phase A complete, awaiting clean-host validation
 Created: 2026-09-20
 Target: user-provided Linux/NVIDIA validation host
 Installation source: a clean clone of the public Mica GitHub repository
@@ -153,7 +153,7 @@ Upstream references:
 - [x] Add automated positive and negative tests for all preceding behavior.
 - [x] Update README, installation, profile, model, engine, and API docs.
 - [x] Build with two jobs and pass the complete local suite.
-- [ ] Commit and push the exact candidate to GitHub.
+- [x] Commit and push the exact candidate to GitHub.
 
 ### Phase B — clean GitHub installation
 
@@ -237,6 +237,9 @@ Append one row immediately after every step, including failed commands.
 | 2026-09-20 23:36 | A3 | working tree | Retry API-auth with local loopback access | Authentication integration passes | Passed in 0.24 seconds; aggregate result 60/60 | Pass | F-005 |
 | 2026-09-20 23:36 | Repository attribution | `c4f6dd5` | Inspect Git history and GitHub's public contributors API | Only the intended GitHub account is attributed | Reachable history and the REST contributor list contain only `miguelamendez`, but the repository homepage still displays stale pre-rewrite `miguel-flowstate` attribution | Pending cache refresh | F-011 |
 | 2026-09-20 23:42 | Repository attribution | `c4f6dd5` | Trace stale contributor identity | Identify whether an active ref still contains the old author | No branch or tag contains it; unreachable pre-rewrite commits used `miguel@flowstatehq.com`, which explains the cached account association | Pass | F-011 |
+| 2026-09-21 17:51 | A4 | `d8f3fb1` | First candidate push | Push with the intended repository owner | macOS's cached Git credential attempted the push as `miguel-flowstate`; GitHub rejected it with HTTP 403 | Fail, corrected | F-012 |
+| 2026-09-21 17:51 | A4 | `d8f3fb1` | Authenticate `miguelamendez` alongside the existing account and retry with a command-scoped credential helper | Push without removing or globally replacing the other account | Push succeeded; both keyring accounts remain registered | Pass | F-012 |
+| 2026-09-21 17:51 | A4 | `d8f3fb1` | Verify public `main` through Git and GitHub REST | Remote SHA and attribution match the tested candidate | Public `main` resolves to `d8f3fb1c6cde918a4d228791360994681fb261ec`, authored and committed by `miguelamendez` | Pass | — |
 
 ## Findings ledger
 
@@ -254,17 +257,18 @@ the fix is committed and the relevant step has been rerun successfully.
 
 | ID | Category | Severity | Status | Step | Observation | Required correction | Fix commit | Retest evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| F-001 | IMPL | high | Open (fixed locally) | A1 | Profile structure was enforced in several C++/Lua locations but had no standalone authoritative schema. | Schema 3 document, strict native validation, packaging, and round-trip tests are present; commit after the complete local candidate passes. | — | Focused schema tests pass. |
-| F-002 | DOC | high | Open (fixed locally) | A1 | README and profile documentation described shareable profiles as JSON. | Documentation now uses schema-3 YAML and states that JSON profile files are rejected; commit after the complete local candidate passes. | — | Stale-reference scan is clean except an intentional runtime-state migration comment. |
-| F-003 | IMPL | high | Open (fixed locally) | A | Quantization was a closed Q4/Q8/native enum, which could not honestly represent PQ2_0. | Artifact variants now use validated open identifiers; production quantization remains explicitly limited to Q4/Q8 while exact pre-packed variants such as `pq2_0` are downloaded. | — | Dynamic-variant unit test and exact Bonsai registry test pass. |
-| F-004 | IMPL | high | Open (fixed locally) | A | Engine selection contained hard-coded mappings for known engines. | Engine descriptors now carry source, revision, installer, launcher, runtime directory, build targets, formats, and hardware support; Bonsai requires the isolated Prism descriptor. | — | CPU/CUDA setup plans select the pinned Prism runtime only; mismatched engine/artifact policies are rejected. |
+| F-001 | IMPL | high | Closed | A1 | Profile structure was enforced in several C++/Lua locations but had no standalone authoritative schema. | Schema 3 document, strict native validation, packaging, and round-trip tests are present. | `d8f3fb1` | Focused schema tests pass. |
+| F-002 | DOC | high | Closed | A1 | README and profile documentation described shareable profiles as JSON. | Documentation now uses schema-3 YAML and states that JSON profile files are rejected. | `d8f3fb1` | Stale-reference scan is clean except an intentional runtime-state migration comment. |
+| F-003 | IMPL | high | Closed | A | Quantization was a closed Q4/Q8/native enum, which could not honestly represent PQ2_0. | Artifact variants now use validated open identifiers; production quantization remains explicitly limited to Q4/Q8 while exact pre-packed variants such as `pq2_0` are downloaded. | `d8f3fb1` | Dynamic-variant unit test and exact Bonsai registry test pass. |
+| F-004 | IMPL | high | Closed | A | Engine selection contained hard-coded mappings for known engines. | Engine descriptors now carry source, revision, installer, launcher, runtime directory, build targets, formats, and hardware support; Bonsai requires the isolated Prism descriptor. | `d8f3fb1` | CPU/CUDA setup plans select the pinned Prism runtime only; mismatched engine/artifact policies are rejected. |
 | F-005 | ENV | low | Closed | A1 | The managed local sandbox did not permit the API-auth test's loopback listener to remain active. | Retry the same test with explicit local loopback permission; no product change required. | N/A | Passed outside the network sandbox in 0.24 seconds. |
-| F-006 | UX | low | Open (fixed locally) | A1 | Generated YAML placed `schema: 3` after the models because the intermediate document map sorts keys. | Emit top-level profile keys in contract order while retaining deterministic ordering elsewhere. | — | Retry begins with `schema: 3`, then `id`, and revalidates successfully. |
-| F-007 | BUG | high | Open (fixed locally) | A2 | Auto placement treated Apple unified memory as a dedicated VRAM pool when deriving setup limits. | Resolve the physical device first; charge Metal/shared accelerators only to RAM and discrete accelerators to RAM plus VRAM. | — | Unit coverage passes for Metal, CUDA, CPU, and mixed reservations. |
-| F-008 | BUG | high | Open (fixed locally) | A2 | VRAM pressure could evict a CPU-only worker even though doing so releases no VRAM. | Filter eviction candidates to workers that release a constrained pool while retaining TTL, residency, priority, and LRU ordering. | — | Scheduling code now excludes zero-relief candidates; real pressure test remains in Phase D. |
-| F-009 | BUG | medium | Open (fixed locally) | A2 | Logical accelerator placement did not consistently translate ROCm/XPU hardware into native-engine HIP/SYCL/Vulkan targets or their visibility variables. | Centralize placement resolution and map physical runtime to the selected engine target. | — | Unit assertions pass for CUDA, ROCm/HIP, XPU/SYCL, XPU/Vulkan, and Metal. |
+| F-006 | UX | low | Closed | A1 | Generated YAML placed `schema: 3` after the models because the intermediate document map sorts keys. | Emit top-level profile keys in contract order while retaining deterministic ordering elsewhere. | `d8f3fb1` | Retry begins with `schema: 3`, then `id`, and revalidates successfully. |
+| F-007 | BUG | high | Closed | A2 | Auto placement treated Apple unified memory as a dedicated VRAM pool when deriving setup limits. | Resolve the physical device first; charge Metal/shared accelerators only to RAM and discrete accelerators to RAM plus VRAM. | `d8f3fb1` | Unit coverage passes for Metal, CUDA, CPU, and mixed reservations. |
+| F-008 | BUG | high | Closed | A2 | VRAM pressure could evict a CPU-only worker even though doing so releases no VRAM. | Filter eviction candidates to workers that release a constrained pool while retaining TTL, residency, priority, and LRU ordering. | `d8f3fb1` | Scheduling code now excludes zero-relief candidates; real pressure test remains in Phase D. |
+| F-009 | BUG | medium | Closed | A2 | Logical accelerator placement did not consistently translate ROCm/XPU hardware into native-engine HIP/SYCL/Vulkan targets or their visibility variables. | Centralize placement resolution and map physical runtime to the selected engine target. | `d8f3fb1` | Unit assertions pass for CUDA, ROCm/HIP, XPU/SYCL, XPU/Vulkan, and Metal. |
 | F-010 | EVIDENCE | medium | Open | A2 | Admission currently has one aggregate discrete-VRAM pool even when hardware reports multiple GPUs. | Track reservations and limits per physical device before claiming multi-GPU hard-limit enforcement. | — | Single-device `accelerator:0` behavior is covered; multi-GPU target evidence is pending. |
 | F-011 | ENV | low | Open | A3 | GitHub's homepage contributor display still lists `miguel-flowstate` after the old author email was removed by a history rewrite. | Wait 24 hours from the force-push and recheck; if the UI remains stale, the repository owner must ask GitHub Support to refresh contributor data. | N/A | Main, the only tag, the commits API, and REST contributor list are clean; homepage verification is pending. |
+| F-012 | ENV | low | Closed | A4 | The first HTTPS push used a stale macOS credential for `miguel-flowstate` even though commit attribution and the remote owner were correct. | Authenticate `miguelamendez` without removing the other account and use the intended identity through a command-scoped credential helper. | N/A | Push and public SHA/author verification passed; both accounts remain in the keyring. |
 
 ## Measurements
 
