@@ -1,8 +1,15 @@
 # Models, quantization, and publishing
 
 Mica separates a logical model from its engine-specific artifacts. One model
-entry may describe MLX Q4/Q8 and GGUF Q4/Q8 variants, while a profile chooses
-exactly one engine and artifact for a running task.
+entry may describe MLX Q4/Q8 and GGUF Q4/Q8 variants, while an inference
+profile chooses exactly one engine and artifact for a running worker.
+
+An artifact is the complete immutable payload required for one model variant,
+not necessarily one file or one repository. For example, a vision GGUF
+artifact includes both the language weights and its matching `mmproj`. Other
+artifacts may include an MTP or DFlash drafter, tokenizer, processor, codec, or
+adapter files. Each component either inherits the artifact source or pins its
+own repository and immutable revision.
 
 ## Curated model ledger
 
@@ -24,6 +31,106 @@ profile subset is `GET /v1/models`.
 
 Internal route-validation fixtures are excluded from the public ledger and
 normal profile listings.
+
+## Artifact bundles
+
+Every artifact belongs to one logical model and records:
+
+- immutable repository and revision;
+- container/layout format and exact quantization or packing;
+- every required file with a semantic role;
+- byte size and SHA-256 for each file;
+- conservative resident-memory reservation;
+- compatible engine IDs and required engine features;
+- validation and provenance evidence.
+
+Semantic file roles currently planned include `model`, `vision-projector`,
+`mtp-drafter`, `dflash-drafter`, `tokenizer`, `processor`, `codec`, and
+`adapter`. The role tells the engine adapter how a component is used; its
+format tells the downloader and validator how it is stored. An MTP or DFlash
+drafter can therefore be sourced from a different Hugging Face repository in
+the same way that an `mmproj` can be sourced separately from its primary GGUF.
+
+An artifact-level `repository` and `revision` are defaults. A file may override
+them with a `source` block:
+
+```yaml
+artifacts:
+  q8_with_mtp:
+    repository: mica-ai/spark-x2.5-4b-gguf
+    revision: <immutable-primary-commit>
+    format: gguf
+    quantization: q8_0
+    files:
+      - role: model
+        path: spark-x2.5-4b-q8_0.gguf
+        size_bytes: <exact-size>
+        sha256: <sha256>
+      - role: mtp-drafter
+        source:
+          repository: upstream-or-mica/spark-x2.5-mtp
+          revision: <immutable-drafter-commit>
+        path: spark-x2.5-mtp-q8_0.gguf
+        size_bytes: <exact-size>
+        sha256: <sha256>
+    compatibility:
+      target_model: spark-x25-4b
+      target_revision: <compatible-target-commit>
+      tokenizer_sha256: <tokenizer-fingerprint>
+      vocabulary_size: <exact-vocabulary-size>
+      drafter_protocol: mtp
+      engines: [llama-cpp]
+      required_features: [mtp-speculative-decoding]
+```
+
+No floating branch names are accepted. Cross-repository components must also
+declare compatibility metadata such as the target model ID/revision,
+tokenizer fingerprint, vocabulary size, architecture, and drafter protocol.
+This prevents a plausible-looking but incompatible drafter from being loaded.
+
+The target record for Bonsai illustrates a multi-file artifact:
+
+```yaml
+artifacts:
+  pq2_0:
+    repository: prism-ml/Ternary-Bonsai-2-27B-gguf
+    revision: 6ed5e12bf84b7a63069882c91dd9e9218647d17b
+    format: gguf
+    quantization: PQ2_0
+    files:
+      - role: model
+        path: Ternary-Bonsai-2-27B-PQ2_0.gguf
+        size_bytes: 7206168928
+        sha256: 3907dc1658db1f78a9826bf8d5bcb8dc65db0d466388937af57f2294fae62ec1
+      - role: vision-projector
+        path: Ternary-Bonsai-2-27B-mmproj-BF16.gguf
+        size_bytes: 931145856
+        sha256: e287342d92332fa3577ed1d42e921dac9370c08da58ba9337fa450f6cc76cfd7
+    compatibility:
+      engines: [prism-llama-cpp]
+      required_features:
+        - prism-activation-transform
+        - vision-projector
+```
+
+The target downloader stages the complete bundle, verifies all files, and only
+then marks it ready. A successful model-weight download followed by a missing
+or invalid required projector or drafter is not an installed artifact. Partial
+downloads remain staging data and are never exposed to a worker. The current
+implementation verifies the primary file and dedicated projector field; the
+general multi-source bundle resolver remains implementation work.
+
+Required and optional components are distinct. A projector required for a VLM
+belongs to every runnable visual variant. A speculative drafter may instead be
+represented by a separate accelerated variant, such as `q8` and
+`q8_with_mtp`, so the base artifact remains loadable when the selected engine
+does not implement that speculative-decoding protocol.
+
+An engine's supported formats are only the first compatibility gate. Stock and
+Prism llama.cpp both read GGUF, but only Prism implements the transform required
+by Bonsai. Artifact requirements and engine features must match before setup or
+loading. See [System, engine, model, and inference
+profiles](engines-and-profiles.md).
 
 ## Curated assistant models
 

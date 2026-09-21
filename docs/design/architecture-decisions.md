@@ -1,7 +1,7 @@
 # mica-server architecture decisions
 
 Status: living design record  
-Last updated: 2026-09-18
+Last updated: 2026-09-21
 
 This document is the authoritative record for mica-server architecture and
 implementation status. The README explains how to use released behavior;
@@ -105,12 +105,15 @@ Hugging Face tooling, and PyTorch together. PyTorch is required for specific
 conversions such as Audio8 auxiliary `.pth` weights, not for every MLX server.
 The serving environment must be reduced and conversion dependencies moved out.
 
-## ADR-004: one versioned hardware profile drives all backends
+## ADR-004: one versioned system profile drives engine resolution
 
 Decision: **accepted; partial**.
 
-Before installation or compilation, native C++ detection produces
-`state/hardware-profile.json` with schema version 1. The profile records:
+Before installation or compilation, native C++ detection currently produces
+`state/hardware-profile.json` with schema version 1. The accepted public term
+is **system profile** because the record includes the operating system,
+toolchains, CPU, memory topology, and accelerators rather than hardware alone.
+It records:
 
 - OS, OS version, architecture, and WSL status;
 - CPU vendor, model, physical cores, and logical cores;
@@ -122,8 +125,14 @@ Before installation or compilation, native C++ detection produces
 - whether device memory is known, dedicated, unified, or unavailable;
 - available compiler/runtime tools such as Metal/Xcode, CUDA, ROCm/HIP, SYCL,
   Vulkan, CMake, and a C++ compiler;
-- selected device target for MLX, llama.cpp, audio.cpp, and vLLM;
-- build resource policy.
+- available compiler/runtime toolchains.
+
+Detected facts must remain separate from user policy and engine-specific
+syntax. A system profile must not contain llama.cpp CMake option names, Python
+package selections, preferred models, or a user runtime budget. The current
+schema still persists derived backend targets and build defaults for
+compatibility; the YAML system-profile migration moves those outputs into a
+separate resolved installation plan.
 
 `--hardware-profile PATH` loads a saved or synthetic profile for reproducible
 planning and CI. Detection occurs again on setup unless an explicit profile is
@@ -149,7 +158,7 @@ CUDA, AMD ROCm/HIP, Intel XPU/SYCL, TPU, and CPU profiles cover reproducible
 selection tests; GGUF CMake flags and vLLM device installers consume the same
 resolved hardware profile.
 
-## ADR-005: bounded native compilation
+## ADR-005: bounded, hardware-resolved native compilation
 
 Decision: **accepted; implemented as a conservative operational guard**.
 
@@ -168,6 +177,14 @@ observed during the first real build on every hardware family.
 
 Regression tests assert `--parallel 2`, the audio.cpp custom composite, and the
 expected per-profile CMake flags.
+
+The target resolver does not hard-code these limits inside every engine
+manifest. It combines logical CPU cores and available memory from the system
+profile, global user limits from server config or CLI, and an engine's minimum
+memory and estimated memory-per-job. Parallelism is bounded by the minimum of
+those constraints. Engine manifests own typed mappings such as Metal to
+`GGML_METAL`, CUDA to `GGML_CUDA`, and ROCm to `GGML_HIP`; the system profile
+only reports which runtimes and toolchains exist.
 
 ## ADR-006: current backend selection and future engine dispatch
 
@@ -414,21 +431,25 @@ slots, and KV-cache precision into llama.cpp. Observed process-memory hard
 enforcement remains a separate future gate—the scheduler currently performs
 reservation-based admission and engine allocator limits.
 
-## ADR-015: capability, artifact, engine, and profile are independent
+## ADR-015: system, artifact, engine, and inference policy are independent
 
-Decision: **accepted; implemented for current engines**.
+Decision: **accepted; partial while standalone manifests and general artifact
+bundles are migrated**.
 
-Mica keeps four concepts separate:
+Mica keeps five concepts separate:
 
 - **capability** describes the request/result contract, such as ASR, TTS,
   text-to-music, or lyrics-to-song;
-- **artifact** describes stored weights and precision, such as MLX Q4, GGUF
-  Q8_0, compressed-tensors, TFLite, or a TensorRT engine;
+- **system profile** contains generated machine facts such as OS, CPU, memory,
+  accelerators, memory topology, and available toolchains;
+- **artifact** is an immutable, possibly multi-file model payload with a
+  format, exact quantization, file roles, sizes, hashes, and engine-feature
+  requirements;
 - **engine** is the concrete runtime executable or worker, such as `mlx-lm`,
   `mlx-vlm`, `mlx-audio`, `llama-cpp`, `audio-cpp`, `vllm`, `sa3-mlx`, or
   `diffrhythm-pytorch`;
-- **profile** selects a model, exactly one engine, one compatible artifact, and
-  certified execution and residency limits.
+- **inference profile** selects a model, exactly one engine, one compatible
+  artifact, and certified execution and residency limits.
 
 An execution profile pins exactly one engine. Fallback between engines is not
 allowed inside a certified profile because latency, memory, output quality,
@@ -452,12 +473,35 @@ are implemented; observed-memory enforcement and broader failure-isolation
 tests remain open.
 
 Engine metadata is executable configuration, not documentation-only data. Each
-runnable descriptor declares its backend family, installer adapter, launcher
-adapter, device-target family, source and immutable revision where applicable,
-isolated runtime directory, executable, build targets, supported hardware, and
-artifact formats. The `prism-llama-cpp` descriptor validates this boundary: it
-shares the generic CMake/llama-server adapters but remains isolated from stock
+runnable descriptor declares its engine family, installer adapter, launcher
+adapter, source and immutable revision where applicable, isolated runtime or
+Python environment group, executable/module, build targets, typed platform and
+accelerator options, required toolchains, artifact formats, and runtime
+features. The `prism-llama-cpp` descriptor validates this boundary: it shares
+the generic CMake/llama-server adapters but remains isolated from stock
 llama.cpp at commit `9a9394a895b96003ca842a6041cb28ac49a108f7`.
+
+The descriptors currently reside in `config/profiles.lua`. The accepted target
+stores one schema-validated manifest per engine beneath `engines/`, with user
+extensions beneath `~/.mica/config/engines.d/`. A manifest may select typed
+installer operations; it may not contain arbitrary shell scripts. The system
+profile and requested placement select compatible platform, accelerator, and
+toolchain features, which are composed into a persisted installation plan.
+
+Artifacts own all files needed to load one variant. Primary weights, vision
+projectors, MTP/DFlash/classic drafters, tokenizers, processors, codecs, and
+adapters belong to the same artifact bundle when required together. A
+component may override the artifact's repository and immutable revision, so a
+separately published projector or drafter remains part of the consuming model
+variant. Downloads are staged and the entire pinned file set must pass size
+and SHA-256 verification before the artifact becomes loadable.
+
+Cross-repository speculative drafters must additionally match the target model
+revision or compatibility range, architecture, tokenizer fingerprint,
+vocabulary, and protocol. Optional acceleration is a separate artifact variant
+rather than a required component of the base variant. The current dedicated
+`path` and `projector` fields are a partial implementation of this general
+contract.
 
 Artifact variant IDs are validated open strings rather than a Q4/Q8/native
 enum. Quantization production remains deliberately restricted to Q4 and Q8;
@@ -487,9 +531,13 @@ family, but Mica's pinned build currently compiles only `granite5asr` and
 audio.cpp installation by default. Official optimized MLX, TFLite, and
 TensorRT profiles remain separate engines with independent evidence.
 
-`config/profiles.lua` schema 3 is the active engine registry and profile
-catalog. The existing `--backend` CLI remains a legacy compatibility surface;
-schema-3 profiles select their engine set directly.
+`config/profiles.lua` schema 3 remains the active engine registry during the
+migration. The existing `backend` field and `--backend` CLI are legacy
+compatibility surfaces, not target user-facing concepts; schema-3 profiles
+select their engine set directly.
+
+The complete resolution contract and implementation-status boundary are in
+`docs/engines-and-profiles.md`.
 
 ## ADR-016: one agent chat with ASR, VLM, and TTS utilities
 

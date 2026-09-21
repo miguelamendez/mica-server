@@ -16,10 +16,12 @@ and memory-aware load balancer for multiple inference engines. It makes a team
 of specialized models practical on consumer hardware without keeping every
 model resident at once.
 
-A profile defines the models needed for a task, the engine and quantization for
-each one, context/KV-cache policy, memory reservations, warmup priority, and
-eviction behavior. Switch from an assistant profile to a coding profile without
-reinstalling Mica or deleting cached artifacts.
+An inference profile defines the models needed for a task, the exact artifact
+and engine for each one, context/KV-cache policy, memory reservations, warmup
+priority, and eviction behavior. Mica combines it with a generated system
+profile, the engine registry, and the model/artifact registry. Switch from an
+assistant profile to a coding profile without reinstalling Mica or deleting
+cached artifacts.
 
 The included local chat client supports text, voice, images, video, PDFs,
 streaming ASR/TTS, safe Markdown, voice references, custom system prompts,
@@ -55,7 +57,51 @@ four-model assistant. Internal route fixtures are not presented as supported
 models. Provenance, context/training limits, protected quantization layers, and
 quality evidence live in the [model cards](docs/model-cards/).
 
-## Architecture
+## Profiling architecture
+
+Profiling and resolution are the core of Mica. Four separate layers answer four
+different questions:
+
+| Layer | Question |
+| --- | --- |
+| System profile | What OS, CPU, RAM, accelerators, memory topology, and toolchains does this machine have? |
+| Engine manifest | How can a concrete runtime be installed, built, verified, and launched on supported hardware? |
+| Model artifact | Which immutable weight files form this quantized model, and which engine features do they require? |
+| Inference profile | Which models should this task use, with what context, batching, placement, priority, and residency? |
+
+Artifacts are verified bundles rather than assumed single files. A vision GGUF
+artifact can include primary weights plus an `mmproj`; an artifact may also
+include a tokenizer, processor, codec, MTP drafter, or DFlash drafter. A
+component may come from a different pinned repository than the primary
+weights. The target resolver treats the bundle as usable only after every
+required file passes revision, size, and checksum validation.
+
+The inference profile is the root composition:
+
+```text
+generated system profile
+           │
+           ▼
+inference profile ──► model + artifact ──► engine manifest
+           │                                    │
+           └──────── memory/lifecycle ──────────┘
+                                                ▼
+                                      resolved model worker
+```
+
+Engine manifests own typed installation recipes and hardware-specific options;
+the system profile selects compatible platform and accelerator features. An
+engine manifest never owns model weights, and a downloaded profile cannot
+inject arbitrary shell commands.
+
+The current alpha already implements native hardware detection, schema-3 YAML
+inference profiles, per-model engines, multi-engine setup, and executable
+engine descriptors. Moving the remaining Lua engine descriptors and specialized
+artifact fields into standalone schema-validated YAML manifests is the next
+accepted architecture step. See [System, engine, model, and inference
+profiles](docs/engines-and-profiles.md) for the contract and current status.
+
+## Runtime architecture
 
 ```text
 OpenAI client / Mica chat
@@ -68,14 +114,14 @@ OpenAI client / Mica chat
           ▼
  profile-selected engine workers
   ├─ MLX: mlx-lm / mlx-vlm / mlx-audio
-  ├─ GGUF: llama.cpp / audio.cpp
+  ├─ native: llama.cpp / Prism llama.cpp / audio.cpp
   └─ vLLM: hardware-specific runtime (certification in progress)
 ```
 
-The proxy serves one engine family at a time, while each profile model declares
-its exact engine. Engines, environments, models, caches, state, logs, and
-secrets live under `~/.mica` by default. `MICA_HOME` changes that home, and
-`--root PATH` is the highest-priority override.
+One profile may use several engines simultaneously, while each model entry pins
+one exact engine and compatible artifact. Engines, environments, models,
+caches, state, logs, and secrets live under `~/.mica` by default. `MICA_HOME`
+changes that home, and `--root PATH` is the highest-priority override.
 
 ## Install
 
@@ -168,6 +214,7 @@ quantization types, formats, artifact sizes, and memory reservations. See
 | --- | --- |
 | [Getting started](docs/getting-started.md) | Releases, source builds, engines, chat, and `~/.mica` |
 | [Profiles](docs/profiles.md) | Model collections, memory policy, context, batching, and custom profiles |
+| [Profiling architecture](docs/engines-and-profiles.md) | System detection, engine manifests, multi-file artifacts, resolution, and inference profiles |
 | [API reference](docs/api.md) | Authentication, model discovery, chat, ASR, TTS, agent streaming, and sessions |
 | [Models](docs/models.md) | Registry, custom models, quantization, provenance, and Hugging Face publication |
 | [Development](docs/development.md) | Tests, benchmarks, release packaging, troubleshooting, and security |

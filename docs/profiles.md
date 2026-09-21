@@ -4,6 +4,19 @@ A Mica profile is a complete task environment. It selects the models needed for
 the task and tells Mica exactly how each model is installed, loaded, retained,
 and evicted.
 
+An inference profile is one layer of Mica's resolver, not an installation
+script. It composes:
+
+- a generated system profile containing detected machine facts;
+- engine manifests containing typed installation and launch recipes;
+- model records containing immutable, possibly multi-file artifacts; and
+- runtime policy containing context, batching, placement, memory, priority,
+  warmup, and eviction.
+
+The complete dependency graph, standalone engine-manifest target, and migration
+status are documented in [System, engine, model, and inference
+profiles](engines-and-profiles.md).
+
 Built-in profiles are written in Lua in
 [`config/profiles.lua`](../config/profiles.lua). Shareable and user-created
 profiles use schema-3 YAML. Installed files are kept in
@@ -31,9 +44,10 @@ Then reconcile the machine to it:
 ```
 
 `setup` detects the hardware, installs or compiles every missing engine named
-by the profile, and records each concrete model/backend/quantization selection.
-Model artifacts are downloaded on the first server start. Startup models are
-then warmed in priority order; on-demand models remain stopped until requested.
+by the profile, and records each concrete model/artifact/engine selection.
+Model artifact bundles are downloaded on the first server start. Startup models
+are then warmed in priority order; on-demand models remain stopped until
+requested.
 
 The default profile is `auto`: it resolves to `mica-assistant-mlx` on Apple
 Silicon and `mica-assistant-gguf` elsewhere. Supplying `--backend` or `--quant`
@@ -235,6 +249,17 @@ all dependency licenses. `trust_remote_code` is rejected. GGUF files require
 family adapter. MLX and vLLM entries likewise require the matching artifact
 format and an explicit engine.
 
+Schema 3 currently represents the primary file as `artifact.path` and an
+optional vision file as `artifact.projector`. The accepted successor contract
+generalizes this into `artifact.files`, where every file has a role, path, size,
+and SHA-256 value. Weights, `mmproj`, MTP or DFlash drafters, tokenizers,
+processors, codecs, and adapters then form one atomic artifact bundle. A file
+may override the artifact-level repository and revision when it is published
+separately. Mica must verify every required file and validate cross-repository
+drafter/model compatibility before making that artifact loadable. Optional
+speculative acceleration should be a separate artifact variant so the base
+model does not require the drafter.
+
 When optional values are omitted, Mica deliberately assumes conservative
 limits: 2,048 input tokens, 256 output tokens, one concurrent request, Q8 KV,
 and reservations of 4 GiB for Q4, 8 GiB for Q8, or 12 GiB for native weights
@@ -261,14 +286,21 @@ and endpoint contracts without changing existing profile documents or the
 proxy URL. The `backend` field and `--backend` flag remain only as compatibility
 grouping for the currently implemented runtime families.
 
+Built-in engine descriptors currently live in `config/profiles.lua`. The
+accepted migration moves them into schema-validated `engines/*.yaml` manifests
+and permits user additions under `~/.mica/config/engines.d/`. Profiles continue
+to reference only an engine ID; they never embed package-manager commands,
+CMake command lines, or arbitrary shell fragments.
+
 ## Execution fields
 
 | Field | Meaning |
 | --- | --- |
 | `model` | Stable model ID from the model registry. |
 | `engine` | Concrete runtime ID from the engine registry, such as `mlx-lm`, `llama-cpp`, `prism-llama-cpp`, `audio-cpp`, or `vllm`. |
-| `artifact.format` | Artifact family consumed by the engine. |
+| `artifact.format` | Artifact container/layout consumed by the engine; a format match alone does not prove architecture compatibility. |
 | `artifact.quantization` | Extensible lowercase artifact variant ID, such as `q4`, `q8`, `native`, or `pq2_0`. |
+| `artifact.files` | Target contract for all files in one atomic artifact bundle, including roles, sizes, and hashes. Schema 3 currently exposes `path` plus optional `projector`. |
 | `context` | Input, output, and combined token ceilings. |
 | `batching` | Concurrent requests and batched-token limits. |
 | `kv_cache.precision` | `q4`, `q8`, `auto`, `runtime-managed`, or `not-applicable`. |
