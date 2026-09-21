@@ -1,11 +1,11 @@
--- Runnable schema-2 engine, execution, and residency catalog.
+-- Runnable schema-3 engine, execution, placement, and residency catalog.
 --
 -- A task profile selects concrete execution profiles. Each execution fixes the
 -- engine/backend, artifact quantization, context, batching, and KV-cache policy.
 -- Each residency entry then defines startup, priority, pinning, and idle
 -- eviction. Setup installs only engines referenced by the selected profile.
 return {
-  schema = 2,
+  schema = 3,
 
   defaults = {
     validation = "certified",
@@ -19,29 +19,58 @@ return {
   -- referenced by the resolved execution profiles.
   engines = {
     ["mlx-lm"] = {
-      status = "current", install = "python-environment",
+      status = "current", backend = "mlx", installer = "python-mlx",
+      launcher = "mlx-lm", device_target = "mlx",
       hardware = {"apple-silicon"}, artifact_formats = {"mlx"},
     },
     ["mlx-vlm"] = {
-      status = "current", install = "python-environment",
+      status = "current", backend = "mlx", installer = "python-mlx",
+      launcher = "mlx-vlm", device_target = "mlx",
       hardware = {"apple-silicon"}, artifact_formats = {"mlx"},
     },
     ["mlx-audio"] = {
-      status = "current", install = "python-environment",
+      status = "current", backend = "mlx", installer = "python-mlx",
+      launcher = "mlx-audio", device_target = "mlx",
       hardware = {"apple-silicon"}, artifact_formats = {"mlx"},
     },
     ["llama-cpp"] = {
-      status = "current", install = "native-runtime",
+      status = "current", backend = "gguf", installer = "cmake-llama",
+      launcher = "llama-server", device_target = "gguf",
+      source_url = "https://github.com/ggml-org/llama.cpp.git",
+      revision = "latest", runtime_directory = "llama.cpp",
+      server_executable = "build-mica/bin/llama-server",
+      quantizer_executable = "build-mica/bin/llama-quantize",
+      build_targets = {"llama-server", "llama-quantize"},
+      version_arguments = {"--version"},
       hardware = {"cpu", "metal", "cuda", "rocm", "sycl", "vulkan"},
       artifact_formats = {"gguf"},
     },
     ["audio-cpp"] = {
-      status = "current", install = "native-runtime",
+      status = "current", backend = "gguf", installer = "cmake-audio",
+      launcher = "audio-server", device_target = "audio",
+      source_url = "https://github.com/0xShug0/audio.cpp.git",
+      revision = "latest", runtime_directory = "audio.cpp",
+      server_executable = "build-mica/bin/audiocpp_server",
+      quantizer_executable = "build-mica/bin/audiocpp_gguf",
+      build_targets = {"audiocpp_server", "audiocpp_gguf"},
+      version_arguments = {"--help"},
       hardware = {"cpu", "metal", "cuda", "rocm", "vulkan"},
       artifact_formats = {"gguf"},
     },
+    ["prism-llama-cpp"] = {
+      status = "candidate", backend = "gguf", installer = "cmake-llama",
+      launcher = "llama-server", device_target = "gguf",
+      source_url = "https://github.com/PrismML-Eng/llama.cpp.git",
+      revision = "9a9394a895b96003ca842a6041cb28ac49a108f7",
+      runtime_directory = "prism-llama.cpp",
+      server_executable = "build-mica/bin/llama-server",
+      build_targets = {"llama-server"}, version_arguments = {"--version"},
+      hardware = {"cpu", "metal", "cuda", "rocm", "sycl", "vulkan"},
+      artifact_formats = {"gguf"},
+    },
     ["vllm"] = {
-      status = "current", install = "python-environment",
+      status = "current", backend = "vllm", installer = "python-vllm",
+      launcher = "vllm", device_target = "vllm",
       hardware = {"cpu", "cuda", "rocm", "xpu", "tpu", "metal"},
       artifact_formats = {"safetensors", "compressed-tensors", "mlx"},
     },
@@ -287,6 +316,17 @@ return {
       batching = {max_concurrent_requests = 1, max_batch_tokens = 8192,
                   max_queued_requests = 8},
       kv_cache = {precision = "q4", scheme = "uniform", max_tokens = 8192},
+    },
+
+    ["bonsai-pq2-vision"] = {
+      model = "ternary-bonsai-2-27b", engine = "prism-llama-cpp",
+      status = "candidate",
+      artifact = {format = "gguf", quantization = "pq2_0"},
+      context = {max_input_tokens = 6144, max_output_tokens = 2048,
+                 max_total_tokens = 8192},
+      batching = {max_concurrent_requests = 1, max_batch_tokens = 8192,
+                  max_queued_requests = 4},
+      kv_cache = {precision = "q8", scheme = "uniform", max_tokens = 8192},
     },
 
     ["qwen-vllm-control"] = {
@@ -586,6 +626,78 @@ return {
       },
     },
 
+    -- Explicit processor-placement profiles used for heterogeneous host
+    -- validation. accelerator:0 resolves to the detected runtime (CUDA,
+    -- ROCm, XPU, or Metal) while preserving the physical device id.
+    ["mica-assistant-gguf-cpu"] = {
+      mode = "interactive-cpu",
+      maximum_ram_gib = 16,
+      maximum_vram_gib = 0,
+      memory_safety_reserve_gib = 0.5,
+      models = {
+        {id = "spark-x25-4b", execution = "spark-gguf-balanced-single",
+         placement = {mode = "fixed", device = "cpu", gpu_layers = 0},
+         residency = "pinned", priority = 100, startup = true},
+        {id = "granite-speech-5", execution = "granite-gguf-streaming-single",
+         placement = {mode = "fixed", device = "cpu", gpu_layers = 0},
+         residency = "warm", priority = 90, startup = true, idle_seconds = 600},
+        {id = "audio8-tts-06b", execution = "audio8-gguf-capacity-single",
+         placement = {mode = "fixed", device = "cpu", gpu_layers = 0},
+         residency = "warm", priority = 70, startup = true, idle_seconds = 180},
+        {id = "minicpm-v46-thinking", execution = "minicpm-gguf-vision-capacity",
+         placement = {mode = "fixed", device = "cpu", gpu_layers = 0},
+         residency = "on-demand", priority = 40, startup = false, idle_seconds = 30},
+      },
+    },
+
+    ["mica-assistant-gguf-gpu"] = {
+      mode = "interactive-gpu",
+      maximum_ram_gib = 8,
+      maximum_vram_gib = 16,
+      memory_safety_reserve_gib = 0.5,
+      models = {
+        {id = "spark-x25-4b", execution = "spark-gguf-balanced-single",
+         placement = {mode = "fixed", device = "accelerator:0", gpu_layers = 99,
+                      ram_reservation_gib = 0.5, vram_reservation_gib = 4.8},
+         residency = "pinned", priority = 100, startup = true},
+        {id = "granite-speech-5", execution = "granite-gguf-streaming-single",
+         placement = {mode = "fixed", device = "accelerator:0", gpu_layers = 99,
+                      ram_reservation_gib = 0.5, vram_reservation_gib = 0.9},
+         residency = "warm", priority = 90, startup = true, idle_seconds = 600},
+        {id = "audio8-tts-06b", execution = "audio8-gguf-capacity-single",
+         placement = {mode = "fixed", device = "accelerator:0", gpu_layers = 99,
+                      ram_reservation_gib = 0.5, vram_reservation_gib = 1.6},
+         residency = "warm", priority = 70, startup = true, idle_seconds = 180},
+        {id = "minicpm-v46-thinking", execution = "minicpm-gguf-vision-capacity",
+         placement = {mode = "fixed", device = "accelerator:0", gpu_layers = 99,
+                      ram_reservation_gib = 0.5, vram_reservation_gib = 2.2},
+         residency = "on-demand", priority = 40, startup = false, idle_seconds = 30},
+      },
+    },
+
+    ["mica-assistant-gguf-mixed"] = {
+      mode = "interactive-mixed",
+      maximum_ram_gib = 8,
+      maximum_vram_gib = 12,
+      memory_safety_reserve_gib = 0.5,
+      models = {
+        {id = "spark-x25-4b", execution = "spark-gguf-balanced-single",
+         placement = {mode = "fixed", device = "accelerator:0", gpu_layers = 99,
+                      ram_reservation_gib = 0.5, vram_reservation_gib = 4.8},
+         residency = "pinned", priority = 100, startup = true},
+        {id = "granite-speech-5", execution = "granite-gguf-streaming-single",
+         placement = {mode = "fixed", device = "cpu", gpu_layers = 0},
+         residency = "warm", priority = 90, startup = true, idle_seconds = 600},
+        {id = "audio8-tts-06b", execution = "audio8-gguf-capacity-single",
+         placement = {mode = "fixed", device = "cpu", gpu_layers = 0},
+         residency = "warm", priority = 70, startup = true, idle_seconds = 180},
+        {id = "minicpm-v46-thinking", execution = "minicpm-gguf-vision-capacity",
+         placement = {mode = "fixed", device = "accelerator:0", gpu_layers = 99,
+                      ram_reservation_gib = 0.5, vram_reservation_gib = 2.2},
+         residency = "on-demand", priority = 40, startup = false, idle_seconds = 30},
+      },
+    },
+
     ["gguf-quality-interactive"] = {
       mode = "interactive",
       maximum_ram_gib = 16,
@@ -658,6 +770,34 @@ return {
       models = {
         {id = "vllm-qwen3-06b-control", execution = "qwen-vllm-control",
          residency = "pinned", priority = 100, startup = true},
+      },
+    },
+
+    ["bonsai-pq2-vision-cpu"] = {
+      mode = "vision-cpu-validation",
+      maximum_ram_gib = 16,
+      maximum_vram_gib = 0,
+      memory_safety_reserve_gib = 0.5,
+      models = {
+        {id = "ternary-bonsai-2-27b", execution = "bonsai-pq2-vision",
+         placement = {mode = "fixed", device = "cpu", gpu_layers = 0},
+         residency = "on-demand", priority = 100, startup = false,
+         idle_seconds = 30},
+      },
+    },
+
+    ["bonsai-pq2-vision-gpu"] = {
+      mode = "vision-gpu-validation",
+      maximum_ram_gib = 8,
+      maximum_vram_gib = 16,
+      memory_safety_reserve_gib = 0.5,
+      models = {
+        {id = "ternary-bonsai-2-27b", execution = "bonsai-pq2-vision",
+         placement = {mode = "fixed", device = "accelerator:0", gpu_layers = 99,
+                      ram_reservation_gib = 0.75,
+                      vram_reservation_gib = 12.0},
+         residency = "on-demand", priority = 100, startup = false,
+         idle_seconds = 30},
       },
     },
   },

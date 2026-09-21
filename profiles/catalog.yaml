@@ -1,0 +1,247 @@
+schema: 1
+profiles:
+  - schema: 3
+    id: mica-assistant-mlx
+    description: Complete local assistant for Apple Silicon using only MLX engines and MLX artifacts.
+    available: true
+    mode: interactive
+    memory:
+      maximum_ram_gib: 8
+      maximum_vram_gib: 0
+      safety_reserve_gib: 0.5
+      maximum_resident_workers: 0
+    models:
+      - id: spark-x25-4b
+        execution: spark-balanced-single
+        residency: pinned
+        priority: 100
+        startup: true
+        idle_seconds: 0
+      - id: granite-speech-5
+        execution: granite-streaming-single
+        residency: warm
+        priority: 90
+        startup: true
+        idle_seconds: 600
+      - id: audio8-tts-06b
+        execution: audio8-capacity-single
+        residency: warm
+        priority: 70
+        startup: true
+        idle_seconds: 180
+      - id: minicpm-v46-thinking
+        execution: minicpm-vision-capacity
+        residency: on-demand
+        priority: 40
+        startup: false
+        idle_seconds: 30
+
+  - schema: 3
+    id: mica-assistant-gguf
+    description: Complete portable local assistant using only llama.cpp/audio.cpp engines and GGUF artifacts.
+    available: true
+    mode: interactive
+    memory:
+      maximum_ram_gib: 8
+      maximum_vram_gib: 0
+      safety_reserve_gib: 0.5
+      maximum_resident_workers: 0
+    models:
+      - id: spark-x25-4b
+        execution: spark-gguf-balanced-single
+        residency: pinned
+        priority: 100
+        startup: true
+        idle_seconds: 0
+      - id: granite-speech-5
+        execution: granite-gguf-streaming-single
+        residency: warm
+        priority: 90
+        startup: true
+        idle_seconds: 600
+      - id: audio8-tts-06b
+        execution: audio8-gguf-capacity-single
+        residency: warm
+        priority: 70
+        startup: true
+        idle_seconds: 180
+      - id: minicpm-v46-thinking
+        execution: minicpm-gguf-vision-capacity
+        residency: on-demand
+        priority: 40
+        startup: false
+        idle_seconds: 30
+
+  - schema: 3
+    id: mica-assistant-gguf-cpu
+    description: CPU-only GGUF assistant for deterministic RAM-only execution.
+    available: true
+    mode: interactive-cpu
+    memory:
+      maximum_ram_gib: 16
+      maximum_vram_gib: 0
+      safety_reserve_gib: 0.5
+      maximum_resident_workers: 0
+    models:
+      - id: spark-x25-4b
+        execution: spark-gguf-balanced-single
+        placement: {mode: fixed, device: cpu, gpu_layers: 0}
+        residency: pinned
+        priority: 100
+        startup: true
+      - id: granite-speech-5
+        execution: granite-gguf-streaming-single
+        placement: {mode: fixed, device: cpu, gpu_layers: 0}
+        residency: warm
+        priority: 90
+        startup: true
+        idle_seconds: 600
+      - id: audio8-tts-06b
+        execution: audio8-gguf-capacity-single
+        placement: {mode: fixed, device: cpu, gpu_layers: 0}
+        residency: warm
+        priority: 70
+        startup: true
+        idle_seconds: 180
+      - id: minicpm-v46-thinking
+        execution: minicpm-gguf-vision-capacity
+        placement: {mode: fixed, device: cpu, gpu_layers: 0}
+        residency: on-demand
+        priority: 40
+        startup: false
+        idle_seconds: 30
+
+  - schema: 3
+    id: mica-assistant-gguf-gpu
+    description: GPU-only GGUF assistant with full offload to accelerator 0.
+    available: true
+    mode: interactive-gpu
+    memory:
+      maximum_ram_gib: 8
+      maximum_vram_gib: 16
+      safety_reserve_gib: 0.5
+      maximum_resident_workers: 0
+    models:
+      - id: spark-x25-4b
+        execution: spark-gguf-balanced-single
+        placement: {mode: fixed, device: "accelerator:0", gpu_layers: 99,
+                    ram_reservation_gib: 0.5, vram_reservation_gib: 4.8}
+        residency: pinned
+        priority: 100
+        startup: true
+      - id: granite-speech-5
+        execution: granite-gguf-streaming-single
+        placement: {mode: fixed, device: "accelerator:0", gpu_layers: 99,
+                    ram_reservation_gib: 0.5, vram_reservation_gib: 0.9}
+        residency: warm
+        priority: 90
+        startup: true
+        idle_seconds: 600
+      - id: audio8-tts-06b
+        execution: audio8-gguf-capacity-single
+        placement: {mode: fixed, device: "accelerator:0", gpu_layers: 99,
+                    ram_reservation_gib: 0.5, vram_reservation_gib: 1.6}
+        residency: warm
+        priority: 70
+        startup: true
+        idle_seconds: 180
+      - id: minicpm-v46-thinking
+        execution: minicpm-gguf-vision-capacity
+        placement: {mode: fixed, device: "accelerator:0", gpu_layers: 99,
+                    ram_reservation_gib: 0.5, vram_reservation_gib: 2.2}
+        residency: on-demand
+        priority: 40
+        startup: false
+        idle_seconds: 30
+
+  - schema: 3
+    id: mica-assistant-gguf-mixed
+    description: Heterogeneous GGUF assistant with text and vision on accelerator 0 and audio on CPU.
+    available: true
+    mode: interactive-mixed
+    memory:
+      maximum_ram_gib: 8
+      maximum_vram_gib: 12
+      safety_reserve_gib: 0.5
+      maximum_resident_workers: 0
+    models:
+      - id: spark-x25-4b
+        execution: spark-gguf-balanced-single
+        placement: {mode: fixed, device: "accelerator:0", gpu_layers: 99,
+                    ram_reservation_gib: 0.5, vram_reservation_gib: 4.8}
+        residency: pinned
+        priority: 100
+        startup: true
+      - id: granite-speech-5
+        execution: granite-gguf-streaming-single
+        placement: {mode: fixed, device: cpu, gpu_layers: 0}
+        residency: warm
+        priority: 90
+        startup: true
+        idle_seconds: 600
+      - id: audio8-tts-06b
+        execution: audio8-gguf-capacity-single
+        placement: {mode: fixed, device: cpu, gpu_layers: 0}
+        residency: warm
+        priority: 70
+        startup: true
+        idle_seconds: 180
+      - id: minicpm-v46-thinking
+        execution: minicpm-gguf-vision-capacity
+        placement: {mode: fixed, device: "accelerator:0", gpu_layers: 99,
+                    ram_reservation_gib: 0.5, vram_reservation_gib: 2.2}
+        residency: on-demand
+        priority: 40
+        startup: false
+        idle_seconds: 30
+
+  - schema: 3
+    id: bonsai-pq2-vision-cpu
+    description: Experimental CPU validation profile for Ternary Bonsai 2 PQ2_0 using the isolated Prism llama.cpp engine.
+    available: true
+    mode: vision-cpu-validation
+    memory:
+      maximum_ram_gib: 16
+      maximum_vram_gib: 0
+      safety_reserve_gib: 0.5
+      maximum_resident_workers: 1
+    models:
+      - id: ternary-bonsai-2-27b
+        execution: bonsai-pq2-vision
+        placement: {mode: fixed, device: cpu, gpu_layers: 0}
+        residency: on-demand
+        priority: 100
+        startup: false
+        idle_seconds: 30
+
+  - schema: 3
+    id: bonsai-pq2-vision-gpu
+    description: Experimental full-offload validation profile for Ternary Bonsai 2 PQ2_0 using the isolated Prism llama.cpp engine.
+    available: true
+    mode: vision-gpu-validation
+    memory:
+      maximum_ram_gib: 8
+      maximum_vram_gib: 16
+      safety_reserve_gib: 0.5
+      maximum_resident_workers: 1
+    models:
+      - id: ternary-bonsai-2-27b
+        execution: bonsai-pq2-vision
+        placement: {mode: fixed, device: "accelerator:0", gpu_layers: 99,
+                    ram_reservation_gib: 0.75, vram_reservation_gib: 12.0}
+        residency: on-demand
+        priority: 100
+        startup: false
+        idle_seconds: 30
+
+  - schema: 3
+    id: mica-assistant-gptq
+    description: Target vLLM/GPTQ assistant containing the same text, ASR, TTS, and vision capabilities.
+    available: false
+    status: blocked
+    reason: The four GPTQ candidates have not passed native vLLM architecture, modality, and quality certification. The profile remains non-installable until they do.
+    target_models:
+      - spark-x25-4b
+      - granite-speech-5
+      - audio8-tts-06b
+      - minicpm-v46-thinking

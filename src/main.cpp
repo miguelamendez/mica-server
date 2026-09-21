@@ -17,6 +17,7 @@
 #include "mica_server/command.hpp"
 #include "mica_server/hardware.hpp"
 #include "mica_server/profiles.hpp"
+#include "mica_server/scheduler.hpp"
 #include "mica_server/server.hpp"
 #include "mica_server/setup.hpp"
 
@@ -49,10 +50,10 @@ Setup options:
   --backends auto|mlx|gguf|vllm|LIST
                             Install one or more runtime stacks (default: auto)
   --profile NAME            Task profile (default: hardware-selected auto)
-  --profile-file PATH       Validate, install, and select a schema-2 JSON profile
-  --quant q4|q8|q4,q8       Legacy profiles only; schema-2 profiles pin variants
+  --profile-file PATH       Validate, install, and select a schema-3 YAML profile
+  --quant q4|q8|q4,q8       Legacy profiles only; schema-3 profiles pin variants
   --ram-gib N               Hard model RAM admission budget (default 8)
-  --vram-gib N              NVIDIA VRAM budget (vLLM CUDA auto-fills when zero)
+  --vram-gib auto|N         Discrete-GPU budget; omitted/auto detects, zero disables
   --vllm-device VALUE       auto|cpu|cuda|metal|rocm|xpu|tpu
   --hardware-profile PATH   Use a saved detector profile (JSON schema 1)
   --api-key-file PATH       Import an API token from a file (never passed inline)
@@ -62,7 +63,7 @@ Setup options:
   --dry-run                 Print actions without changing the machine
 
 Serve options:
-  --backend mlx|gguf|vllm   Legacy-profile backend selection; schema 2 pins engines
+  --backend mlx|gguf|vllm   Legacy-profile backend selection; schema 3 pins engines
   --server-config PATH      Server JSON (default ~/.mica/config/server.json)
   --api-key TOKEN           Override API token (prefer a file; arguments are visible)
   --api-key-file PATH       Override the configured API-token file
@@ -216,7 +217,16 @@ mica::SetupOptions parse_setup(const std::vector<std::string>& args) {
       }
     }
     else if (args[i] == "--ram-gib") options.max_ram_gib = std::stod(value_after(args, i));
-    else if (args[i] == "--vram-gib") options.max_vram_gib = std::stod(value_after(args, i));
+    else if (args[i] == "--vram-gib") {
+      const auto value = value_after(args, i);
+      if (value == "auto") {
+        options.max_vram_gib = 0.0;
+        options.max_vram_explicit = false;
+      } else {
+        options.max_vram_gib = std::stod(value);
+        options.max_vram_explicit = true;
+      }
+    }
     else if (args[i] == "--vllm-device") {
       options.vllm_device = mica::parse_vllm_device(value_after(args, i));
     }
@@ -237,7 +247,7 @@ mica::SetupOptions parse_setup(const std::vector<std::string>& args) {
 
 std::filesystem::path installed_profile_path(const std::filesystem::path& root,
                                              const std::string& id) {
-  return root / "config/profiles" / (id + ".json");
+  return root / "config/profiles" / (id + ".yaml");
 }
 
 json local_profile_list(const mica::Registry& registry,
@@ -374,11 +384,10 @@ int main(int argc, char** argv) {
       if (action == "show") {
         const auto& profile = registry.profile(id);
         const auto path = installed_profile_path(root, id);
-        std::cout << std::setw(2)
-                  << (std::filesystem::exists(path)
-                          ? mica::read_profile_file(path)
-                          : mica::profile_to_json(profile))
-                  << '\n';
+        const auto document = std::filesystem::exists(path)
+                                  ? mica::read_profile_file(path)
+                                  : mica::profile_to_document(profile);
+        std::cout << mica::profile_yaml(document);
         return 0;
       }
       if (action == "validate") {
@@ -413,11 +422,11 @@ int main(int argc, char** argv) {
         const auto source_path = installed_profile_path(root, from);
         auto document = std::filesystem::exists(source_path)
                             ? mica::read_profile_file(source_path)
-                            : mica::profile_to_json(source);
+                            : mica::profile_to_document(source);
         document["id"] = id;
         auto validation_registry = registry;
-        mica::profile_from_json(validation_registry, document);
-        if (output.empty()) output = id + ".json";
+        mica::profile_from_document(validation_registry, document);
+        if (output.empty()) output = id + ".yaml";
         if (std::filesystem::exists(output)) {
           throw std::runtime_error("refusing to overwrite existing profile: " +
                                    output.string());
@@ -430,10 +439,10 @@ int main(int argc, char** argv) {
       if (action == "edit") {
         const auto& profile = registry.profile(id);
         const auto installed = installed_profile_path(root, id);
-        const auto temporary = installed.parent_path() / ("." + id + ".edit.draft");
+        const auto temporary = installed.parent_path() / ("." + id + ".edit.yaml");
         const auto document = std::filesystem::exists(installed)
                                   ? mica::read_profile_file(installed)
-                                  : mica::profile_to_json(profile);
+                                  : mica::profile_to_document(profile);
         mica::write_profile_file(temporary, document);
         const auto selected_editor = editor_for(editor);
         if (selected_editor.find_first_of(" \t\r\n") != std::string::npos) {
@@ -510,24 +519,45 @@ int main(int argc, char** argv) {
       json startups = json::object();
       bool has_error = false;
       const auto default_quantization = resolved.options.quantizations.front();
-      const auto schema2 = registry.profile(resolved.options.profile).schema >= 2;
+      const auto schema3 = registry.profile(resolved.options.profile).schema >= 3;
       for (const auto backend : resolved.backends) {
         backends.push_back(mica::to_string(backend));
         for (const auto& [quantization, startup] : resolved.startups.at(backend)) {
           // Alternate precisions are on-demand cache choices, not simultaneous
           // startup requirements. Only the default precision gates setup.
-          if (schema2 || quantization == default_quantization) {
+          if (schema3 || quantization == default_quantization) {
             has_error = has_error || startup.error.has_value();
           }
           startups[mica::to_string(backend)][mica::to_string(quantization)] = {
               {"admitted", startup.admitted}, {"skipped", startup.skipped},
               {"reserved_gib", startup.reserved_gib},
+              {"reserved_ram_gib", startup.reserved_ram_gib},
+              {"reserved_vram_gib", startup.reserved_vram_gib},
               {"error", startup.error.value_or("")}};
         }
       }
       json quantizations = json::array();
       for (const auto quantization : resolved.options.quantizations) {
         quantizations.push_back(mica::to_string(quantization));
+      }
+      json model_placements = json::array();
+      const auto& selected_profile = registry.profile(resolved.options.profile);
+      for (const auto& policy : selected_profile.model_policies) {
+        const auto& artifact = registry.model(policy.id)
+                                   .artifacts.at(policy.backend)
+                                   .at(policy.quantization);
+        const auto placement = mica::resolve_model_placement(
+            policy, artifact, resolved.hardware);
+        model_placements.push_back({
+            {"id", policy.id},
+            {"engine", policy.engine},
+            {"mode", policy.placement_mode},
+            {"requested_device", policy.device},
+            {"resolved_device", placement.device},
+            {"gpu_layers", placement.gpu_layers},
+            {"ram_reservation_gib", placement.ram_reservation_gib},
+            {"vram_reservation_gib", placement.vram_reservation_gib},
+            {"unified_memory", placement.unified_memory}});
       }
       json output = {{"hardware", hardware_json(resolved.hardware)},
                      {"installed_backends", backends},
@@ -536,6 +566,7 @@ int main(int argc, char** argv) {
                      {"ram_budget_gib", resolved.options.max_ram_gib},
                      {"vram_budget_gib", resolved.options.max_vram_gib},
                      {"vllm_device", mica::to_string(resolved.vllm_device)},
+                     {"model_placements", model_placements},
                      {"startup_by_backend", startups},
                      {"model_download", "first_server_start"}};
       std::cout << std::setw(2) << output << '\n';

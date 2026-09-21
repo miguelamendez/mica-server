@@ -171,9 +171,9 @@ expected per-profile CMake flags.
 
 ## ADR-006: current backend selection and future engine dispatch
 
-Decision: **accepted; implemented for schema-2 dispatch, partial end to end**.
+Decision: **accepted; implemented for schema-3 dispatch, partial end to end**.
 
-Setup installs the transitive engine set selected by a schema-2 profile. Each
+Setup installs the transitive engine set selected by a schema-3 profile. Each
 model pins one concrete engine and artifact; the server can dispatch models to
 multiple selected engines behind one authenticated URL. The recommended
 assistant profiles are engine-family-pure so users do not accidentally duplicate
@@ -187,7 +187,7 @@ Current gaps include true proxy streaming, observed-memory enforcement,
 exception-safe worker leases, request queueing, and complete real proxy-to-
 worker integration tests.
 
-Legacy profiles retain `--backend` as a compatibility surface. Schema-2
+Legacy profiles retain `--backend` as a compatibility surface. Schema-3
 profiles reject backend/quantization overrides so tested behavior cannot drift.
 
 ## ADR-007: memory admission and deterministic eviction
@@ -195,14 +195,17 @@ profiles reject backend/quantization overrides so tested behavior cannot drift.
 Decision: **accepted; partial**.
 
 - `max_ram_gib` limits resident model workers, not the disk cache.
-- Dedicated accelerators also use `max_vram_gib`; zero means use detected
-  device capacity where the backend supports that interpretation.
+- Dedicated accelerators also use `max_vram_gib`. Omitting the CLI value (or
+  passing `auto`) derives a safe device limit; an explicit zero disables the
+  VRAM pool and rejects profiles that require a discrete accelerator.
 - Apple Silicon uses the system/unified-memory RAM budget rather than pretending
   that VRAM is a separate pool.
 - A safety reserve remains available to the OS and proxy.
 - Warmup priority is text model, ASR, TTS, then vision.
-- On demand, unload only zero-inflight workers. Rank eviction by expired idle
-  TTL, oldest last use, largest reservation, then stable model ID.
+- On demand, unload only zero-inflight workers that release a currently
+  constrained pool. Rank them by expired idle TTL, residency class, priority,
+  useful memory relief, oldest last use, largest reservation, then stable model
+  ID.
 - An idle scale-down timer unloads unused optional models.
 - If the required text model plus its accepted drafter exceeds the configured
   budget, setup must report the required minimum rather than silently overcommit.
@@ -382,7 +385,7 @@ certified mode) above training, upstream-recommended, or Mica-tested limits.
 
 The implemented schema and profile catalog are documented in
 `docs/design/model-execution-and-residency-profiles.md` and
-`config/profiles.lua`. Shareable schema-2 JSON profiles can be loaded from a
+`config/profiles.lua`. Shareable schema-3 YAML profiles can be loaded from a
 file or installed from the GitHub catalog. Legacy `all/core/quality` profiles
 remain only for compatibility and test reproduction.
 
@@ -444,9 +447,22 @@ engines extend the engine registry and adapter layer rather than overloading a
 global backend switch.
 
 The public proxy remains one authenticated URL and routes by capability/model
-to engine adapters. Schema-2 lifecycle, streaming, and reservation admission
+to engine adapters. Schema-3 lifecycle, streaming, and reservation admission
 are implemented; observed-memory enforcement and broader failure-isolation
 tests remain open.
+
+Engine metadata is executable configuration, not documentation-only data. Each
+runnable descriptor declares its backend family, installer adapter, launcher
+adapter, device-target family, source and immutable revision where applicable,
+isolated runtime directory, executable, build targets, supported hardware, and
+artifact formats. The `prism-llama-cpp` descriptor validates this boundary: it
+shares the generic CMake/llama-server adapters but remains isolated from stock
+llama.cpp at commit `9a9394a895b96003ca842a6041cb28ac49a108f7`.
+
+Artifact variant IDs are validated open strings rather than a Q4/Q8/native
+enum. Quantization production remains deliberately restricted to Q4 and Q8;
+pre-packed artifacts such as `pq2_0` retain their exact upstream packing,
+revision, sizes, and hashes.
 
 Accepted future catalog candidates are:
 
@@ -471,9 +487,9 @@ family, but Mica's pinned build currently compiles only `granite5asr` and
 audio.cpp installation by default. Official optimized MLX, TFLite, and
 TensorRT profiles remain separate engines with independent evidence.
 
-`config/profiles.lua` schema 2 is the active engine registry and profile
+`config/profiles.lua` schema 3 is the active engine registry and profile
 catalog. The existing `--backend` CLI remains a legacy compatibility surface;
-schema-2 profiles select their engine set directly.
+schema-3 profiles select their engine set directly.
 
 ## ADR-016: one agent chat with ASR, VLM, and TTS utilities
 

@@ -9,6 +9,8 @@
 
 #include "mica_server/catalog.hpp"
 #include "mica_server/config.hpp"
+#include "mica_server/hardware.hpp"
+#include "mica_server/profiles.hpp"
 #include "mica_server/scheduler.hpp"
 
 int main() {
@@ -40,7 +42,7 @@ int main() {
   assert(gguf_long.max_concurrent_requests == 1);
   assert(gguf_long.kv_cache_precision == "q4");
   const auto& interactive = registry.profile("interactive");
-  assert(interactive.schema == 2);
+  assert(interactive.schema == 3);
   assert(interactive.maximum_ram_gib == 8.0);
   assert(interactive.memory_safety_reserve_gib == 0.5);
   assert(interactive.model_policies.size() == 4);
@@ -52,7 +54,7 @@ int main() {
   assert(interactive_text->residency == mica::Residency::pinned);
   assert(interactive_text->startup);
   const auto& gguf_interactive = registry.profile("gguf-interactive");
-  assert(gguf_interactive.schema == 2);
+  assert(gguf_interactive.schema == 3);
   assert(gguf_interactive.backend == mica::Backend::gguf);
   assert(gguf_interactive.policy_for("spark-x25-4b")->engine == "llama-cpp");
   assert(gguf_interactive.policy_for("granite-speech-5")->engine == "audio-cpp");
@@ -68,9 +70,105 @@ int main() {
     assert(policy.backend == mica::Backend::gguf);
     assert(policy.engine == "llama-cpp" || policy.engine == "audio-cpp");
   }
+  const auto& gguf_cpu = registry.profile("mica-assistant-gguf-cpu");
+  const auto& gguf_gpu = registry.profile("mica-assistant-gguf-gpu");
+  const auto& gguf_mixed = registry.profile("mica-assistant-gguf-mixed");
+  for (const auto& policy : gguf_cpu.model_policies) {
+    assert(policy.placement_mode == "fixed");
+    assert(policy.device == "cpu");
+    assert(policy.gpu_layers == 0);
+  }
+  for (const auto& policy : gguf_gpu.model_policies) {
+    assert(policy.placement_mode == "fixed");
+    assert(policy.device == "accelerator:0");
+    assert(policy.gpu_layers == 99);
+    assert(policy.ram_reservation_gib == 0.5);
+    assert(policy.vram_reservation_gib > 0);
+  }
+  assert(gguf_mixed.policy_for("spark-x25-4b")->device == "accelerator:0");
+  assert(gguf_mixed.policy_for("granite-speech-5")->device == "cpu");
+  assert(gguf_mixed.policy_for("audio8-tts-06b")->device == "cpu");
+  assert(gguf_mixed.policy_for("minicpm-v46-thinking")->device ==
+         "accelerator:0");
+  const auto& prism_engine = registry.engine("prism-llama-cpp");
+  assert(prism_engine.backend == mica::Backend::gguf);
+  assert(prism_engine.installer == "cmake-llama");
+  assert(prism_engine.launcher == "llama-server");
+  assert(prism_engine.runtime_directory == "prism-llama.cpp");
+  assert(prism_engine.revision ==
+         "9a9394a895b96003ca842a6041cb28ac49a108f7");
+  const auto& bonsai = registry.model("ternary-bonsai-2-27b");
+  const auto pq2 = mica::parse_quantization("pq2_0");
+  const auto& bonsai_artifact = bonsai.artifacts.at(mica::Backend::gguf).at(pq2);
+  assert(bonsai_artifact.supported);
+  assert(bonsai_artifact.engine == "prism-llama-cpp");
+  assert(bonsai_artifact.quantization_type == "PQ2_0");
+  assert(bonsai_artifact.size_bytes == 7206168928ULL);
+  assert(bonsai_artifact.projector_size_bytes == 931145856ULL);
+  assert(bonsai_artifact.sha256 ==
+         "3907dc1658db1f78a9826bf8d5bcb8dc65db0d466388937af57f2294fae62ec1");
+  assert(bonsai_artifact.projector_sha256 ==
+         "e287342d92332fa3577ed1d42e921dac9370c08da58ba9337fa450f6cc76cfd7");
+  assert(bonsai.repository_revisions.at(mica::Backend::gguf) ==
+         "6ed5e12bf84b7a63069882c91dd9e9218647d17b");
+  const auto& bonsai_cpu = registry.profile("bonsai-pq2-vision-cpu");
+  const auto& bonsai_gpu = registry.profile("bonsai-pq2-vision-gpu");
+  assert(bonsai_cpu.policy_for(bonsai.id)->engine == "prism-llama-cpp");
+  assert(bonsai_cpu.policy_for(bonsai.id)->quantization == pq2);
+  assert(bonsai_cpu.policy_for(bonsai.id)->device == "cpu");
+  assert(bonsai_gpu.policy_for(bonsai.id)->device == "accelerator:0");
   {
-    std::ifstream catalog(config.parent_path() / "profiles/catalog.json");
-    const auto document = nlohmann::json::parse(catalog);
+    std::ifstream schema(config.parent_path() / "schemas/profile-v3.schema.json");
+    const auto document = nlohmann::json::parse(schema);
+    assert(document.at("$schema") ==
+           "https://json-schema.org/draft/2020-12/schema");
+    assert(document.at("properties").at("schema").at("const") == 3);
+  }
+  {
+    bool rejected = false;
+    try {
+      (void)mica::read_profile_file(
+          config.parent_path() / "tests/fixtures/profiles/removed-profile.json");
+    } catch (const std::invalid_argument& error) {
+      rejected = std::string(error.what()).find(".yaml or .yml") !=
+                 std::string::npos;
+    }
+    assert(rejected);
+  }
+  {
+    auto validation_registry = registry;
+    bool rejected = false;
+    try {
+      (void)mica::profile_from_document(
+          validation_registry,
+          nlohmann::json{{"schema", 2}, {"id", "old-profile"},
+                         {"models", nlohmann::json::array()}});
+    } catch (const std::invalid_argument& error) {
+      rejected = std::string(error.what()).find("schema 3") !=
+                 std::string::npos;
+    }
+    assert(rejected);
+  }
+  {
+    auto validation_registry = registry;
+    auto document = mica::profile_to_document(interactive);
+    const auto round_trip =
+        mica::profile_from_document(validation_registry, document);
+    assert(round_trip.schema == 3);
+    assert(round_trip.name == interactive.name);
+    document["misspelled_memory_policy"] = true;
+    bool rejected = false;
+    try {
+      (void)mica::profile_from_document(validation_registry, document);
+    } catch (const std::invalid_argument& error) {
+      rejected = std::string(error.what()).find("unknown field") !=
+                 std::string::npos;
+    }
+    assert(rejected);
+  }
+  {
+    const auto document = mica::read_profile_file(
+        config.parent_path() / "profiles/catalog.yaml");
     const auto& profiles = document.at("profiles");
     const auto gptq = std::find_if(profiles.begin(), profiles.end(), [](const auto& item) {
       return item.value("id", "") == "mica-assistant-gptq";
@@ -78,13 +176,13 @@ int main() {
     assert(gptq != profiles.end());
     assert(!gptq->value("available", true));
   }
-  const auto schema2_startup = mica::plan_profile_startup(
+  const auto schema3_startup = mica::plan_profile_startup(
       registry, gguf_interactive, mica::Backend::gguf,
       mica::Quantization::q4, 7.5);
-  assert(!schema2_startup.error);
-  assert(schema2_startup.admitted.size() == 3);
-  assert(schema2_startup.reserved_gib > 7.29 &&
-         schema2_startup.reserved_gib < 7.31);
+  assert(!schema3_startup.error);
+  assert(schema3_startup.admitted.size() == 3);
+  assert(schema3_startup.reserved_gib > 7.29 &&
+         schema3_startup.reserved_gib < 7.31);
   const auto& vllm_control = registry.model("vllm-qwen3-06b-control");
   assert(!vllm_control.catalog_visible);
   assert(vllm_control.artifacts.at(mica::Backend::vllm)
@@ -97,7 +195,7 @@ int main() {
   {
     const auto ledger = mica::registry_catalog(registry);
     assert(ledger.at("schema") == 2);
-    assert(ledger.at("data").size() == 4);
+    assert(ledger.at("data").size() == 5);
     const auto hidden = std::find_if(
         ledger.at("data").begin(), ledger.at("data").end(), [](const auto& item) {
           return item.value("id", "") == "vllm-qwen3-06b-control";
@@ -114,6 +212,16 @@ int main() {
         "quantization_type"));
     assert(spark_entry->at("variants").at("mlx").at(0).at("size_bytes")
                .get<std::uint64_t>() > 0);
+    const auto bonsai_entry = std::find_if(
+        ledger.at("data").begin(), ledger.at("data").end(), [](const auto& item) {
+          return item.value("id", "") == "ternary-bonsai-2-27b";
+        });
+    assert(bonsai_entry != ledger.at("data").end());
+    const auto& pq2_variant = bonsai_entry->at("variants").at("gguf").at(0);
+    assert(pq2_variant.at("quantization") == "pq2_0");
+    assert(pq2_variant.at("quantization_type") == "PQ2_0");
+    assert(pq2_variant.at("engine") == "prism-llama-cpp");
+    assert(pq2_variant.at("sha256") == bonsai_artifact.sha256);
   }
   {
     const auto audio_ledger = mica::registry_catalog(
@@ -129,6 +237,16 @@ int main() {
   assert(mica::parse_vllm_device("xpu") == mica::VllmDevice::xpu);
   assert(mica::parse_vllm_device("tpu") == mica::VllmDevice::tpu);
   assert(mica::parse_quantization("native") == mica::Quantization::native);
+  assert(mica::to_string(mica::parse_quantization("pq2_0")) == "pq2_0");
+  {
+    bool rejected = false;
+    try {
+      (void)mica::parse_quantization("PQ2_0");
+    } catch (const std::invalid_argument&) {
+      rejected = true;
+    }
+    assert(rejected);
+  }
   assert(registry.vlm_tool.enabled);
   assert(registry.vlm_tool.name == "vlm_tool");
   assert(registry.vlm_tool.model_id == "minicpm-v46-thinking");
@@ -154,6 +272,80 @@ int main() {
   linux_cuda.nvidia_vram_gib = {12.0};
   assert(linux_cuda.recommended_vllm_device() == mica::VllmDevice::cuda);
 
+  const auto hardware_fixtures = config.parent_path() / "tests/fixtures/hardware";
+  const auto cuda_fixture =
+      mica::load_hardware_profile(hardware_fixtures / "linux-cuda.json");
+  const auto rocm_fixture =
+      mica::load_hardware_profile(hardware_fixtures / "linux-rocm.json");
+  const auto xpu_fixture =
+      mica::load_hardware_profile(hardware_fixtures / "linux-xpu.json");
+  const auto metal_fixture =
+      mica::load_hardware_profile(hardware_fixtures / "mac-metal.json");
+  {
+    const auto plan = mica::plan_profile_startup_resources(
+        registry, gguf_cpu, mica::Backend::gguf, mica::Quantization::q4,
+        15.5, 0.0, cuda_fixture);
+    assert(!plan.error);
+    assert(plan.admitted.size() == 3);
+    assert(plan.reserved_ram_gib > 7.29 && plan.reserved_ram_gib < 7.31);
+    assert(plan.reserved_vram_gib == 0.0);
+  }
+  {
+    const auto plan = mica::plan_profile_startup_resources(
+        registry, gguf_gpu, mica::Backend::gguf, mica::Quantization::q4,
+        7.5, 15.5, cuda_fixture);
+    assert(!plan.error);
+    assert(plan.admitted.size() == 3);
+    assert(plan.reserved_ram_gib == 1.5);
+    assert(plan.reserved_vram_gib > 7.29 && plan.reserved_vram_gib < 7.31);
+  }
+  {
+    const auto plan = mica::plan_profile_startup_resources(
+        registry, gguf_mixed, mica::Backend::gguf, mica::Quantization::q4,
+        7.5, 11.5, cuda_fixture);
+    assert(!plan.error);
+    assert(plan.admitted.size() == 3);
+    assert(plan.reserved_ram_gib > 2.99 && plan.reserved_ram_gib < 3.01);
+    assert(plan.reserved_vram_gib > 4.79 && plan.reserved_vram_gib < 4.81);
+  }
+  {
+    const auto& policy = *gguf_gpu.policy_for("spark-x25-4b");
+    const auto& artifact = spark.artifacts.at(mica::Backend::gguf)
+                               .at(mica::Quantization::q4);
+    const auto cuda = mica::resolve_model_placement(policy, artifact,
+                                                     cuda_fixture);
+    assert(cuda.device == "cuda:0");
+    assert(!cuda.unified_memory);
+    assert(cuda.ram_reservation_gib == 0.5);
+    assert(cuda.vram_reservation_gib == 4.8);
+    const auto rocm = mica::resolve_model_placement(policy, artifact,
+                                                     rocm_fixture);
+    assert(rocm.device == "hip:0");
+    const auto xpu = mica::resolve_model_placement(policy, artifact,
+                                                    xpu_fixture);
+    assert(xpu.device == "sycl:0");
+  }
+  {
+    auto policy = *gguf_gpu.policy_for("audio8-tts-06b");
+    const auto& artifact = registry.model(policy.id)
+                               .artifacts.at(mica::Backend::gguf)
+                               .at(mica::Quantization::q4);
+    const auto xpu = mica::resolve_model_placement(policy, artifact,
+                                                    xpu_fixture);
+    assert(xpu.device == "vulkan:0");
+  }
+  {
+    auto policy = *gguf_gpu.policy_for("spark-x25-4b");
+    const auto& artifact = spark.artifacts.at(mica::Backend::gguf)
+                               .at(mica::Quantization::q4);
+    const auto metal = mica::resolve_model_placement(policy, artifact,
+                                                      metal_fixture);
+    assert(metal.device == "metal:0");
+    assert(metal.unified_memory);
+    assert(metal.vram_reservation_gib == 0.0);
+    assert(metal.ram_reservation_gib == 4.8);
+  }
+
   const auto metal_memory = mica::vllm_memory_utilization(
       mica::VllmDevice::metal, 8.0, 0.0, 24.0);
   assert(metal_memory.has_value());
@@ -164,6 +356,36 @@ int main() {
   assert(!mica::vllm_memory_utilization(
               mica::VllmDevice::cpu, 8.0, 0.0, 24.0)
               .has_value());
+
+  {
+    const auto cpu_placement = mica::resolve_model_placement(
+        *bonsai_cpu.policy_for(bonsai.id), bonsai_artifact, cuda_fixture);
+    assert(cpu_placement.device == "cpu");
+    assert(cpu_placement.ram_reservation_gib == 12.0);
+    assert(cpu_placement.vram_reservation_gib == 0.0);
+    const auto gpu_placement = mica::resolve_model_placement(
+        *bonsai_gpu.policy_for(bonsai.id), bonsai_artifact, cuda_fixture);
+    assert(gpu_placement.device == "cuda:0");
+    assert(gpu_placement.ram_reservation_gib == 0.75);
+    assert(gpu_placement.vram_reservation_gib == 12.0);
+  }
+  {
+    auto mismatched = registry;
+    auto model = std::find_if(
+        mismatched.models.begin(), mismatched.models.end(), [](const auto& item) {
+          return item.id == "ternary-bonsai-2-27b";
+        });
+    model->artifacts.at(mica::Backend::gguf).at(pq2).engine = "llama-cpp";
+    bool rejected = false;
+    try {
+      (void)mica::profile_from_document(
+          mismatched, mica::profile_to_document(bonsai_cpu));
+    } catch (const std::invalid_argument& error) {
+      rejected = std::string(error.what()).find("requires engine llama-cpp") !=
+                 std::string::npos;
+    }
+    assert(rejected);
+  }
   assert(!mica::vllm_memory_utilization(
               mica::VllmDevice::metal, 8.0, 0.0, 0.0)
               .has_value());

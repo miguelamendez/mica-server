@@ -6,9 +6,12 @@ and evicted.
 
 Built-in profiles are written in Lua in
 [`config/profiles.lua`](../config/profiles.lua). Shareable and user-created
-profiles use schema-2 JSON. Installed files are kept in
+profiles use schema-3 YAML. Installed files are kept in
 `<root>/config/profiles/`; the default catalog is
-[`profiles/catalog.json`](../profiles/catalog.json) in this GitHub repository.
+[`profiles/catalog.yaml`](../profiles/catalog.yaml) in this GitHub repository.
+The authoritative machine-readable contract is
+[`schemas/profile-v3.schema.json`](../schemas/profile-v3.schema.json). JSON
+remains the runtime/API state format, but it is not accepted for profiles.
 Older `mica.profile` entries in [`config/models.lua`](../config/models.lua)
 remain available for migration and test reproduction.
 
@@ -34,7 +37,7 @@ then warmed in priority order; on-demand models remain stopped until requested.
 
 The default profile is `auto`: it resolves to `mica-assistant-mlx` on Apple
 Silicon and `mica-assistant-gguf` elsewhere. Supplying `--backend` or `--quant`
-cannot override a schema-2 profile. Change the profile itself so its behavior
+cannot override a schema-3 profile. Change the profile itself so its behavior
 remains reproducible.
 
 Setup loads either detected hardware or the exact JSON supplied through
@@ -49,6 +52,8 @@ guard. It is persisted beside runtime state for auditability.
 | `mica-assistant-mlx` | MLX only: `mlx-lm`, `mlx-audio`, `mlx-vlm` | Runnable on Apple Silicon. |
 | `mica-assistant-gguf` | GGUF only: `llama-cpp`, `audio-cpp` | Runnable on macOS, Linux, and WSL; no Python. |
 | `mica-assistant-gptq` | GPTQ through vLLM | Listed but blocked until all four modalities pass native vLLM certification. |
+| `bonsai-pq2-vision-cpu` | PQ2_0 through isolated `prism-llama-cpp` on CPU | Experimental; inference certification pending. |
+| `bonsai-pq2-vision-gpu` | PQ2_0 through isolated `prism-llama-cpp` on accelerator 0 | Experimental; inference certification pending. |
 
 The first two contain the same logical assistant set: Spark text, Granite ASR,
 Audio8 TTS, and MiniCPM vision/video. The GPTQ profile remains unavailable while
@@ -68,19 +73,19 @@ advertised as supported models.
 
 # Create, validate, install, and edit local profiles.
 ./build/mica-server profile create my-assistant --from mica-assistant-mlx
-./build/mica-server profile validate ./my-assistant.json
-./build/mica-server profile install-file ./my-assistant.json
+./build/mica-server profile validate ./my-assistant.yaml
+./build/mica-server profile install-file ./my-assistant.yaml
 ./build/mica-server profile edit my-assistant --editor vi
 
 # A file can also be selected directly. Setup installs it under the runtime root.
-./build/mica-server setup --profile-file ./my-assistant.json --ram-gib 8
+./build/mica-server setup --profile-file ./my-assistant.yaml --ram-gib 8
 ```
 
 `profile edit` uses a temporary draft and replaces the installed profile only
 after validation succeeds. The editor must be one executable path; interactive
 terminal editors such as `vi` and `nano` are the reliable choices.
 Run `setup --profile <id>` after any edit. The server compares the active
-schema-2 definition with the setup snapshot and refuses to start if engines,
+schema-3 definition with the setup snapshot and refuses to start if engines,
 artifacts, context, batching, residency, or memory policy changed.
 
 ## Built-in profiles
@@ -101,16 +106,19 @@ artifacts, context, batching, residency, or memory policy changed.
 | `gguf-long-context` | GGUF | 12 GiB | Native single-request context workflow. |
 | `gguf-low-memory` | GGUF | 6 GiB | At most one native worker; no Python environment. |
 
-The command-line RAM/VRAM values are hard upper bounds. A profile may impose a
-smaller cap, but it can never increase the user's limit.
+The command-line RAM/VRAM values are deterministic admission bounds. A profile
+may impose a smaller cap, but it can never increase the user's limit. Omitting
+`--vram-gib` (or passing `auto`) derives the discrete-device capacity; an
+explicit `--vram-gib 0` disables discrete VRAM. Apple Metal and other detected
+unified-memory devices charge complete model reservations to the RAM pool.
 
 ## Profile structure
 
-Schema 2 separates execution from residency:
+Schema 3 separates execution, processor placement, and residency:
 
 ```lua
 return {
-  schema = 2,
+  schema = 3,
 
   execution_profiles = {
     ["coder-q4"] = {
@@ -154,65 +162,69 @@ The model must first exist in [`config/models.lua`](../config/models.lua), with
 a supported artifact and measured memory reservation for the selected backend
 and quantization.
 
-JSON profiles use the same separation but refer to a built-in execution by ID:
+Shareable YAML profiles refer to a built-in execution by ID:
 
-```json
-{
-  "schema": 2,
-  "id": "my-assistant",
-  "mode": "interactive",
-  "memory": {
-    "maximum_ram_gib": 8,
-    "safety_reserve_gib": 0.5,
-    "maximum_resident_workers": 2
-  },
-  "models": [
-    {
-      "id": "spark-x25-4b",
-      "execution": "spark-balanced-single",
-      "residency": "pinned",
-      "priority": 100,
-      "startup": true
-    }
-  ]
-}
+```yaml
+schema: 3
+id: my-assistant
+mode: interactive
+memory:
+  maximum_ram_gib: 8
+  maximum_vram_gib: 0
+  safety_reserve_gib: 0.5
+  maximum_resident_workers: 2
+models:
+  - id: spark-x25-4b
+    execution: spark-balanced-single
+    placement:
+      mode: fixed
+      device: cpu
+      gpu_layers: 0
+    residency: pinned
+    priority: 100
+    startup: true
 ```
 
 ## External Hugging Face models
 
-A JSON profile may introduce a model that is not in the built-in registry. It
+A YAML profile may introduce a model that is not in the built-in registry. It
 must provide an exact compatibility contract; a Hugging Face URL or model card
 alone is not treated as proof that an engine can load the architecture.
 
-```json
-{
-  "id": "my-text-model",
-  "modality": "text-to-text",
-  "engine": "llama-cpp",
-  "declared_context_tokens": 2304,
-  "source": {
-    "repository": "owner/original-model",
-    "revision": "0123456789abcdef0123456789abcdef01234567",
-    "license": "apache-2.0",
-    "trust_remote_code": false
-  },
-  "artifact": {
-    "repository": "owner/quantized-model",
-    "revision": "89abcdef0123456789abcdef0123456789abcdef",
-    "format": "gguf",
-    "quantization": "q4",
-    "path": "model-q4-k-m.gguf",
-    "size_gib": 2.0,
-    "reservation_gib": 3.3
-  },
-  "context": {
-    "max_input_tokens": 1792,
-    "max_output_tokens": 256,
-    "max_total_tokens": 2048
-  },
-  "residency": "on-demand",
-  "idle_seconds": 60
-}
+```yaml
+schema: 3
+id: my-external-assistant
+mode: interactive
+memory:
+  maximum_ram_gib: 4
+  safety_reserve_gib: 0.5
+models:
+  - id: my-text-model
+    modality: text-to-text
+    engine: llama-cpp
+    declared_context_tokens: 2304
+    source:
+      repository: owner/original-model
+      revision: 0123456789abcdef0123456789abcdef01234567
+      license: apache-2.0
+      trust_remote_code: false
+    artifact:
+      repository: owner/quantized-model
+      revision: 89abcdef0123456789abcdef0123456789abcdef
+      format: gguf
+      quantization: q4
+      path: model-q4-k-m.gguf
+      size_gib: 2.0
+      reservation_gib: 3.3
+    context:
+      max_input_tokens: 1792
+      max_output_tokens: 256
+      max_total_tokens: 2048
+    placement:
+      mode: auto
+      device: auto
+    residency: on-demand
+    idle_seconds: 60
 ```
 
 Both source and artifact revisions must be immutable commit hashes. The
@@ -231,15 +243,17 @@ do not certify compatibility or quality.
 
 ## Per-model engine selection
 
-Each schema-2 model entry pins one concrete engine and one compatible
+Each schema-3 model entry pins one concrete engine and one compatible
 artifact. A profile does not set one implicit engine for the whole server.
 Setup installs the union of engines required by its model entries, and the
 proxy routes each model to its selected engine behind the same public URL.
 
 The recommended assistant profiles intentionally keep every model in one
-runtime family: MLX artifacts use `mlx-lm`, `mlx-vlm`, or `mlx-audio`; GGUF
-artifacts use `llama-cpp` or `audio-cpp`; and the planned GPTQ artifacts use
-`vllm`. This keeps disk use, dependencies, and validation boundaries clear.
+runtime family: MLX artifacts use `mlx-lm`, `mlx-vlm`, or `mlx-audio`; the
+assistant GGUF artifacts use `llama-cpp` or `audio-cpp`; and the planned GPTQ
+artifacts use `vllm`. Bonsai deliberately uses a separate
+`prism-llama-cpp` runtime because stock llama.cpp cannot execute its rotated
+weights. This keeps disk use, dependencies, and validation boundaries clear.
 
 Engine IDs are strings rather than a closed profile-schema enum. Future image
 and music generation can add engine adapters, artifact validators, installers,
@@ -252,9 +266,9 @@ grouping for the currently implemented runtime families.
 | Field | Meaning |
 | --- | --- |
 | `model` | Stable model ID from the model registry. |
-| `engine` | Concrete runtime: `mlx-lm`, `mlx-vlm`, `mlx-audio`, `llama-cpp`, `audio-cpp`, or `vllm`. |
+| `engine` | Concrete runtime ID from the engine registry, such as `mlx-lm`, `llama-cpp`, `prism-llama-cpp`, `audio-cpp`, or `vllm`. |
 | `artifact.format` | Artifact family consumed by the engine. |
-| `artifact.quantization` | Exact `q4`, `q8`, or `native` variant. |
+| `artifact.quantization` | Extensible lowercase artifact variant ID, such as `q4`, `q8`, `native`, or `pq2_0`. |
 | `context` | Input, output, and combined token ceilings. |
 | `batching` | Concurrent requests and batched-token limits. |
 | `kv_cache.precision` | `q4`, `q8`, `auto`, `runtime-managed`, or `not-applicable`. |
@@ -270,18 +284,24 @@ Engine-to-backend mapping is deterministic:
 | --- | --- | --- |
 | `mlx-lm`, `mlx-vlm`, `mlx-audio` | MLX | Yes |
 | `llama-cpp`, `audio-cpp` | GGUF | No |
+| `prism-llama-cpp` | GGUF | No |
 | `vllm` | vLLM | Yes |
 
 For a GGUF-only profile, setup uses the native C++ hardware detector, compiles
 only the referenced native engines, and downloads model files with `curl`.
 Neither a Python interpreter nor a virtual environment is part of that path.
+Native engine descriptors pin the source URL, revision, isolated runtime
+directory, build targets, server executable, launcher adapter, supported
+artifact formats, and hardware classes. Adding another llama.cpp-compatible
+fork uses the `cmake-llama` installer and `llama-server` launcher without a new
+engine-name conditional in setup or serving.
 
 ## Residency fields
 
 | Field | Meaning |
 | --- | --- |
 | `maximum_ram_gib` | Profile RAM cap, bounded by `--ram-gib`. |
-| `maximum_vram_gib` | Optional discrete-GPU cap, bounded by `--vram-gib`. |
+| `maximum_vram_gib` | Optional discrete-GPU cap, bounded by `--vram-gib`; unified-memory devices use the RAM pool instead. |
 | `memory_safety_reserve_gib` | Memory held outside model admission. |
 | `maximum_resident_workers` | Optional worker-count ceiling; zero means memory-only. |
 | `execution` | Execution profile selected for this model. |
@@ -299,9 +319,11 @@ Residency modes behave as follows:
 - `on-demand`: starts stopped and is retained only for its configured TTL.
 - `ephemeral`: unloads as soon as its last in-flight request completes.
 
-Mica never evicts an in-flight worker. When it needs room, it considers expired
-workers first, then ephemeral/on-demand before warm workers, then lower
-priority, older use, and larger reservation. Pinned workers are excluded.
+Mica never evicts an in-flight worker. It first excludes workers that cannot
+release memory from a constrained pool—for example, a CPU worker cannot solve
+VRAM pressure. Among relevant workers it considers expired workers first, then
+ephemeral/on-demand before warm workers, then lower priority, useful memory
+relief, older use, and larger reservation. Pinned workers are excluded.
 
 ## Validate a new profile
 

@@ -48,7 +48,7 @@ Hugging Face repository. It does not download weights.
 
 `engine` selects a concrete runtime such as `mlx-lm`, `mlx-vlm`, `mlx-audio`,
 `llama-cpp`, or `audio-cpp`. The legacy `backend` filter selects an artifact
-family (`mlx`, `gguf`, or `vllm`). Each schema-2 ledger entry includes its
+family (`mlx`, `gguf`, or `vllm`). Each schema-3 profile selection includes its
 description, modalities, license, repositories/revisions, and variant records
 with format, exact quantization type, artifact/download bytes, projector size,
 size provenance, and memory reservation.
@@ -56,7 +56,7 @@ size provenance, and memory reservation.
 ## Model IDs
 
 An unsuffixed ID, such as `spark-x25-4b`, resolves to the exact execution
-selected by the active schema-2 profile. The explicit form is:
+selected by the active schema-3 profile. The explicit form is:
 
 ```text
 model-id@backend:quantization

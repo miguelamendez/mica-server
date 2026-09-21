@@ -140,6 +140,13 @@ int register_model(lua_State* state) {
   model.repositories[Backend::mlx] = string_field(state, 1, "mlx_repo");
   model.repositories[Backend::gguf] = string_field(state, 1, "gguf_repo");
   model.repositories[Backend::vllm] = string_field(state, 1, "vllm_repo");
+  for (const auto [backend, field] :
+       {std::pair{Backend::mlx, "mlx_revision"},
+        std::pair{Backend::gguf, "gguf_revision"},
+        std::pair{Backend::vllm, "vllm_revision"}}) {
+    const auto revision = string_field(state, 1, field);
+    if (!revision.empty()) model.repository_revisions[backend] = revision;
+  }
   model.startup_priority = static_cast<int>(number_field(state, 1, "priority", 100));
   model.required = bool_field(state, 1, "required", false);
   model.required_by_backend[Backend::mlx] =
@@ -185,6 +192,52 @@ int register_model(lua_State* state) {
   model.artifacts[Backend::vllm][Quantization::native] =
       artifact_from(state, 1, "vllm_native", Backend::vllm, model.capability,
                     vllm_supported, vllm_reason);
+  lua_getfield(state, 1, "artifacts");
+  if (lua_istable(state, -1)) {
+    const auto count = lua_rawlen(state, -1);
+    for (std::size_t i = 1; i <= count; ++i) {
+      lua_rawgeti(state, -1, static_cast<lua_Integer>(i));
+      if (!lua_istable(state, -1)) {
+        lua_pop(state, 2);
+        return luaL_error(state, "model artifact declaration must be a table");
+      }
+      const auto backend = parse_backend(string_field(state, -1, "backend"));
+      const auto variant = parse_quantization(
+          string_field(state, -1, "variant"));
+      Artifact artifact;
+      artifact.supported = bool_field(state, -1, "supported", true);
+      artifact.engine = string_field(state, -1, "engine");
+      artifact.format = string_field(state, -1, "format", default_format(backend));
+      artifact.quantization_type = string_field(
+          state, -1, "quantization_type", to_string(variant));
+      artifact.pattern = string_field(state, -1, "path");
+      artifact.repository_pattern = string_field(
+          state, -1, "repository_path", artifact.pattern);
+      artifact.projector_pattern = string_field(state, -1, "projector");
+      artifact.projector_repository_pattern = string_field(
+          state, -1, "projector_repository_path", artifact.projector_pattern);
+      artifact.size_bytes = static_cast<std::uint64_t>(
+          number_field(state, -1, "size_bytes", 0));
+      artifact.projector_size_bytes = static_cast<std::uint64_t>(
+          number_field(state, -1, "projector_size_bytes", 0));
+      artifact.reservation_gib = number_field(
+          state, -1, "reservation_gib", 0.0);
+      artifact.size_source = string_field(
+          state, -1, "size_source", "upstream-metadata");
+      artifact.sha256 = string_field(state, -1, "sha256");
+      artifact.projector_sha256 = string_field(state, -1, "projector_sha256");
+      artifact.reason = string_field(state, -1, "reason");
+      if (artifact.supported &&
+          (artifact.engine.empty() || artifact.pattern.empty() ||
+           artifact.reservation_gib <= 0)) {
+        lua_pop(state, 2);
+        return luaL_error(state, "supported model artifact is incomplete");
+      }
+      model.artifacts[backend][variant] = std::move(artifact);
+      lua_pop(state, 1);
+    }
+  }
+  lua_pop(state, 1);
   registry->models.push_back(std::move(model));
   return 0;
 }
@@ -291,13 +344,16 @@ void run_file(lua_State* state, const std::filesystem::path& path) {
   }
 }
 
-Backend backend_for_engine(const std::string& engine) {
-  if (engine == "mlx-lm" || engine == "mlx-vlm" || engine == "mlx-audio") {
-    return Backend::mlx;
+const EngineDefinition& engine_for_profile(const Registry& registry,
+                                           const std::string& engine) {
+  const auto found = registry.engines.find(engine);
+  if (found == registry.engines.end()) {
+    throw std::invalid_argument("unsupported profile engine: " + engine);
   }
-  if (engine == "llama-cpp" || engine == "audio-cpp") return Backend::gguf;
-  if (engine == "vllm") return Backend::vllm;
-  throw std::invalid_argument("unsupported profile engine: " + engine);
+  if (found->second.status != "current" && found->second.status != "candidate") {
+    throw std::invalid_argument("profile engine is not runnable: " + engine);
+  }
+  return found->second;
 }
 
 void validate_profile_model(const Registry& registry, const ProfileModel& policy,
@@ -316,6 +372,12 @@ void validate_profile_model(const Registry& registry, const ProfileModel& policy
     throw std::runtime_error("profile " + profile_name + " cannot use " + policy.id +
                              "@" + to_string(policy.backend) + ":" +
                              to_string(policy.quantization) + ": " + reason);
+  }
+  if (artifact->second.engine != policy.engine) {
+    throw std::runtime_error("profile " + profile_name + " selects engine " +
+                             policy.engine + " but artifact " + policy.id + "@" +
+                             to_string(policy.quantization) + " requires " +
+                             artifact->second.engine);
   }
   if (policy.max_input_tokens < 1 || policy.max_output_tokens < 1 ||
       policy.max_total_tokens < policy.max_input_tokens + policy.max_output_tokens) {
@@ -338,9 +400,32 @@ void validate_profile_model(const Registry& registry, const ProfileModel& policy
     throw std::runtime_error("profile " + profile_name + " has invalid KV cache precision for " +
                              policy.id);
   }
+  if (policy.placement_mode != "auto" && policy.placement_mode != "fixed") {
+    throw std::runtime_error("profile " + profile_name +
+                             " has invalid placement mode for " + policy.id);
+  }
+  if (policy.placement_mode == "fixed" && policy.device == "auto") {
+    throw std::runtime_error("profile " + profile_name +
+                             " has fixed placement without a device for " + policy.id);
+  }
+  if (policy.device != "auto" && policy.device != "cpu" &&
+      !policy.device.starts_with("accelerator:") &&
+      !policy.device.starts_with("cuda:") &&
+      !policy.device.starts_with("rocm:") &&
+      !policy.device.starts_with("xpu:") &&
+      !policy.device.starts_with("metal:")) {
+    throw std::runtime_error("profile " + profile_name +
+                             " has an unsupported placement device for " + policy.id);
+  }
+  if (policy.gpu_layers < -1 || policy.gpu_layers > 999 ||
+      policy.ram_reservation_gib < -1 || policy.vram_reservation_gib < -1 ||
+      (policy.device == "cpu" && policy.gpu_layers > 0)) {
+    throw std::runtime_error("profile " + profile_name +
+                             " has invalid placement resources for " + policy.id);
+  }
 }
 
-void load_profiles_v2(lua_State* state, Registry& registry,
+void load_profiles_v3(lua_State* state, Registry& registry,
                       const std::filesystem::path& path) {
   if (!std::filesystem::exists(path)) return;
   if (luaL_loadfile(state, path.c_str()) != LUA_OK || lua_pcall(state, 0, 1, 0) != LUA_OK) {
@@ -354,10 +439,60 @@ void load_profiles_v2(lua_State* state, Registry& registry,
   }
   const int root = lua_absindex(state, -1);
   const auto schema = static_cast<int>(number_field(state, root, "schema", 0));
-  if (schema != 2) {
+  if (schema != 3) {
     lua_pop(state, 1);
-    throw std::runtime_error("profiles.lua must use schema 2");
+    throw std::runtime_error("profiles.lua must use schema 3");
   }
+  lua_getfield(state, root, "engines");
+  if (!lua_istable(state, -1)) {
+    lua_pop(state, 2);
+    throw std::runtime_error("profiles.lua is missing engines");
+  }
+  const int engines = lua_absindex(state, -1);
+  lua_pushnil(state);
+  while (lua_next(state, engines) != 0) {
+    const auto id = std::string(luaL_checkstring(state, -2));
+    if (!lua_istable(state, -1)) {
+      lua_pop(state, 3);
+      throw std::runtime_error("engine descriptor must be a table: " + id);
+    }
+    EngineDefinition engine;
+    engine.id = id;
+    engine.status = string_field(state, -1, "status", "current");
+    const auto backend = string_field(state, -1, "backend");
+    if (engine.status == "current" || engine.status == "candidate") {
+      engine.backend = parse_backend(backend);
+    }
+    engine.installer = string_field(state, -1, "installer");
+    engine.launcher = string_field(state, -1, "launcher");
+    engine.device_target = string_field(state, -1, "device_target");
+    engine.source_url = string_field(state, -1, "source_url");
+    engine.revision = string_field(state, -1, "revision");
+    engine.runtime_directory = string_field(state, -1, "runtime_directory");
+    engine.server_executable = string_field(state, -1, "server_executable");
+    engine.quantizer_executable = string_field(state, -1, "quantizer_executable");
+    engine.build_targets = string_array_field(state, -1, "build_targets");
+    engine.version_arguments = string_array_field(state, -1, "version_arguments");
+    engine.hardware = string_array_field(state, -1, "hardware");
+    engine.artifact_formats = string_array_field(state, -1, "artifact_formats");
+    const bool runnable = engine.status == "current" || engine.status == "candidate";
+    if (runnable &&
+        (engine.installer.empty() || engine.launcher.empty() ||
+         engine.device_target.empty() || engine.artifact_formats.empty())) {
+      lua_pop(state, 3);
+      throw std::runtime_error("incomplete engine descriptor: " + id);
+    }
+    if (runnable && engine.installer == "cmake-llama" &&
+        (engine.source_url.empty() || engine.revision.empty() ||
+         engine.runtime_directory.empty() || engine.server_executable.empty() ||
+         engine.build_targets.empty())) {
+      lua_pop(state, 3);
+      throw std::runtime_error("incomplete native llama engine descriptor: " + id);
+    }
+    registry.engines[id] = std::move(engine);
+    lua_pop(state, 1);
+  }
+  lua_pop(state, 1);  // engines
   lua_getfield(state, root, "execution_profiles");
   if (!lua_istable(state, -1)) {
     lua_pop(state, 2);
@@ -381,7 +516,7 @@ void load_profiles_v2(lua_State* state, Registry& registry,
     const int profile_table = lua_absindex(state, -1);
     Profile profile;
     profile.name = profile_name;
-    profile.schema = 2;
+    profile.schema = 3;
     profile.mode = string_field(state, profile_table, "mode", "interactive");
     profile.catalog_visible = bool_field(
         state, profile_table, "catalog_visible", profile.mode != "validation");
@@ -422,6 +557,18 @@ void load_profiles_v2(lua_State* state, Registry& registry,
           state, entry, "idle_seconds",
           policy.residency == Residency::pinned ? 0 :
           policy.residency == Residency::ephemeral ? 0 : 300));
+      lua_getfield(state, entry, "placement");
+      if (lua_istable(state, -1)) {
+        policy.placement_mode = string_field(state, -1, "mode", "auto");
+        policy.device = string_field(state, -1, "device", "auto");
+        policy.gpu_layers = static_cast<int>(
+            number_field(state, -1, "gpu_layers", -1));
+        policy.ram_reservation_gib =
+            number_field(state, -1, "ram_reservation_gib", -1.0);
+        policy.vram_reservation_gib =
+            number_field(state, -1, "vram_reservation_gib", -1.0);
+      }
+      lua_pop(state, 1);
       if (policy.id.empty() || policy.execution.empty()) {
         lua_pop(state, 6);
         throw std::runtime_error("profile model requires id and execution: " + profile_name);
@@ -445,7 +592,9 @@ void load_profiles_v2(lua_State* state, Registry& registry,
         throw std::runtime_error("execution profile model mismatch for " + policy.id);
       }
       policy.engine = string_field(state, execution, "engine");
-      policy.backend = backend_for_engine(policy.engine);
+      const auto& engine = engine_for_profile(registry, policy.engine);
+      policy.backend = engine.backend;
+      policy.device_target = engine.device_target;
 
       lua_getfield(state, execution, "artifact");
       if (!lua_istable(state, -1)) {
@@ -525,12 +674,7 @@ std::string to_string(Backend value) {
 }
 
 std::string to_string(Quantization value) {
-  switch (value) {
-    case Quantization::q4: return "q4";
-    case Quantization::q8: return "q8";
-    case Quantization::native: return "native";
-  }
-  throw std::invalid_argument("invalid quantization");
+  return value.id;
 }
 
 Backend parse_backend(const std::string& value) {
@@ -585,17 +729,33 @@ Residency parse_residency(const std::string& value) {
 }
 
 Quantization parse_quantization(const std::string& value) {
-  if (value == "q4") return Quantization::q4;
-  if (value == "q8") return Quantization::q8;
-  if (value == "native") return Quantization::native;
-  throw std::invalid_argument("quantization must be q4, q8, or native");
+  if (value.empty() || value.size() > 64 ||
+      !std::isalnum(static_cast<unsigned char>(value.front())) ||
+      !std::all_of(value.begin(), value.end(), [](unsigned char character) {
+        return std::islower(character) || std::isdigit(character) ||
+               character == '_' || character == '-';
+      })) {
+    throw std::invalid_argument(
+        "artifact variant must be a lowercase identifier using letters, numbers, _ or -");
+  }
+  return Quantization(value);
 }
+
+const Quantization Quantization::q4{"q4"};
+const Quantization Quantization::q8{"q8"};
+const Quantization Quantization::native{"native"};
 
 const ModelDefinition& Registry::model(const std::string& id) const {
   const auto found = std::find_if(models.begin(), models.end(),
                                   [&](const auto& item) { return item.id == id; });
   if (found == models.end()) throw std::out_of_range("unknown model: " + id);
   return *found;
+}
+
+const EngineDefinition& Registry::engine(const std::string& id) const {
+  const auto found = engines.find(id);
+  if (found == engines.end()) throw std::out_of_range("unknown engine: " + id);
+  return found->second;
 }
 
 const Profile& Registry::profile(const std::string& name) const {
@@ -621,7 +781,7 @@ Registry load_registry(const std::filesystem::path& config_directory) {
     run_file(state, config_directory / "policy.lua");
     const auto tools = config_directory / "tools.lua";
     if (std::filesystem::exists(tools)) run_file(state, tools);
-    load_profiles_v2(state, registry, config_directory / "profiles.lua");
+    load_profiles_v3(state, registry, config_directory / "profiles.lua");
   } catch (...) {
     lua_close(state);
     throw;

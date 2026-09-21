@@ -362,8 +362,10 @@ std::string add_custom_model(const AddModelOptions& options) {
 
 void quantize_model(const QuantizeModelOptions& options) {
   if (options.group_size <= 0) throw std::invalid_argument("group size must be positive");
-  if (options.quantization == Quantization::native) {
-    throw std::invalid_argument("native is only valid for a vLLM source repository");
+  if (options.quantization != Quantization::q4 &&
+      options.quantization != Quantization::q8) {
+    throw std::invalid_argument(
+        "quantization production supports q4 or q8; exact pre-packed variants are downloaded, not regenerated");
   }
   auto catalog = read_catalog(options.root);
   const bool custom = catalog["models"].contains(options.id);
@@ -926,7 +928,7 @@ void merge_custom_models(Registry& registry, const std::filesystem::path& root) 
     model.repositories[Backend::vllm] = model.source_repo;
     model.startup_priority = 100;
     for (const auto backend : {Backend::mlx, Backend::gguf, Backend::vllm}) {
-      for (const auto quantization :
+      for (const auto& quantization :
            {Quantization::q4, Quantization::q8, Quantization::native}) {
         Artifact artifact;
         artifact.reason = "custom model has not been quantized for " + to_string(backend) + "/" +
@@ -997,6 +999,8 @@ nlohmann::json registry_catalog(const Registry& registry,
             {"format", artifact.format},
             {"quantization", quantization_name},
             {"quantization_type", artifact.quantization_type},
+            {"sha256", artifact.sha256},
+            {"projector_sha256", artifact.projector_sha256},
             {"artifact_path", artifact.repository_pattern},
             {"size_bytes", artifact.size_bytes},
             {"size_gib", bytes_to_gib(artifact.size_bytes)},

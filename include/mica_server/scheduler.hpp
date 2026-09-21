@@ -7,6 +7,22 @@
 
 namespace mica {
 
+struct ResolvedModelPlacement {
+  std::string device{"cpu"};
+  int gpu_layers{0};
+  double ram_reservation_gib{0.0};
+  double vram_reservation_gib{0.0};
+  bool unified_memory{false};
+};
+
+// Resolve a profile's logical placement (for example accelerator:0) to the
+// engine-specific device exposed by the detected hardware. Unified-memory
+// accelerators consume only the RAM pool; discrete accelerators consume both
+// host RAM and their explicit VRAM pool.
+ResolvedModelPlacement resolve_model_placement(
+    const ProfileModel& policy, const Artifact& artifact,
+    const HardwareInfo& hardware);
+
 StartupPlan plan_startup(const Registry& registry, const Profile& profile,
                          Backend backend, Quantization quantization,
                          double max_ram_gib);
@@ -14,6 +30,11 @@ StartupPlan plan_startup(const Registry& registry, const Profile& profile,
 StartupPlan plan_profile_startup(const Registry& registry, const Profile& profile,
                                  Backend backend, Quantization quantization,
                                  double max_ram_gib);
+
+StartupPlan plan_profile_startup_resources(
+    const Registry& registry, const Profile& profile, Backend backend,
+    Quantization quantization, double max_ram_gib, double max_vram_gib,
+    const HardwareInfo& hardware);
 
 std::vector<ResidentModel> rank_eviction_candidates(
     std::vector<ResidentModel> residents);

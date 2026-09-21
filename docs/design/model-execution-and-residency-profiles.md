@@ -1,10 +1,10 @@
 # Model execution and residency profiles
 
-Status: accepted; schema-2 loader, scheduler, and profile catalog implemented
+Status: accepted; schema-3 YAML loader, scheduler, and profile catalog implemented
 Last updated: 2026-09-18
 
-The built-in machine-readable catalog is `config/profiles.lua`; shareable JSON
-profiles are distributed through `profiles/catalog.json` and installed beneath
+The built-in machine-readable catalog is `config/profiles.lua`; shareable YAML
+profiles are distributed through `profiles/catalog.yaml` and installed beneath
 the runtime root. Every execution profile remains `candidate` or `experimental`
 until its exact context, cache, batch, quality, and peak-memory combination
 passes on real hardware; unimplemented additions remain `planned`.
@@ -42,7 +42,7 @@ when a tested lockfile proves their dependencies compatible; otherwise each
 selected engine gets its own minimal environment under `~/.mica`.
 
 The existing `backend` CLI remains a compatibility interface for legacy
-profiles. Schema-2 profiles select the concrete engine and artifact per model;
+profiles. Schema-3 profiles select the concrete engine and artifact per model;
 `--backend` and `--quant` cannot override those selections.
 
 ## Proposed residency profiles
@@ -117,19 +117,22 @@ caches and must not inherit MLX-VLM text-cache flags. Those profiles use
 Before admitting a request, the proxy reserves weights, fixed runtime
 workspace, media/codec workspace, maximum request KV, concurrent slots, and a
 safety margin. If the envelope does not fit, it evicts only idle eligible
-workers in this order:
+workers that can release memory from the constrained RAM or VRAM pool, in this
+order:
 
-1. ephemeral;
-2. on-demand;
-3. warm;
-4. lowest numeric priority;
+1. expired idle TTL;
+2. residency class (`ephemeral`, `on-demand`, then `warm`);
+3. lowest numeric priority;
+4. greatest useful relief for the constrained pool;
 5. oldest last use;
-6. shortest reload cost as final tie-breaker.
+6. largest artifact reservation;
+7. stable model ID.
 
-Active workers are queued behind, not killed. Pinned workers are never
-automatically evicted. The proxy unloads selected workers, confirms memory has
-fallen below the load watermark, and only then launches replacements. Disk
-artifacts are never deleted by memory offloading.
+Active workers are never killed, and pinned workers are never automatically
+evicted. If eligible idle workers cannot make sufficient room, the current
+implementation rejects admission with `model_memory_budget_exceeded`; request
+queueing remains planned. Disk artifacts are never deleted by memory
+offloading.
 
 ## Context and reasoning validation
 
@@ -152,8 +155,8 @@ duration, packed text/audio positions, frames, and codec workspace.
 
 ## Work still required
 
-Schema-2 loading, profile reference validation, per-engine installation,
-context/concurrency/KV propagation, deterministic residency, local JSON
+Schema-3 YAML loading, profile reference validation, per-engine installation,
+context/concurrency/KV propagation, deterministic residency, local YAML
 profiles, and the GitHub catalog are implemented. Remaining work is:
 
 1. Add complete request/media estimation and aggregate batch-token admission.

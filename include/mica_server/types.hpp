@@ -1,5 +1,6 @@
 #pragma once
 
+#include <compare>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -9,7 +10,20 @@
 namespace mica {
 
 enum class Backend { mlx, gguf, vllm };
-enum class Quantization { q4, q8, native };
+// Artifact variant IDs are intentionally open-ended. Built-in producers use
+// q4/q8/native, while pre-packed artifacts can use precise identifiers such as
+// pq2_0 without pretending to be another quantization family.
+struct Quantization {
+  std::string id{"q4"};
+
+  Quantization() = default;
+  explicit Quantization(std::string value) : id(std::move(value)) {}
+  auto operator<=>(const Quantization&) const = default;
+
+  static const Quantization q4;
+  static const Quantization q8;
+  static const Quantization native;
+};
 enum class VllmDevice { automatic, cpu, cuda, metal, rocm, xpu, tpu };
 enum class Residency { pinned, warm, on_demand, ephemeral };
 
@@ -81,6 +95,26 @@ struct Artifact {
   double reservation_gib{0.0};
   std::string projector_pattern;
   std::string projector_repository_pattern;
+  std::string sha256;
+  std::string projector_sha256;
+};
+
+struct EngineDefinition {
+  std::string id;
+  Backend backend{Backend::gguf};
+  std::string status{"current"};
+  std::string installer;
+  std::string launcher;
+  std::string device_target;
+  std::string source_url;
+  std::string revision;
+  std::string runtime_directory;
+  std::string server_executable;
+  std::string quantizer_executable;
+  std::vector<std::string> build_targets;
+  std::vector<std::string> version_arguments;
+  std::vector<std::string> hardware;
+  std::vector<std::string> artifact_formats;
 };
 
 struct ModelDefinition {
@@ -113,6 +147,7 @@ struct ProfileModel {
   std::string id;
   std::string execution;
   std::string engine;
+  std::string device_target;
   Backend backend{Backend::gguf};
   Quantization quantization{Quantization::q4};
   Residency residency{Residency::on_demand};
@@ -124,6 +159,13 @@ struct ProfileModel {
   int max_total_tokens{8192};
   int max_concurrent_requests{1};
   std::string kv_cache_precision{"q8"};
+  // Placement is resolved per worker. "auto" follows the detected engine
+  // target; "fixed" requires device to be cpu, accelerator:N, or runtime:N.
+  std::string placement_mode{"auto"};
+  std::string device{"auto"};
+  int gpu_layers{-1};
+  double ram_reservation_gib{-1.0};
+  double vram_reservation_gib{-1.0};
 };
 
 struct Profile {
@@ -180,11 +222,13 @@ struct Registry {
   std::string llama_cpp_revision;
   std::string audio_cpp_revision;
   std::vector<ModelDefinition> models;
+  std::map<std::string, EngineDefinition> engines;
   std::map<std::string, Profile> profiles;
   Policy policy;
   VlmToolDefinition vlm_tool;
 
   [[nodiscard]] const ModelDefinition& model(const std::string& id) const;
+  [[nodiscard]] const EngineDefinition& engine(const std::string& id) const;
   [[nodiscard]] const Profile& profile(const std::string& name) const;
 };
 
@@ -200,6 +244,8 @@ struct StartupPlan {
   std::vector<std::string> admitted;
   std::vector<std::string> skipped;
   double reserved_gib{0.0};
+  double reserved_ram_gib{0.0};
+  double reserved_vram_gib{0.0};
   std::optional<std::string> error;
 };
 

@@ -28,6 +28,17 @@ find_path(MICA_JSON_INCLUDE_DIR nlohmann/json.hpp HINTS "${MICA_LLAMA_VENDOR_HIN
 find_path(MICA_HTTPLIB_INCLUDE_DIR httplib.h HINTS "${MICA_LLAMA_VENDOR_HINT}/cpp-httplib")
 
 include(FetchContent)
+set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+set(YAML_CPP_INSTALL OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+  yaml_cpp
+  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+  GIT_TAG 56e3bb550c91fd7005566f19c079cb7a503223cf
+  GIT_SHALLOW FALSE
+)
+FetchContent_MakeAvailable(yaml_cpp)
+
 if(NOT MICA_JSON_INCLUDE_DIR)
   FetchContent_Declare(
     nlohmann_json
@@ -69,7 +80,8 @@ target_include_directories(mica_server_core
   PUBLIC include
   PRIVATE ${MICA_LUA_INCLUDE_DIR}
 )
-target_link_libraries(mica_server_core PUBLIC ${MICA_LUA_LIBRARY} ${CMAKE_DL_LIBS})
+target_link_libraries(mica_server_core PUBLIC
+  ${MICA_LUA_LIBRARY} ${CMAKE_DL_LIBS} yaml-cpp::yaml-cpp)
 if(UNIX)
   target_link_libraries(mica_server_core PUBLIC m)
 endif()
@@ -110,26 +122,26 @@ if(MICA_SERVER_BUILD_TESTS)
   target_link_libraries(mica-server-tests PRIVATE mica_server_core)
   add_test(NAME mica-server-tests COMMAND mica-server-tests)
   add_test(
-    NAME mica-server-schema2-gguf-profile
+    NAME mica-server-schema3-gguf-profile
     COMMAND $<TARGET_FILE:mica-server> setup --profile gguf-interactive
-            --dry-run --ram-gib 8 --root /tmp/mica-schema2-gguf-test
+            --dry-run --ram-gib 8 --root /tmp/mica-schema3-gguf-test
             --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
             --hardware-profile
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/mac-metal.json
   )
-  set_tests_properties(mica-server-schema2-gguf-profile PROPERTIES
+  set_tests_properties(mica-server-schema3-gguf-profile PROPERTIES
     PASS_REGULAR_EXPRESSION "installed_backends.*gguf.*validate native loopback bind"
     FAIL_REGULAR_EXPRESSION "uv venv|environments/tools|environments/mlx|environments/vllm"
   )
   add_test(
-    NAME mica-server-schema2-reject-quant-override
+    NAME mica-server-schema3-reject-quant-override
     COMMAND $<TARGET_FILE:mica-server> plan --profile interactive --quant q8
-            --root /tmp/mica-schema2-quant-test
+            --root /tmp/mica-schema3-quant-test
             --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
             --hardware-profile
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/mac-metal.json
   )
-  set_tests_properties(mica-server-schema2-reject-quant-override PROPERTIES
+  set_tests_properties(mica-server-schema3-reject-quant-override PROPERTIES
     WILL_FAIL TRUE
   )
   add_test(
@@ -157,7 +169,7 @@ if(MICA_SERVER_BUILD_TESTS)
   add_test(
     NAME mica-server-profile-file-plan
     COMMAND $<TARGET_FILE:mica-server> plan --profile-file
-            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/profiles/custom-assistant.json
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/profiles/custom-assistant.yaml
             --root /tmp/mica-profile-file-test
             --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
             --hardware-profile
@@ -169,7 +181,7 @@ if(MICA_SERVER_BUILD_TESTS)
   add_test(
     NAME mica-server-profile-external-gguf
     COMMAND $<TARGET_FILE:mica-server> plan --profile-file
-            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/profiles/external-gguf.json
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/profiles/external-gguf.yaml
             --root /tmp/mica-profile-external-test
             --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
             --hardware-profile
@@ -181,12 +193,119 @@ if(MICA_SERVER_BUILD_TESTS)
   add_test(
     NAME mica-server-profile-reject-remote-code
     COMMAND $<TARGET_FILE:mica-server> profile validate
-            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/profiles/unsafe-remote-code.json
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/profiles/unsafe-remote-code.yaml
             --root /tmp/mica-profile-unsafe-test
             --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
   )
   set_tests_properties(mica-server-profile-reject-remote-code PROPERTIES
     WILL_FAIL TRUE
+  )
+  add_test(
+    NAME mica-server-placement-cpu-on-cuda-host
+    COMMAND $<TARGET_FILE:mica-server> plan
+            --profile mica-assistant-gguf-cpu --ram-gib 16
+            --root /tmp/mica-placement-cpu-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cuda.json
+  )
+  set_tests_properties(mica-server-placement-cpu-on-cuda-host PROPERTIES
+    PASS_REGULAR_EXPRESSION "resolved_device.*cpu.*reserved_ram_gib.*7.3.*reserved_vram_gib.*0.0"
+  )
+  add_test(
+    NAME mica-server-placement-gpu-on-cuda-host
+    COMMAND $<TARGET_FILE:mica-server> plan
+            --profile mica-assistant-gguf-gpu --ram-gib 8
+            --root /tmp/mica-placement-gpu-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cuda.json
+  )
+  set_tests_properties(mica-server-placement-gpu-on-cuda-host PROPERTIES
+    PASS_REGULAR_EXPRESSION "resolved_device.*cuda:0.*reserved_ram_gib.*1.5.*reserved_vram_gib.*7.3"
+  )
+  add_test(
+    NAME mica-server-placement-mixed-on-cuda-host
+    COMMAND $<TARGET_FILE:mica-server> plan
+            --profile mica-assistant-gguf-mixed --ram-gib 8
+            --root /tmp/mica-placement-mixed-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cuda.json
+  )
+  set_tests_properties(mica-server-placement-mixed-on-cuda-host PROPERTIES
+    PASS_REGULAR_EXPRESSION "resolved_device.*cuda:0.*resolved_device.*cpu.*reserved_ram_gib.*3.0.*reserved_vram_gib.*4.8"
+  )
+  add_test(
+    NAME mica-server-placement-reject-gpu-on-cpu-host
+    COMMAND $<TARGET_FILE:mica-server> plan
+            --profile mica-assistant-gguf-gpu --ram-gib 8
+            --root /tmp/mica-placement-reject-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cpu.json
+  )
+  set_tests_properties(mica-server-placement-reject-gpu-on-cpu-host PROPERTIES
+    WILL_FAIL TRUE
+  )
+  add_test(
+    NAME mica-server-placement-reject-disabled-vram
+    COMMAND $<TARGET_FILE:mica-server> plan
+            --profile mica-assistant-gguf-gpu --ram-gib 8 --vram-gib 0
+            --root /tmp/mica-placement-vram-disabled-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cuda.json
+  )
+  set_tests_properties(mica-server-placement-reject-disabled-vram PROPERTIES
+    WILL_FAIL TRUE
+  )
+  add_test(
+    NAME mica-server-bonsai-cpu-plan
+    COMMAND $<TARGET_FILE:mica-server> plan
+            --profile bonsai-pq2-vision-cpu --ram-gib 16
+            --root /tmp/mica-bonsai-cpu-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cpu.json
+  )
+  set_tests_properties(mica-server-bonsai-cpu-plan PROPERTIES
+    PASS_REGULAR_EXPRESSION "prism-llama-cpp.*ram_reservation_gib.*12.0.*resolved_device.*cpu.*quantizations.*pq2_0"
+  )
+  add_test(
+    NAME mica-server-bonsai-prism-cpu-setup
+    COMMAND $<TARGET_FILE:mica-server> setup
+            --profile bonsai-pq2-vision-cpu --ram-gib 16 --dry-run
+            --root /tmp/mica-bonsai-prism-cpu-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cpu.json
+  )
+  set_tests_properties(mica-server-bonsai-prism-cpu-setup PROPERTIES
+    PASS_REGULAR_EXPRESSION "PrismML-Eng/llama.cpp.git.*prism-llama.cpp.*--target llama-server --parallel 2.*validate prism-llama-cpp runtime"
+    FAIL_REGULAR_EXPRESSION "GGML_CUDA=ON|GGML_HIP=ON|GGML_METAL=ON|GGML_SYCL=ON|GGML_VULKAN=ON|/runtimes/llama.cpp|audio.cpp"
+  )
+  add_test(
+    NAME mica-server-bonsai-prism-cuda-setup
+    COMMAND $<TARGET_FILE:mica-server> setup
+            --profile bonsai-pq2-vision-gpu --ram-gib 8 --dry-run
+            --root /tmp/mica-bonsai-prism-cuda-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cuda.json
+  )
+  set_tests_properties(mica-server-bonsai-prism-cuda-setup PROPERTIES
+    PASS_REGULAR_EXPRESSION "PrismML-Eng/llama.cpp.git.*prism-llama.cpp.*9a9394a895b96003ca842a6041cb28ac49a108f7.*GGML_CUDA=ON.*--target llama-server --parallel 2.*validate prism-llama-cpp runtime"
+    FAIL_REGULAR_EXPRESSION "/runtimes/llama.cpp|--target llama-quantize|audio.cpp"
+  )
+  add_test(
+    NAME mica-server-bonsai-registry
+    COMMAND $<TARGET_FILE:mica-server> registry list
+            --modality img-text-to-text --backend gguf
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+  )
+  set_tests_properties(mica-server-bonsai-registry PROPERTIES
+    PASS_REGULAR_EXPRESSION "ternary-bonsai-2-27b.*prism-llama-cpp.*pq2_0.*PQ2_0.*3907dc1658db1f78a9826bf8d5bcb8dc65db0d466388937af57f2294fae62ec1"
   )
   foreach(MICA_HARDWARE_CASE IN ITEMS mac-metal linux-cuda linux-rocm linux-xpu)
     add_test(
@@ -579,8 +698,10 @@ install(DIRECTORY config/
         FILES_MATCHING PATTERN "*.lua" PATTERN "*.json")
 install(DIRECTORY scripts/ DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/scripts
         FILES_MATCHING PATTERN "*.py" PATTERN "__pycache__" EXCLUDE)
-install(FILES profiles/catalog.json
+install(FILES profiles/catalog.yaml
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/profiles)
+install(FILES schemas/profile-v3.schema.json
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/schemas)
 install(FILES apps/mica_playground.py apps/mica-logo.svg apps/mica-readme-header.svg
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps)
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/docs

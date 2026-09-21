@@ -193,6 +193,46 @@ mica.model {
   vllm_q4_ram_gib = 1.5,
 }
 
+-- Bonsai 2 uses rotated ternary weights that require Prism's llama.cpp fork.
+-- The exact upstream packing is retained as pq2_0; it is not relabeled Q4.
+mica.model {
+  id = "ternary-bonsai-2-27b",
+  capability = "vision",
+  description = "Ternary Bonsai 2 27B multimodal model using native PQ2_0 weights and the BF16 vision projector; requires the isolated Prism llama.cpp engine.",
+  tags = {"image-text-to-text", "ternary", "pq2_0", "experimental", "commercial-use", "apache-2.0"},
+  source_repo = "prism-ml/Ternary-Bonsai-2-27B-gguf",
+  mlx_repo = "",
+  gguf_repo = "prism-ml/Ternary-Bonsai-2-27B-gguf",
+  gguf_revision = "6ed5e12bf84b7a63069882c91dd9e9218647d17b",
+  gguf_context_tokens = 262144,
+  gguf_parallel_slots = 1,
+  priority = 50,
+  required = false,
+  mlx_supported = false,
+  mlx_reason = "No certified MLX conversion is registered",
+  gguf_supported = false,
+  gguf_reason = "Bonsai is available only through its exact pq2_0 artifact variant",
+  vllm_supported = false,
+  vllm_reason = "Rotated PQ2_0 weights require the Prism llama.cpp activation transform",
+  artifacts = {
+    {
+      backend = "gguf", variant = "pq2_0", supported = true,
+      engine = "prism-llama-cpp", format = "gguf",
+      quantization_type = "PQ2_0",
+      path = "Ternary-Bonsai-2-27B-PQ2_0.gguf",
+      repository_path = "Ternary-Bonsai-2-27B-PQ2_0.gguf",
+      size_bytes = 7206168928,
+      sha256 = "3907dc1658db1f78a9826bf8d5bcb8dc65db0d466388937af57f2294fae62ec1",
+      projector = "Ternary-Bonsai-2-27B-mmproj-BF16.gguf",
+      projector_repository_path = "Ternary-Bonsai-2-27B-mmproj-BF16.gguf",
+      projector_size_bytes = 931145856,
+      projector_sha256 = "e287342d92332fa3577ed1d42e921dac9370c08da58ba9337fa450f6cc76cfd7",
+      reservation_gib = 12.0,
+      size_source = "huggingface-pinned-revision",
+    },
+  },
+}
+
 mica.profile {
   name = "all",
   quantization = "q4",

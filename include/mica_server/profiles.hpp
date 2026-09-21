@@ -10,13 +10,14 @@
 namespace mica {
 
 inline constexpr const char* kDefaultProfileCatalogUrl =
-    "https://raw.githubusercontent.com/miguelamendez/mica-server/main/profiles/catalog.json";
+    "https://raw.githubusercontent.com/miguelamendez/mica-server/main/profiles/catalog.yaml";
 
-nlohmann::json profile_to_json(const Profile& profile);
+nlohmann::json profile_to_document(const Profile& profile);
 nlohmann::json read_profile_file(const std::filesystem::path& path);
 void write_profile_file(const std::filesystem::path& path,
                         const nlohmann::json& document);
-Profile profile_from_json(Registry& registry, const nlohmann::json& document);
+Profile profile_from_document(Registry& registry, const nlohmann::json& document);
+std::string profile_yaml(const nlohmann::json& document);
 std::string merge_profile_file(Registry& registry, const std::filesystem::path& path);
 void merge_installed_profiles(Registry& registry, const std::filesystem::path& root);
 std::filesystem::path install_profile_file(Registry& registry,

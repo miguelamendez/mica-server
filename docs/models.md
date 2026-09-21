@@ -33,6 +33,7 @@ normal profile listings.
 | Granite Speech 5.0 470M TurboCTC | ASR | Q4, Q8 | Q4_K, Q8_0 | Apache-2.0 |
 | Audio8 TTS Preview 0.6B | TTS and voice cloning | Q4, Q8 | Q4_0, Q8_0 | Apache-2.0 |
 | MiniCPM-V 4.6 Thinking | Image/video to text | Q4, Q8 | Q4_K_M, Q8_0 | Apache-2.0 |
+| Ternary Bonsai 2 27B | Image/text to text | — | PQ2_0 + BF16 projector (Prism fork) | Apache-2.0 |
 
 Full provenance, context/training limits, protected layers, quality findings,
 and benchmark links live in [model cards](model-cards/).
@@ -55,7 +56,7 @@ Registration rejects unknown or non-commercial licenses. The current
 allowlist is Apache-2.0, MIT, BSD-2-Clause, BSD-3-Clause, BSD, and ISC. Custom
 definitions are stored in `~/.mica/config/custom-models.json`.
 
-A shareable schema-2 profile can reference another Hugging Face model directly,
+A shareable schema-3 YAML profile can reference another Hugging Face model directly,
 but must pin an immutable revision and declare its license, modality, engine,
 artifact path/format, context limits, and memory reservation. Remote code is
 not trusted. See [Profiles](profiles.md).
@@ -84,6 +85,11 @@ audio/vision components whose quantization caused quality loss. GGUF uses the
 family-specific converter and quant type recorded in the model card. Original
 full-precision downloads remain in `~/.mica/staging` until conversion and real
 smoke inference succeed.
+
+Artifact variant IDs are extensible strings. The conversion command currently
+produces only `q4` and `q8`; exact upstream packings such as Bonsai's `pq2_0`
+are downloaded from an immutable revision and retain their exact packing name,
+size, and checksums.
 
 vLLM candidates require calibration data, a supported accelerator, and native
 quality validation before promotion. See [vLLM quantization](vllm-quantization.md).

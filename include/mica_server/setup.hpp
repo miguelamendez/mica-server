@@ -24,6 +24,7 @@ struct SetupOptions {
   bool quantizations_explicit{false};
   double max_ram_gib{8.0};
   double max_vram_gib{0.0};
+  bool max_vram_explicit{false};
   VllmDevice vllm_device{VllmDevice::automatic};
   bool dry_run{false};
   bool refresh{false};

@@ -15,7 +15,7 @@ This guide covers release installation, source builds, engine setup, the
 | `mica-assistant-gguf` | macOS, Linux, WSL2 | `llama.cpp`, `audio.cpp` | No |
 | `mica-assistant-gptq` | Future CUDA/ROCm/XPU target | vLLM | Blocked pending four-modality certification |
 
-`auto` selects MLX on Apple Silicon and GGUF elsewhere. A schema-2 profile
+`auto` selects MLX on Apple Silicon and GGUF elsewhere. A schema-3 profile
 selects the concrete engine and artifact for every model; CLI backend flags do
 not silently override it.
 
@@ -171,7 +171,7 @@ explicit `--root PATH` has highest priority.
 ├── cache/                       uv, download, and Hugging Face caches
 ├── config/
 │   ├── custom-models.json
-│   └── profiles/                installed schema-2 profiles
+│   └── profiles/                installed schema-3 YAML profiles
 ├── environments/               tools, MLX, and vLLM as selected
 ├── logs/                        engine worker logs
 ├── models/<backend>/            retained quantized artifacts

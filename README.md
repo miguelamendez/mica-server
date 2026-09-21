@@ -47,11 +47,13 @@ themes and branding, session history, and ZIP import/export.
 | Granite Speech 5.0 470M TurboCTC | ASR | Q4, Q8 | Q4_K, Q8_0 | Not certified |
 | Audio8 TTS Preview 0.6B | TTS and voice cloning | Q4, Q8 | Q4_0, Q8_0 | Future adapter |
 | MiniCPM-V 4.6 Thinking | Image/video to text | Q4, Q8 | Q4_K_M, Q8_0 | Not certified |
+| Ternary Bonsai 2 27B | Image/text to text | — | PQ2_0 via Prism fork | — |
 
-The four public models use permissive commercial-use licenses. Internal route
-fixtures are not presented as supported models. Provenance, context/training
-limits, protected quantization layers, and quality evidence live in the
-[model cards](docs/model-cards/).
+The public models use permissive commercial-use licenses. Bonsai is an
+experimental engine-extension candidate rather than part of the default
+four-model assistant. Internal route fixtures are not presented as supported
+models. Provenance, context/training limits, protected quantization layers, and
+quality evidence live in the [model cards](docs/model-cards/).
 
 ## Architecture
 
@@ -144,7 +146,8 @@ List local or GitHub-hosted profiles:
 ```
 
 Profiles can also be created, validated, installed, edited, or loaded directly
-from a local JSON file. See [Profiles and memory policies](docs/profiles.md).
+from a local schema-3 YAML file. JSON profile files are intentionally rejected.
+See [Profiles and memory policies](docs/profiles.md).
 
 ## Model registry
 
@@ -168,6 +171,7 @@ quantization types, formats, artifact sizes, and memory reservations. See
 | [API reference](docs/api.md) | Authentication, model discovery, chat, ASR, TTS, agent streaming, and sessions |
 | [Models](docs/models.md) | Registry, custom models, quantization, provenance, and Hugging Face publication |
 | [Development](docs/development.md) | Tests, benchmarks, release packaging, troubleshooting, and security |
+| [Linux/NVIDIA source-install validation](docs/validation/github-source-install-nvidia-plan.md) | Clean GitHub install, CPU/GPU/mixed profiles, vLLM, and engine-extension test plan |
 | [vLLM quantization](docs/vllm-quantization.md) | Candidate methodology and certification gates |
 | [Architecture decisions](docs/design/architecture-decisions.md) | Runtime, storage, engine, and scheduler decisions |
 | [Agent state machine](docs/design/agent-chat-state-machine.md) | Multimodal chat/tool flow |
