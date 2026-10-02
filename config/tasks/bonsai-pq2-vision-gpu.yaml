@@ -1,0 +1,33 @@
+schema: 4
+id: bonsai-pq2-vision-gpu
+description: ""
+default_chat_model: ""
+mode: vision-gpu-validation
+memory:
+  required_ram_gib: 8
+  maximum_resident_workers: 0
+  required_vram_gib: 16
+  safety_reserve_gib: 0.5
+models:
+  - artifact:
+      id: pq2_0
+    batching:
+      max_concurrent_requests: 1
+    context:
+      max_input_tokens: 6144
+      max_output_tokens: 2048
+      max_total_tokens: 8192
+    engine: prism-llama-cpp
+    id: ternary-bonsai-2-27b
+    idle_seconds: 30
+    kv_cache:
+      precision: q8
+    placement:
+      device: accelerator:0
+      gpu_layers: 99
+      mode: fixed
+      ram_reservation_gib: 0.75
+      vram_reservation_gib: 12
+    priority: 100
+    residency: on-demand
+    startup: false

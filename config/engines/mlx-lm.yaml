@@ -1,0 +1,14 @@
+schema: 1
+id: mlx-lm
+status: current
+backend: mlx
+installer: python-mlx
+launcher: mlx-lm
+device_target: mlx
+hardware: [apple-silicon]
+artifact_formats: [mlx]
+features: [text-generation, streaming]
+install:
+  environment_group: mlx
+  # Spark's current worker path uses mlx_vlm.server for its custom architecture.
+  python_packages: [mlx-lm, mlx-vlm]

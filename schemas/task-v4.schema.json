@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/miguelamendez/mica-server/schemas/task-v4.schema.json",
+  "title": "Mica task profile v4",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "id", "models"],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "context": {
+      "type": "object", "additionalProperties": false,
+      "required": ["max_input_tokens", "max_output_tokens", "max_total_tokens"],
+      "properties": {
+        "max_input_tokens": {"type": "integer", "minimum": 1},
+        "max_output_tokens": {"type": "integer", "minimum": 1},
+        "max_total_tokens": {"type": "integer", "minimum": 2}
+      }
+    },
+    "placement": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "mode": {"enum": ["auto", "fixed"]},
+        "device": {"type": "string", "pattern": "^(auto|cpu|(accelerator|cuda|rocm|xpu|metal):[0-9]+)$"},
+        "gpu_layers": {"type": "integer", "minimum": -1, "maximum": 999},
+        "ram_reservation_gib": {"type": "number", "minimum": -1},
+        "vram_reservation_gib": {"type": "number", "minimum": -1}
+      }
+    },
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["repository", "revision", "license"],
+      "properties": {
+        "repository": {"type": "string"},
+        "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "license": {"type": "string"},
+        "trust_remote_code": {"const": false}
+      }
+    },
+    "artifact": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["id"],
+          "properties": {"id": {"type": "string"}, "format": {"type": "string"}}
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["path"],
+          "properties": {
+            "repository": {"type": "string"},
+            "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+            "format": {"type": "string"},
+            "quantization": {"type": "string"},
+            "quantization_type": {"type": "string"},
+            "path": {"type": "string"},
+            "projector": {"type": "string"},
+            "size_bytes": {"type": "integer", "minimum": 0},
+            "size_gib": {"type": "number", "minimum": 0},
+            "projector_size_bytes": {"type": "integer", "minimum": 0},
+            "reservation_gib": {"type": "number", "minimum": 0},
+            "size_source": {"type": "string"},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "projector_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        }
+      ]
+    },
+    "model": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "engine", "artifact", "context", "batching", "kv_cache"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "description": {"type": "string"},
+        "tags": {"type": "array", "items": {"type": "string"}},
+        "modality": {"type": "string"},
+        "family": {"type": "string"},
+        "declared_context_tokens": {"type": "integer", "minimum": 1},
+        "source": {"$ref": "#/$defs/source"},
+        "engine": {"$ref": "#/$defs/id"},
+        "artifact": {"$ref": "#/$defs/artifact"},
+        "context": {"$ref": "#/$defs/context"},
+        "batching": {
+          "type": "object", "additionalProperties": false,
+          "required": ["max_concurrent_requests"],
+          "properties": {"max_concurrent_requests": {"type": "integer", "minimum": 1, "maximum": 64}}
+        },
+        "kv_cache": {
+          "type": "object", "additionalProperties": false,
+          "required": ["precision"],
+          "properties": {"precision": {"enum": ["q4", "q8", "auto", "runtime-managed", "not-applicable"]}}
+        },
+        "placement": {"$ref": "#/$defs/placement"},
+        "residency": {"enum": ["pinned", "warm", "on-demand", "ephemeral"]},
+        "priority": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "startup": {"type": "boolean"},
+        "idle_seconds": {"type": "integer", "minimum": 0}
+      },
+      "allOf": [
+        {"if": {"required": ["source"]},
+         "then": {"required": ["modality"],
+                  "properties": {"artifact": {"required": ["path"]}}},
+         "else": {"properties": {"artifact": {"required": ["id"]}}}}
+      ]
+    }
+  },
+  "properties": {
+    "schema": {"const": 4},
+    "id": {"$ref": "#/$defs/id"},
+    "description": {"type": "string"},
+    "default_chat_model": {"type": "string"},
+    "mode": {"type": "string"},
+    "available": {"type": "boolean"},
+    "catalog_visible": {"type": "boolean"},
+    "memory": {
+      "type": "object", "additionalProperties": false,
+      "required": ["required_ram_gib", "required_vram_gib"],
+      "properties": {
+        "required_ram_gib": {"type": "number", "minimum": 0},
+        "required_vram_gib": {"type": "number", "minimum": 0},
+        "safety_reserve_gib": {"type": "number", "minimum": 0},
+        "maximum_resident_workers": {"type": "integer", "minimum": 0, "maximum": 128}
+      }
+    },
+    "models": {"type": "array", "minItems": 1, "maxItems": 128, "items": {"$ref": "#/$defs/model"}}
+  }
+}

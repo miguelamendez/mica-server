@@ -1,0 +1,27 @@
+schema: 4
+id: custom-assistant
+mode: interactive
+memory:
+  required_ram_gib: 8
+  required_vram_gib: 0
+  safety_reserve_gib: 0.5
+  maximum_resident_workers: 2
+models:
+  - id: spark-x25-4b
+    engine: mlx-lm
+    artifact: {id: q4, format: mlx}
+    context: {max_input_tokens: 7168, max_output_tokens: 1024, max_total_tokens: 8192}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: q8}
+    residency: pinned
+    priority: 100
+    startup: true
+  - id: minicpm-v46-thinking
+    engine: mlx-vlm
+    artifact: {id: q4, format: mlx}
+    context: {max_input_tokens: 6144, max_output_tokens: 2048, max_total_tokens: 8192}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: q4}
+    residency: ephemeral
+    priority: 40
+    startup: false

@@ -1,0 +1,87 @@
+schema: 4
+id: gguf-long-context
+description: ""
+default_chat_model: ""
+mode: long-context
+memory:
+  required_ram_gib: 12
+  maximum_resident_workers: 0
+  required_vram_gib: 0
+  safety_reserve_gib: 0.75
+models:
+  - artifact:
+      id: q4
+    batching:
+      max_concurrent_requests: 1
+    context:
+      max_input_tokens: 7168
+      max_output_tokens: 1024
+      max_total_tokens: 8192
+    engine: llama-cpp
+    id: spark-x25-4b
+    idle_seconds: 0
+    kv_cache:
+      precision: q4
+    placement:
+      device: auto
+      mode: auto
+    priority: 100
+    residency: pinned
+    startup: true
+  - artifact:
+      id: q4
+    batching:
+      max_concurrent_requests: 1
+    context:
+      max_input_tokens: 1
+      max_output_tokens: 1
+      max_total_tokens: 2
+    engine: audio-cpp
+    id: granite-speech-5
+    idle_seconds: 0
+    kv_cache:
+      precision: not-applicable
+    placement:
+      device: auto
+      mode: auto
+    priority: 30
+    residency: ephemeral
+    startup: false
+  - artifact:
+      id: q4
+    batching:
+      max_concurrent_requests: 1
+    context:
+      max_input_tokens: 1024
+      max_output_tokens: 1024
+      max_total_tokens: 2048
+    engine: audio-cpp
+    id: audio8-tts-06b
+    idle_seconds: 0
+    kv_cache:
+      precision: runtime-managed
+    placement:
+      device: auto
+      mode: auto
+    priority: 20
+    residency: ephemeral
+    startup: false
+  - artifact:
+      id: q4
+    batching:
+      max_concurrent_requests: 1
+    context:
+      max_input_tokens: 6144
+      max_output_tokens: 2048
+      max_total_tokens: 8192
+    engine: llama-cpp
+    id: minicpm-v46-thinking
+    idle_seconds: 0
+    kv_cache:
+      precision: q4
+    placement:
+      device: auto
+      mode: auto
+    priority: 10
+    residency: ephemeral
+    startup: false

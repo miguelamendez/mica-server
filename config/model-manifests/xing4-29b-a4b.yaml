@@ -1,0 +1,28 @@
+schema: 1
+id: xing4-29b-a4b
+capability: text
+input_modalities: [text]
+output_modalities: [text]
+description: Xing4.0 29B-A4B MoE coding and reasoning model with MLA, mHC, and 64 routed experts; experimental on Mica.
+source_repository: XingChen-AGI/Xing4.0-29B-A4B
+declared_context_tokens: 262144
+tags: [text-generation, coding, reasoning, moe, compression-research]
+thinking_modes: [none, on]
+thinking_budget_supported: false
+license: apache-2.0
+artifacts:
+  - id: q4
+    backend: gguf
+    engine: xing-llama-cpp
+    format: gguf
+    quantization_type: IQ4_NL
+    repository: XingChen-AGI/Xing4.0-29B-A4B-GGUF
+    revision: b8cd0a75f3d3dfa992bd8423ee22041b987eaf44
+    reservation_gib: 19.0
+    required_features: [text-generation, xing4-architecture]
+    minimum_engine_commit: 63c16fb9797d00f13d70b5a618b4deb08953aef3
+    files:
+      - role: model
+        path: xing4_0-29b-IQ4_NL.gguf
+        size_bytes: 20104012544
+        sha256: 9c9c81cf83b6ce974d3440088318de83b727c0064124ca6c3c919289adadb4dd

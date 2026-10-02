@@ -1,0 +1,676 @@
+profiles:
+  - schema: 4
+    id: mica-assistant-mlx
+    description: ""
+    default_chat_model: ""
+    available: true
+    mode: interactive
+    memory:
+      required_ram_gib: 8
+      maximum_resident_workers: 0
+      required_vram_gib: 0
+      safety_reserve_gib: 0.5
+    models:
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 7168
+          max_output_tokens: 1024
+          max_total_tokens: 8192
+        engine: mlx-lm
+        id: spark-x25-4b
+        idle_seconds: 0
+        kv_cache:
+          precision: q8
+        placement:
+          device: auto
+          mode: auto
+        priority: 100
+        residency: pinned
+        startup: true
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 1
+          max_output_tokens: 1
+          max_total_tokens: 2
+        engine: mlx-audio
+        id: granite-speech-5
+        idle_seconds: 600
+        kv_cache:
+          precision: not-applicable
+        placement:
+          device: auto
+          mode: auto
+        priority: 90
+        residency: warm
+        startup: true
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 1024
+          max_output_tokens: 1024
+          max_total_tokens: 2048
+        engine: mlx-audio
+        id: audio8-tts-06b
+        idle_seconds: 180
+        kv_cache:
+          precision: runtime-managed
+        placement:
+          device: auto
+          mode: auto
+        priority: 70
+        residency: warm
+        startup: true
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 6144
+          max_output_tokens: 2048
+          max_total_tokens: 8192
+        engine: mlx-vlm
+        id: minicpm-v46-thinking
+        idle_seconds: 30
+        kv_cache:
+          precision: q4
+        placement:
+          device: auto
+          mode: auto
+        priority: 40
+        residency: on-demand
+        startup: false
+    catalog_visible: true
+  - schema: 4
+    id: mica-assistant-gguf
+    description: ""
+    default_chat_model: ""
+    available: true
+    mode: interactive
+    memory:
+      required_ram_gib: 8
+      maximum_resident_workers: 0
+      required_vram_gib: 0
+      safety_reserve_gib: 0.5
+    models:
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 7168
+          max_output_tokens: 1024
+          max_total_tokens: 8192
+        engine: llama-cpp
+        id: spark-x25-4b
+        idle_seconds: 0
+        kv_cache:
+          precision: q8
+        placement:
+          device: auto
+          mode: auto
+        priority: 100
+        residency: pinned
+        startup: true
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 1
+          max_output_tokens: 1
+          max_total_tokens: 2
+        engine: audio-cpp
+        id: granite-speech-5
+        idle_seconds: 600
+        kv_cache:
+          precision: not-applicable
+        placement:
+          device: auto
+          mode: auto
+        priority: 90
+        residency: warm
+        startup: true
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 1024
+          max_output_tokens: 1024
+          max_total_tokens: 2048
+        engine: audio-cpp
+        id: audio8-tts-06b
+        idle_seconds: 180
+        kv_cache:
+          precision: runtime-managed
+        placement:
+          device: auto
+          mode: auto
+        priority: 70
+        residency: warm
+        startup: true
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 6144
+          max_output_tokens: 2048
+          max_total_tokens: 8192
+        engine: llama-cpp
+        id: minicpm-v46-thinking
+        idle_seconds: 30
+        kv_cache:
+          precision: q4
+        placement:
+          device: auto
+          mode: auto
+        priority: 40
+        residency: on-demand
+        startup: false
+    catalog_visible: true
+  - schema: 4
+    id: mica-assistant-gguf-cpu
+    description: ""
+    default_chat_model: ""
+    available: true
+    mode: interactive-cpu
+    memory:
+      required_ram_gib: 16
+      maximum_resident_workers: 0
+      required_vram_gib: 0
+      safety_reserve_gib: 0.5
+    models:
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 7168
+          max_output_tokens: 1024
+          max_total_tokens: 8192
+        engine: llama-cpp
+        id: spark-x25-4b
+        idle_seconds: 0
+        kv_cache:
+          precision: q8
+        placement:
+          device: cpu
+          gpu_layers: 0
+          mode: fixed
+        priority: 100
+        residency: pinned
+        startup: true
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 1
+          max_output_tokens: 1
+          max_total_tokens: 2
+        engine: audio-cpp
+        id: granite-speech-5
+        idle_seconds: 600
+        kv_cache:
+          precision: not-applicable
+        placement:
+          device: cpu
+          gpu_layers: 0
+          mode: fixed
+        priority: 90
+        residency: warm
+        startup: true
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 1024
+          max_output_tokens: 1024
+          max_total_tokens: 2048
+        engine: audio-cpp
+        id: audio8-tts-06b
+        idle_seconds: 180
+        kv_cache:
+          precision: runtime-managed
+        placement:
+          device: cpu
+          gpu_layers: 0
+          mode: fixed
+        priority: 70
+        residency: warm
+        startup: true
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 6144
+          max_output_tokens: 2048
+          max_total_tokens: 8192
+        engine: llama-cpp
+        id: minicpm-v46-thinking
+        idle_seconds: 30
+        kv_cache:
+          precision: q4
+        placement:
+          device: cpu
+          gpu_layers: 0
+          mode: fixed
+        priority: 40
+        residency: on-demand
+        startup: false
+    catalog_visible: true
+  - schema: 4
+    id: mica-assistant-gguf-gpu
+    description: ""
+    default_chat_model: ""
+    available: true
+    mode: interactive-gpu
+    memory:
+      required_ram_gib: 8
+      maximum_resident_workers: 0
+      required_vram_gib: 16
+      safety_reserve_gib: 0.5
+    models:
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 7168
+          max_output_tokens: 1024
+          max_total_tokens: 8192
+        engine: llama-cpp
+        id: spark-x25-4b
+        idle_seconds: 0
+        kv_cache:
+          precision: q8
+        placement:
+          device: accelerator:0
+          gpu_layers: 99
+          mode: fixed
+          ram_reservation_gib: 0.5
+          vram_reservation_gib: 4.8
+        priority: 100
+        residency: pinned
+        startup: true
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 1
+          max_output_tokens: 1
+          max_total_tokens: 2
+        engine: audio-cpp
+        id: granite-speech-5
+        idle_seconds: 600
+        kv_cache:
+          precision: not-applicable
+        placement:
+          device: accelerator:0
+          gpu_layers: 99
+          mode: fixed
+          ram_reservation_gib: 0.5
+          vram_reservation_gib: 0.9
+        priority: 90
+        residency: warm
+        startup: true
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 1024
+          max_output_tokens: 1024
+          max_total_tokens: 2048
+        engine: audio-cpp
+        id: audio8-tts-06b
+        idle_seconds: 180
+        kv_cache:
+          precision: runtime-managed
+        placement:
+          device: accelerator:0
+          gpu_layers: 99
+          mode: fixed
+          ram_reservation_gib: 0.5
+          vram_reservation_gib: 1.6
+        priority: 70
+        residency: warm
+        startup: true
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 6144
+          max_output_tokens: 2048
+          max_total_tokens: 8192
+        engine: llama-cpp
+        id: minicpm-v46-thinking
+        idle_seconds: 30
+        kv_cache:
+          precision: q4
+        placement:
+          device: accelerator:0
+          gpu_layers: 99
+          mode: fixed
+          ram_reservation_gib: 0.5
+          vram_reservation_gib: 2.2
+        priority: 40
+        residency: on-demand
+        startup: false
+    catalog_visible: true
+  - schema: 4
+    id: mica-assistant-gguf-mixed
+    description: ""
+    default_chat_model: ""
+    available: true
+    mode: interactive-mixed
+    memory:
+      required_ram_gib: 8
+      maximum_resident_workers: 0
+      required_vram_gib: 12
+      safety_reserve_gib: 0.5
+    models:
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 7168
+          max_output_tokens: 1024
+          max_total_tokens: 8192
+        engine: llama-cpp
+        id: spark-x25-4b
+        idle_seconds: 0
+        kv_cache:
+          precision: q8
+        placement:
+          device: accelerator:0
+          gpu_layers: 99
+          mode: fixed
+          ram_reservation_gib: 0.5
+          vram_reservation_gib: 4.8
+        priority: 100
+        residency: pinned
+        startup: true
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 1
+          max_output_tokens: 1
+          max_total_tokens: 2
+        engine: audio-cpp
+        id: granite-speech-5
+        idle_seconds: 600
+        kv_cache:
+          precision: not-applicable
+        placement:
+          device: cpu
+          gpu_layers: 0
+          mode: fixed
+        priority: 90
+        residency: warm
+        startup: true
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 1024
+          max_output_tokens: 1024
+          max_total_tokens: 2048
+        engine: audio-cpp
+        id: audio8-tts-06b
+        idle_seconds: 180
+        kv_cache:
+          precision: runtime-managed
+        placement:
+          device: cpu
+          gpu_layers: 0
+          mode: fixed
+        priority: 70
+        residency: warm
+        startup: true
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 6144
+          max_output_tokens: 2048
+          max_total_tokens: 8192
+        engine: llama-cpp
+        id: minicpm-v46-thinking
+        idle_seconds: 30
+        kv_cache:
+          precision: q4
+        placement:
+          device: accelerator:0
+          gpu_layers: 99
+          mode: fixed
+          ram_reservation_gib: 0.5
+          vram_reservation_gib: 2.2
+        priority: 40
+        residency: on-demand
+        startup: false
+    catalog_visible: true
+  - schema: 4
+    id: bonsai-pq2-vision-cpu
+    description: ""
+    default_chat_model: ""
+    available: true
+    mode: vision-cpu-validation
+    memory:
+      required_ram_gib: 16
+      maximum_resident_workers: 0
+      required_vram_gib: 0
+      safety_reserve_gib: 0.5
+    models:
+      - artifact:
+          id: pq2_0
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 6144
+          max_output_tokens: 2048
+          max_total_tokens: 8192
+        engine: prism-llama-cpp
+        id: ternary-bonsai-2-27b
+        idle_seconds: 30
+        kv_cache:
+          precision: q8
+        placement:
+          device: cpu
+          gpu_layers: 0
+          mode: fixed
+        priority: 100
+        residency: on-demand
+        startup: false
+    catalog_visible: true
+  - schema: 4
+    id: bonsai-pq2-vision-gpu
+    description: ""
+    default_chat_model: ""
+    available: true
+    mode: vision-gpu-validation
+    memory:
+      required_ram_gib: 8
+      maximum_resident_workers: 0
+      required_vram_gib: 16
+      safety_reserve_gib: 0.5
+    models:
+      - artifact:
+          id: pq2_0
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 6144
+          max_output_tokens: 2048
+          max_total_tokens: 8192
+        engine: prism-llama-cpp
+        id: ternary-bonsai-2-27b
+        idle_seconds: 30
+        kv_cache:
+          precision: q8
+        placement:
+          device: accelerator:0
+          gpu_layers: 99
+          mode: fixed
+          ram_reservation_gib: 0.75
+          vram_reservation_gib: 12
+        priority: 100
+        residency: on-demand
+        startup: false
+    catalog_visible: true
+  - schema: 4
+    id: mica-coder-bonsai-macos
+    description: Apple Silicon coding workspace with Bonsai as primary coder, Ling and Spark as alternate text models, and MiniCPM for image or PDF-page analysis.
+    default_chat_model: ternary-bonsai-2-27b
+    available: true
+    mode: coding
+    memory:
+      required_ram_gib: 16
+      maximum_resident_workers: 1
+      required_vram_gib: 0
+      safety_reserve_gib: 0.5
+    models:
+      - artifact:
+          id: pq2_0
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 6144
+          max_output_tokens: 2048
+          max_total_tokens: 8192
+        engine: prism-llama-cpp
+        id: ternary-bonsai-2-27b
+        idle_seconds: 120
+        kv_cache:
+          precision: q8
+        placement:
+          device: metal:0
+          gpu_layers: 99
+          mode: fixed
+        priority: 100
+        residency: warm
+        startup: true
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 7168
+          max_output_tokens: 1024
+          max_total_tokens: 8192
+        engine: mlx-lm
+        id: spark-x25-4b
+        idle_seconds: 120
+        kv_cache:
+          precision: q8
+        placement:
+          device: metal:0
+          mode: fixed
+        priority: 80
+        residency: on-demand
+        startup: false
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 7168
+          max_output_tokens: 1024
+          max_total_tokens: 8192
+        engine: llama-cpp
+        id: ling-3-tiny
+        idle_seconds: 120
+        kv_cache:
+          precision: q8
+        placement:
+          device: metal:0
+          gpu_layers: 99
+          mode: fixed
+        priority: 75
+        residency: on-demand
+        startup: false
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 6144
+          max_output_tokens: 2048
+          max_total_tokens: 8192
+        engine: mlx-vlm
+        id: minicpm-v46-thinking
+        idle_seconds: 60
+        kv_cache:
+          precision: q4
+        placement:
+          device: metal:0
+          mode: fixed
+        priority: 70
+        residency: on-demand
+        startup: false
+    catalog_visible: true
+  - schema: 3
+    id: mica-xing-q4-baseline-macos
+    description: Staged Xing IQ4_NL experiment on 24 GiB Apple Silicon; not yet certified for Metal inference or peak memory.
+    default_chat_model: xing4-29b-a4b
+    available: false
+    mode: evaluation
+    memory:
+      required_ram_gib: 20
+      maximum_resident_workers: 1
+      required_vram_gib: 0
+      safety_reserve_gib: 0.5
+    models:
+      - artifact:
+          format: gguf
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 2048
+          max_output_tokens: 512
+          max_total_tokens: 2560
+        engine: xing-llama-cpp
+        id: xing4-29b-a4b
+        idle_seconds: 120
+        kv_cache:
+          precision: q8
+        placement:
+          device: metal:0
+          gpu_layers: 99
+          mode: fixed
+        priority: 100
+        residency: warm
+        startup: true
+    reason: Awaiting explicit baseline download, Xing fork Metal load test, and measured peak memory under an external 20 GiB guard.
+    status: blocked
+  - available: false
+    description: Target vLLM/GPTQ assistant containing the same text, ASR, TTS, and vision capabilities.
+    id: mica-assistant-gptq
+    reason: The four GPTQ candidates have not passed native vLLM architecture, modality, and quality certification. The profile remains non-installable until they do.
+    schema: 3
+    status: blocked
+    target_models:
+      - spark-x25-4b
+      - granite-speech-5
+      - audio8-tts-06b
+      - minicpm-v46-thinking
+schema: 1

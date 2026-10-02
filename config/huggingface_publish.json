@@ -1,0 +1,96 @@
+{
+  "schema": 1,
+  "namespace": "miguelamendez",
+  "models": {
+    "spark-x25-4b": {
+      "repository": "mica-spark-x25-4b",
+      "card": "docs/model-cards/spark-x25-4b.md",
+      "source": {
+        "repository": "XHToken/Spark-X2.5-4B",
+        "revision": "0bcb35678590218655dff3765b9e61c83b35e9c4",
+        "license": "apache-2.0"
+      },
+      "artifacts": [
+        {"backend": "mlx", "quantization": "q4", "local": "checkpoints/mlx/spark-x25-4b/q4", "remote": "mlx/q4", "origin": "local-quantization", "validated": true},
+        {"backend": "mlx", "quantization": "q8", "local": "checkpoints/mlx/spark-x25-4b/q8", "remote": "mlx/q8", "origin": "local-quantization", "validated": true},
+        {"backend": "gguf", "quantization": "q4", "local": "checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q4_K_M.gguf", "remote": "gguf/Spark-X2.5-4B-Q4_K_M.gguf", "origin": "abenzerps/Spark-X2.5-4B-GGUF@f186f3d265c583a49d5e9d19bff23150b002202b", "validated": true},
+        {"backend": "gguf", "quantization": "q8", "local": "checkpoints/gguf/spark-x25-4b/Spark-X2.5-4B-Q8_0.gguf", "remote": "gguf/Spark-X2.5-4B-Q8_0.gguf", "origin": "abenzerps/Spark-X2.5-4B-GGUF@f186f3d265c583a49d5e9d19bff23150b002202b", "validated": true}
+      ],
+      "validation": [
+        "docs/validation/spark-x25-4b-mlx-q4.md",
+        "docs/validation/spark-x25-4b-mlx-q8.md",
+        "docs/validation/spark-x25-4b-mlx-classic-speculative.md",
+        "docs/validation/spark-vllm-quantization-macos.md",
+        "docs/validation/gguf-runtime-macos-metal.md",
+        "artifacts/benchmarks/spark-x25-4b-gguf-q4.json",
+        "artifacts/benchmarks/spark-x25-4b-gguf-q8.json"
+      ]
+    },
+    "granite-speech-5": {
+      "repository": "mica-granite-speech-5",
+      "card": "docs/model-cards/granite-speech-5.md",
+      "source": {
+        "repository": "ibm-granite/granite-speech-5.0-470m-turboctc",
+        "revision": "6c14d3d052a602d850f1bc4aa017f25f4adf6aa0",
+        "license": "apache-2.0"
+      },
+      "artifacts": [
+        {"backend": "mlx", "quantization": "q4", "local": "checkpoints/mlx/granite-speech-5/q4", "remote": "mlx/q4", "origin": "local-quantization", "validated": true},
+        {"backend": "mlx", "quantization": "q8", "local": "checkpoints/mlx/granite-speech-5/q8", "remote": "mlx/q8", "origin": "local-quantization", "validated": true},
+        {"backend": "gguf", "quantization": "q4", "local": "checkpoints/gguf/granite-speech-5/granite-speech-5.0-470m-turboctc-q4_k.gguf", "remote": "gguf/granite-speech-5.0-470m-turboctc-q4_k.gguf", "origin": "local-quantization", "validated": true},
+        {"backend": "gguf", "quantization": "q8", "local": "checkpoints/gguf/granite-speech-5/granite-speech-5.0-470m-turboctc-q8_0.gguf", "remote": "gguf/granite-speech-5.0-470m-turboctc-q8_0.gguf", "origin": "local-quantization", "validated": true}
+      ],
+      "validation": [
+        "docs/validation/granite-speech-5-mlx-q4.md",
+        "docs/validation/granite-speech-5-mlx-q8.md",
+        "docs/validation/granite-vllm-quantization-macos.md",
+        "docs/validation/gguf-runtime-macos-metal.md"
+      ]
+    },
+    "audio8-tts-06b": {
+      "repository": "mica-audio8-tts-06b",
+      "card": "docs/model-cards/audio8-tts-06b.md",
+      "source": {
+        "repository": "Audio8/Audio8-TTS-Preview-0.6b",
+        "revision": "f07040f3d151f1ba0253bfb92cb2f5dd38b44594",
+        "license": "apache-2.0"
+      },
+      "artifacts": [
+        {"backend": "mlx", "quantization": "q4", "local": "checkpoints/mlx/audio8-tts-06b/q4", "remote": "mlx/q4", "origin": "local-quantization", "validated": true},
+        {"backend": "mlx", "quantization": "q8", "local": "checkpoints/mlx/audio8-tts-06b/q8", "remote": "mlx/q8", "origin": "local-quantization", "validated": true},
+        {"backend": "gguf", "quantization": "q4", "local": "checkpoints/gguf/audio8-tts-06b/audio8-tts-preview-0.6b-q4_0.gguf", "remote": "gguf/audio8-tts-preview-0.6b-q4_0.gguf", "origin": "local-quantization", "validated": true},
+        {"backend": "gguf", "quantization": "q8", "local": "checkpoints/gguf/audio8-tts-06b/audio8-tts-preview-0.6b-q8_0.gguf", "remote": "gguf/audio8-tts-preview-0.6b-q8_0.gguf", "origin": "local-quantization", "validated": true}
+      ],
+      "validation": [
+        "docs/validation/audio8-vllm-quantization-macos.md",
+        "docs/validation/gguf-runtime-macos-metal.md",
+        "artifacts/benchmarks/audio8-gguf/manifest.json"
+      ]
+    },
+    "minicpm-v46-thinking": {
+      "repository": "mica-minicpm-v46-thinking",
+      "card": "docs/model-cards/minicpm-v46-thinking.md",
+      "source": {
+        "repository": "openbmb/MiniCPM-V-4.6-Thinking",
+        "revision": "93d8f4b60ad5d1f763442cf4c19f2a71fa95af4a",
+        "license": "apache-2.0"
+      },
+      "artifacts": [
+        {"backend": "mlx", "quantization": "q4", "local": "checkpoints/mlx/minicpm-v46-thinking/q4", "remote": "mlx/q4", "origin": "local-quantization", "validated": true},
+        {"backend": "mlx", "quantization": "q8", "local": "checkpoints/mlx/minicpm-v46-thinking/q8", "remote": "mlx/q8", "origin": "local-quantization", "validated": true},
+        {"backend": "gguf", "quantization": "q4", "local": "checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf", "remote": "gguf/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf", "origin": "openbmb/MiniCPM-V-4.6-Thinking-gguf@2e49fbd34ad9df11f0e93c93c2c5a80ba7cdc5e5", "validated": true},
+        {"backend": "gguf", "quantization": "q8", "local": "checkpoints/gguf/minicpm-v46-thinking/MiniCPM-V-4_6-Thinking-Q8_0.gguf", "remote": "gguf/MiniCPM-V-4_6-Thinking-Q8_0.gguf", "origin": "openbmb/MiniCPM-V-4.6-Thinking-gguf@2e49fbd34ad9df11f0e93c93c2c5a80ba7cdc5e5", "validated": true},
+        {"backend": "gguf", "quantization": "projector-f16", "local": "checkpoints/gguf/minicpm-v46-thinking/mmproj-model-f16.gguf", "remote": "gguf/mmproj-model-f16.gguf", "origin": "openbmb/MiniCPM-V-4.6-Thinking-gguf@2e49fbd34ad9df11f0e93c93c2c5a80ba7cdc5e5", "validated": true}
+      ],
+      "validation": [
+        "docs/validation/minicpm-v46-thinking-mlx.md",
+        "docs/validation/minicpm-v46-drafter-audit.md",
+        "docs/validation/minicpm-vllm-quantization-macos.md",
+        "docs/validation/gguf-runtime-macos-metal.md",
+        "artifacts/benchmarks/minicpm-v46-thinking-mlx.json",
+        "artifacts/benchmarks/minicpm-v46-thinking-gguf-q4.json",
+        "artifacts/benchmarks/minicpm-v46-thinking-gguf-q8.json"
+      ]
+    }
+  }
+}

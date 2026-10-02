@@ -1,0 +1,24 @@
+schema: 1
+id: xing-llama-cpp
+status: candidate
+backend: gguf
+installer: cmake-llama
+launcher: llama-server
+device_target: gguf
+hardware: [cpu, metal, cuda, rocm]
+artifact_formats: [gguf]
+features: [text-generation, xing4-architecture]
+source:
+  url: https://github.com/shuxiaoqiong/llama.cpp.git
+  revision: 63c16fb9797d00f13d70b5a618b4deb08953aef3
+install:
+  runtime_directory: xing-llama.cpp
+  server_executable: build-mica/bin/llama-server
+  build_targets: [llama-server]
+  version_arguments: [--version]
+  cmake_definitions:
+    common: {CMAKE_BUILD_TYPE: Release, GGML_NATIVE: ON}
+    cpu: {}
+    metal: {GGML_METAL: ON}
+    cuda: {GGML_CUDA: ON}
+    rocm: {GGML_HIP: ON}

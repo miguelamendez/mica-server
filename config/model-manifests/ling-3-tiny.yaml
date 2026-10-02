@@ -1,0 +1,43 @@
+schema: 1
+id: ling-3-tiny
+capability: text
+input_modalities: [text]
+output_modalities: [text]
+description: Ling 3.0 Tiny hybrid MoE reasoner and coding assistant, 7.9B total and 1.3B active parameters.
+source_repository: inclusionAI/Ling-3.0-tiny
+declared_context_tokens: 131072
+tags: [text-generation, coding, reasoning, moe]
+thinking_modes: [none, on]
+thinking_budget_supported: false
+license: mit
+artifacts:
+  - id: q4
+    backend: gguf
+    engine: llama-cpp
+    format: gguf
+    quantization_type: Q4_K_M
+    repository: inclusionAI/Ling-3.0-tiny-GGUF
+    revision: 01b850e29ed5b44e2b810160ff980a9bb353296f
+    reservation_gib: 8.0
+    required_features: [text-generation]
+    minimum_engine_commit: 373336672029b12e09f272bc027cc801345a3fd6
+    files:
+      - role: model
+        path: Ling-3.0-tiny-Q4_K_M.gguf
+        size_bytes: 4823894944
+        sha256: 246d67d45f5b0c7447ca0ce0bdb8b46b8a47b593c5068635dc16422c051d7be9
+  - id: q8
+    backend: gguf
+    engine: llama-cpp
+    format: gguf
+    quantization_type: Q8_0
+    repository: inclusionAI/Ling-3.0-tiny-GGUF
+    revision: 01b850e29ed5b44e2b810160ff980a9bb353296f
+    reservation_gib: 12.0
+    required_features: [text-generation]
+    minimum_engine_commit: 373336672029b12e09f272bc027cc801345a3fd6
+    files:
+      - role: model
+        path: Ling-3.0-tiny-Q8_0.gguf
+        size_bytes: 8408187808
+        sha256: 9299a9e5cbc540597619e252a41fd671faa4e84e619e3cea816542c84e19f0d6

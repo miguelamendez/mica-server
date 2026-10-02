@@ -1,0 +1,10 @@
+schema: 1
+allowed_devices: [cpu, "cuda:0"]
+limits:
+  inference:
+    ram_gib: 16
+    dedicated_memory_gib: {"cuda:0": 12}
+    cpu_threads: 8
+  build:
+    ram_gib: 12
+    parallel_jobs: 1

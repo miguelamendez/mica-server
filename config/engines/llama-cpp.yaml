@@ -1,0 +1,27 @@
+schema: 1
+id: llama-cpp
+status: current
+backend: gguf
+installer: cmake-llama
+launcher: llama-server
+device_target: gguf
+hardware: [cpu, metal, cuda, rocm, sycl, vulkan]
+artifact_formats: [gguf]
+features: [text-generation, vision-projector, streaming]
+source:
+  url: https://github.com/ggml-org/llama.cpp.git
+  revision: latest
+install:
+  runtime_directory: llama.cpp
+  server_executable: build-mica/bin/llama-server
+  quantizer_executable: build-mica/bin/llama-quantize
+  build_targets: [llama-server, llama-quantize]
+  version_arguments: [--version]
+  cmake_definitions:
+    common: {CMAKE_BUILD_TYPE: Release, GGML_NATIVE: ON}
+    cpu: {}
+    metal: {GGML_METAL: ON}
+    cuda: {GGML_CUDA: ON}
+    rocm: {GGML_HIP: ON}
+    sycl: {GGML_SYCL: ON}
+    vulkan: {GGML_VULKAN: ON}

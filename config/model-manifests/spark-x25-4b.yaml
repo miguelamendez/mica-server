@@ -1,0 +1,68 @@
+schema: 1
+id: spark-x25-4b
+capability: text
+input_modalities: [text]
+output_modalities: [text]
+description: Spark-X2.5-4B compact reasoning and general text model.
+source_repository: XHToken/Spark-X2.5-4B
+declared_context_tokens: 8192
+tags: [text-generation, reasoning]
+thinking_modes: [none, on]
+thinking_budget_supported: true
+license: apache-2.0
+mlx_converter: mlx_vlm.convert
+gguf_parallel_slots: 4
+startup_priority: 10
+required: true
+required_by_backend: {mlx: true, gguf: true, vllm: false}
+artifacts:
+  - id: q4
+    backend: mlx
+    engine: mlx-lm
+    format: mlx
+    quantization_type: mlx-affine-q4-g64
+    repository: miguelamendez/mica-spark-x25-4b
+    revision: 6c242d2945f11bb3587c437a1bf1088666ca6e2f
+    reservation_gib: 3.2
+    required_features: [text-generation]
+    files:
+      - role: model
+        path: q4
+        repository_path: mlx/q4
+        size_bytes: 2327288292
+  - id: q8
+    backend: mlx
+    engine: mlx-lm
+    format: mlx
+    quantization_type: mlx-affine-q8-g64
+    repository: miguelamendez/mica-spark-x25-4b
+    revision: 6c242d2945f11bb3587c437a1bf1088666ca6e2f
+    reservation_gib: 5.4
+    required_features: [text-generation]
+    files:
+      - role: model
+        path: q8
+        repository_path: mlx/q8
+        size_bytes: 4383234908
+  - id: q4
+    backend: gguf
+    engine: llama-cpp
+    format: gguf
+    quantization_type: Q4_K_M
+    repository: miguelamendez/mica-spark-x25-4b
+    revision: 6c242d2945f11bb3587c437a1bf1088666ca6e2f
+    reservation_gib: 4.8
+    required_features: [text-generation]
+    files:
+      - {role: model, path: Spark-X2.5-4B-Q4_K_M.gguf, repository_path: gguf/Spark-X2.5-4B-Q4_K_M.gguf, size_bytes: 2600223552}
+  - id: q8
+    backend: gguf
+    engine: llama-cpp
+    format: gguf
+    quantization_type: Q8_0
+    repository: miguelamendez/mica-spark-x25-4b
+    revision: 6c242d2945f11bb3587c437a1bf1088666ca6e2f
+    reservation_gib: 6.7
+    required_features: [text-generation]
+    files:
+      - {role: model, path: Spark-X2.5-4B-Q8_0.gguf, repository_path: gguf/Spark-X2.5-4B-Q8_0.gguf, size_bytes: 4375020352}

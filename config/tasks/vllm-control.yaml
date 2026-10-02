@@ -1,0 +1,31 @@
+schema: 4
+id: vllm-control
+description: ""
+default_chat_model: ""
+mode: validation
+catalog_visible: false
+memory:
+  required_ram_gib: 8
+  maximum_resident_workers: 0
+  required_vram_gib: 0
+  safety_reserve_gib: 0.5
+models:
+  - artifact:
+      id: q4
+    batching:
+      max_concurrent_requests: 4
+    context:
+      max_input_tokens: 512
+      max_output_tokens: 256
+      max_total_tokens: 1024
+    engine: vllm
+    id: vllm-qwen3-06b-control
+    idle_seconds: 0
+    kv_cache:
+      precision: auto
+    placement:
+      device: auto
+      mode: auto
+    priority: 100
+    residency: pinned
+    startup: true

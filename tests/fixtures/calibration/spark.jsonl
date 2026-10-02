@@ -1,0 +1,2 @@
+{"messages":[{"role":"user","content":"Explain why deterministic memory admission is safer than using model file size alone."},{"role":"assistant","content":"Runtime memory includes weights, caches, workspaces, and concurrent requests, so admission must budget the measured total."}]}
+{"messages":[{"role":"user","content":"Write a short function that returns the larger of two integers."},{"role":"assistant","content":"def larger(a, b):\n    return a if a > b else b"}]}

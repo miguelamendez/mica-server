@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title description">
+  <title id="title">Mica</title>
+  <desc id="description">Two vertically overlapping diamond outlines representing layered local models.</desc>
+  <path d="M48 8 78 38 48 68 18 38Z" fill="#b4befe" fill-opacity=".06" stroke="#b4befe" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M48 28 78 58 48 88 18 58Z" fill="#b4befe" fill-opacity=".06" stroke="#b4befe" stroke-width="7" stroke-linejoin="round"/>
+</svg>

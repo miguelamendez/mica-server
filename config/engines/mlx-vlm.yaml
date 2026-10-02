@@ -1,0 +1,13 @@
+schema: 1
+id: mlx-vlm
+status: current
+backend: mlx
+installer: python-mlx
+launcher: mlx-vlm
+device_target: mlx
+hardware: [apple-silicon]
+artifact_formats: [mlx]
+features: [vision-projector, image-understanding, video-understanding]
+install:
+  environment_group: mlx
+  python_packages: [mlx-vlm]

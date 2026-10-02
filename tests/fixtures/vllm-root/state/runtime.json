@@ -1,0 +1,9 @@
+{
+  "schema": 2,
+  "installed_backends": ["vllm"],
+  "quantizations": ["q4", "q8"],
+  "default_quantization": "q4",
+  "profile": "all",
+  "configured_models": {},
+  "downloads": {}
+}

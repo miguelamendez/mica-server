@@ -1,0 +1,26 @@
+schema: 1
+id: audio-cpp
+status: current
+backend: gguf
+installer: cmake-audio
+launcher: audio-server
+device_target: audio
+hardware: [cpu, metal, cuda, rocm, vulkan]
+artifact_formats: [gguf]
+features: [asr, tts, streaming]
+source:
+  url: https://github.com/0xShug0/audio.cpp.git
+  revision: latest
+install:
+  runtime_directory: audio.cpp
+  server_executable: build-mica/bin/audiocpp_server
+  quantizer_executable: build-mica/bin/audiocpp_gguf
+  build_targets: [audiocpp_server, audiocpp_gguf]
+  version_arguments: [--help]
+  cmake_definitions:
+    common: {CMAKE_BUILD_TYPE: Release, AUDIOCPP_MODEL_SET: custom}
+    cpu: {}
+    metal: {ENGINE_ENABLE_METAL: ON}
+    cuda: {ENGINE_ENABLE_CUDA: ON}
+    rocm: {ENGINE_ENABLE_HIP: ON}
+    vulkan: {ENGINE_ENABLE_VULKAN: ON}

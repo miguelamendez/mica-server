@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mica logo concepts</title>
+<style>
+  :root{color-scheme:dark;--ink:#f3f4f6;--muted:#9ca3af;--line:#2b3038}
+  *{box-sizing:border-box}body{margin:0;background:#101216;color:var(--ink);font:15px Inter,ui-sans-serif,system-ui,sans-serif}
+  main{width:min(1180px,calc(100% - 32px));margin:0 auto;padding:48px 0 64px}
+  header{max-width:760px;margin-bottom:30px}h1{font-size:34px;letter-spacing:-.035em;margin:0 0 10px}header p{color:#b7bec8;line-height:1.6;margin:0}
+  .note{margin-top:16px;padding:12px 14px;border:1px solid #343a43;border-radius:12px;background:#171a20;color:#cbd1d9}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.card{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#171a20;box-shadow:0 12px 32px #0003}.stage{height:210px;display:grid;place-items:center;background:#f4f1ea}.stage.dark{background:#111418}.stage svg{width:128px;height:128px}.copy{padding:17px 18px 20px}.number{color:#818cf8;font:700 11px ui-monospace,monospace;letter-spacing:.12em}.copy h2{font-size:18px;margin:6px 0 8px}.copy p{color:#b4bbc5;line-height:1.5;margin:0}.palette{display:flex;gap:7px;margin-top:14px}.swatch{width:18px;height:18px;border-radius:50%;border:1px solid #ffffff30}.tag{display:inline-block;margin-top:13px;padding:4px 8px;border-radius:999px;background:#242932;color:#cbd5e1;font-size:11px}
+  @media(max-width:950px){.grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){main{width:min(100% - 20px,1180px);padding-top:28px}.grid{grid-template-columns:1fr}.stage{height:185px}}
+</style>
+<main>
+  <header>
+    <h1>Mica mark study</h1>
+    <p>Eight flat-color directions based on layered mineral sheets. The composition is rotated from the first draft: overlap now travels vertically. Squares remain diamond-shaped; hexagons explore a more crystalline silhouette.</p>
+    <div class="note">All options avoid gradients, remain legible at 24 px, and can collapse to one color for terminal icons, favicons, and embossing.</div>
+  </header>
+  <section class="grid">
+    <article class="card">
+      <div class="stage">
+        <svg viewBox="0 0 96 96" role="img" aria-label="Two vertically overlapping navy diamonds">
+          <path d="M48 8 78 38 48 68 18 38Z" fill="#17324D"/>
+          <path d="M48 28 78 58 48 88 18 58Z" fill="#2F6F73" fill-opacity=".88"/>
+          <path d="m48 28 20 20-20 20-20-20Z" fill="#F2E9D8" fill-opacity=".55"/>
+        </svg>
+      </div>
+      <div class="copy"><span class="number">01 · SQUARE</span><h2>Mineral Layers</h2><p>Quiet and architectural. Deep navy gives the server credibility; muted teal references natural mica without looking like generic AI branding.</p><div class="palette"><i class="swatch" style="background:#17324D"></i><i class="swatch" style="background:#2F6F73"></i><i class="swatch" style="background:#F2E9D8"></i></div><span class="tag">Recommended balance</span></div>
+    </article>
+
+    <article class="card">
+      <div class="stage dark">
+        <svg viewBox="0 0 96 96" role="img" aria-label="Two vertically overlapping cobalt and mint diamond outlines">
+          <path d="M48 7 79 38 48 69 17 38Z" fill="#2563EB" fill-opacity=".18" stroke="#60A5FA" stroke-width="6" stroke-linejoin="round"/>
+          <path d="M48 27 79 58 48 89 17 58Z" fill="#10B981" fill-opacity=".16" stroke="#34D399" stroke-width="6" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="copy"><span class="number">02 · SQUARE</span><h2>Live Runtime</h2><p>Brighter and more technical. Cobalt suggests computation while mint signals a healthy, live local service. Strongest choice for a dark interface.</p><div class="palette"><i class="swatch" style="background:#2563EB"></i><i class="swatch" style="background:#10B981"></i><i class="swatch" style="background:#111418"></i></div><span class="tag">Best UI visibility</span></div>
+    </article>
+
+    <article class="card">
+      <div class="stage">
+        <svg viewBox="0 0 96 96" role="img" aria-label="Two vertically overlapping graphite diamonds">
+          <path d="M48 8 78 38 48 68 18 38Z" fill="none" stroke="#20242A" stroke-width="7" stroke-linejoin="round"/>
+          <path d="M48 28 78 58 48 88 18 58Z" fill="#20242A" fill-opacity=".12" stroke="#20242A" stroke-width="7" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="copy"><span class="number">03 · SQUARE</span><h2>Core Monogram</h2><p>Color-independent and serious. The dark overlap becomes the core—the orchestrator where model utilities meet. Easiest to reproduce anywhere.</p><div class="palette"><i class="swatch" style="background:#20242A"></i><i class="swatch" style="background:#F4F1EA"></i></div><span class="tag">Most timeless</span></div>
+    </article>
+
+    <article class="card">
+      <div class="stage">
+        <svg viewBox="0 0 96 96" role="img" aria-label="Two vertically overlapping rust and ochre diamonds">
+          <path d="M48 8 78 38 48 68 18 38Z" fill="#B8492F"/>
+          <path d="M48 28 78 58 48 88 18 58Z" fill="#D79A2B" fill-opacity=".9"/>
+          <path d="m48 28 20 20-20 20-20-20Z" fill="#F7E7C6" fill-opacity=".52"/>
+        </svg>
+      </div>
+      <div class="copy"><span class="number">04 · SQUARE</span><h2>Warm Workshop</h2><p>Human and tool-like rather than futuristic. Rust and ochre make Mica feel like a crafted local utility, with a subtle mineral and hardware character.</p><div class="palette"><i class="swatch" style="background:#B8492F"></i><i class="swatch" style="background:#D79A2B"></i><i class="swatch" style="background:#F7E7C6"></i></div><span class="tag">Most approachable</span></div>
+    </article>
+
+    <article class="card">
+      <div class="stage">
+        <svg viewBox="0 0 96 96" role="img" aria-label="Two vertically overlapping petrol hexagons">
+          <path d="M48 6 75 22 75 54 48 70 21 54 21 22Z" fill="#164E63"/>
+          <path d="M48 26 75 42 75 74 48 90 21 74 21 42Z" fill="#0F766E" fill-opacity=".88"/>
+          <path d="M48 26 67 37 67 59 48 70 29 59 29 37Z" fill="#CCFBF1" fill-opacity=".5"/>
+        </svg>
+      </div>
+      <div class="copy"><span class="number">05 · HEXAGON</span><h2>Crystal Stack</h2><p>The hexagon feels naturally mineral and less like a generic app tile. Petrol and jade are restrained, distinctive, and compatible with both light and dark UI.</p><div class="palette"><i class="swatch" style="background:#164E63"></i><i class="swatch" style="background:#0F766E"></i><i class="swatch" style="background:#CCFBF1"></i></div><span class="tag">Recommended symbol</span></div>
+    </article>
+
+    <article class="card">
+      <div class="stage dark">
+        <svg viewBox="0 0 96 96" role="img" aria-label="Two vertically overlapping charcoal and lime hexagons">
+          <path d="M48 6 75 22 75 54 48 70 21 54 21 22Z" fill="#171717" stroke="#A3E635" stroke-width="5"/>
+          <path d="M48 26 75 42 75 74 48 90 21 74 21 42Z" fill="#A3E635" fill-opacity=".14" stroke="#D9F99D" stroke-width="5"/>
+        </svg>
+      </div>
+      <div class="copy"><span class="number">06 · HEXAGON</span><h2>Terminal Signal</h2><p>High-energy developer branding. Acid lime acts like a status LED against charcoal; the center dot represents the routing decision point.</p><div class="palette"><i class="swatch" style="background:#171717"></i><i class="swatch" style="background:#A3E635"></i><i class="swatch" style="background:#D9F99D"></i></div><span class="tag">Boldest technical</span></div>
+    </article>
+
+    <article class="card">
+      <div class="stage">
+        <svg viewBox="0 0 96 96" role="img" aria-label="Two vertically overlapping ultramarine and gold hexagons">
+          <path d="M48 6 75 22 75 54 48 70 21 54 21 22Z" fill="#1E3A8A"/>
+          <path d="M48 26 75 42 75 74 48 90 21 74 21 42Z" fill="#D6A21E" fill-opacity=".92"/>
+          <path d="M48 26 67 37 67 59 48 70 29 59 29 37Z" fill="#FFF7D6" fill-opacity=".48"/>
+        </svg>
+      </div>
+      <div class="copy"><span class="number">07 · HEXAGON</span><h2>Instrument Grade</h2><p>Ultramarine and muted gold feel precise and premium without using a gradient. Appropriate if Mica should read as serious infrastructure.</p><div class="palette"><i class="swatch" style="background:#1E3A8A"></i><i class="swatch" style="background:#D6A21E"></i><i class="swatch" style="background:#FFF7D6"></i></div><span class="tag">Most premium</span></div>
+    </article>
+
+    <article class="card">
+      <div class="stage dark">
+        <svg viewBox="0 0 96 96" role="img" aria-label="Two vertically overlapping white hexagon outlines">
+          <path d="M48 6 75 22 75 54 48 70 21 54 21 22Z" fill="none" stroke="#F5F5F4" stroke-width="6"/>
+          <path d="M48 26 75 42 75 74 48 90 21 74 21 42Z" fill="none" stroke="#A8A29E" stroke-width="6"/>
+          <path d="M29 48h38" stroke="#F5F5F4" stroke-width="6" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="copy"><span class="number">08 · HEXAGON</span><h2>Neutral Lattice</h2><p>No brand color at all: just structure. The shared horizontal seam emphasizes layered materials and adapts automatically to any future product palette.</p><div class="palette"><i class="swatch" style="background:#F5F5F4"></i><i class="swatch" style="background:#A8A29E"></i><i class="swatch" style="background:#111418"></i></div><span class="tag">Most adaptable</span></div>
+    </article>
+  </section>
+</main>
+</html>

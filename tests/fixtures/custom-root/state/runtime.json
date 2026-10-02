@@ -1,0 +1,9 @@
+{
+  "schema": 2,
+  "installed_backends": ["mlx", "gguf"],
+  "quantizations": ["q4"],
+  "default_quantization": "q4",
+  "profile": "all",
+  "configured_models": {},
+  "downloads": {}
+}

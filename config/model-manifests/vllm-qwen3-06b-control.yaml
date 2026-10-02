@@ -1,0 +1,26 @@
+schema: 1
+id: vllm-qwen3-06b-control
+capability: text
+input_modalities: [text]
+output_modalities: [text]
+catalog_visible: false
+description: Validation-only Qwen3 0.6B MLX Q4 control for vLLM-Metal acceptance; not a production model.
+source_repository: mlx-community/Qwen3-0.6B-4bit
+declared_context_tokens: 32768
+tags: [text-generation, validation-control, vllm-metal]
+license: apache-2.0
+startup_priority: 1
+required: false
+required_by_backend: {mlx: false, gguf: false, vllm: true}
+artifacts:
+  - id: q4
+    backend: vllm
+    engine: vllm
+    format: mlx
+    quantization_type: mlx-affine-q4
+    repository: mlx-community/Qwen3-0.6B-4bit
+    revision: 73e3e38d981303bc594367cd910ea6eb48349da8
+    reservation_gib: 1.5
+    required_features: [text-generation]
+    files:
+      - {role: model, path: q4, repository_path: q4, size_bytes: 351388974}

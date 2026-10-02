@@ -1,0 +1,13 @@
+schema: 1
+id: mlx-audio
+status: current
+backend: mlx
+installer: python-mlx
+launcher: mlx-audio
+device_target: mlx
+hardware: [apple-silicon]
+artifact_formats: [mlx]
+features: [asr, tts, streaming]
+install:
+  environment_group: mlx
+  python_packages: ["mlx-audio[all,server]>=0.5.1"]

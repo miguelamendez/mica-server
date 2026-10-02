@@ -1,0 +1,96 @@
+{
+  "schema": 1,
+  "created_unix_seconds": 1789692892.806793,
+  "model": "vllm-qwen3-06b-control",
+  "backend": "vllm",
+  "quantization": "q4",
+  "base_url": "http://127.0.0.1:8081",
+  "max_output_tokens": 128,
+  "peak_rss_gib": null,
+  "hardware": null,
+  "cases": [
+    {
+      "task": "summary",
+      "target_context_tokens": 512,
+      "concurrency": 4,
+      "runs": 1,
+      "summary": {
+        "request_count": 4,
+        "batch_wall_seconds": 1.2151552920113318,
+        "latency_seconds": {
+          "min": 1.2118126670102356,
+          "median": 1.213225646497449,
+          "p95": 1.2133835419954266,
+          "max": 1.2133835419954266
+        },
+        "actual_prompt_tokens": {
+          "min": 477,
+          "max": 477,
+          "mean": 477.0
+        },
+        "completion_tokens": 512,
+        "aggregate_completion_tokens_per_second": 421.3453238166249,
+        "mean_backend_decode_tokens_per_second": 0.0,
+        "all_stopped_normally": false
+      },
+      "requests": [
+        {
+          "wall_seconds": 1.2133835419954266,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "completion_tokens_details": null,
+            "prompt_tokens": 477,
+            "prompt_tokens_details": null,
+            "total_tokens": 605
+          },
+          "timings": {},
+          "reasoning": "",
+          "output": "<think>\nOkay, let's tackle this. The user wants me to summarize a synthetic project log in five concise bullets, keeping the first milestone, final milestone, and all the risks. \n\nFirst, I need to parse the original text. The context mentions that the first milestone is alpha, the final is omega. The open risks are memory, latency, and quality. Then there's some repetition of record record record record... which might be a formatting error or a placeholder. But the main points are the milestones and the risks.\n\nSo, the first milestone is alpha, final is omega. The open risks are memory, latency, and quality"
+        },
+        {
+          "wall_seconds": 1.213229708999279,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "completion_tokens_details": null,
+            "prompt_tokens": 477,
+            "prompt_tokens_details": null,
+            "total_tokens": 605
+          },
+          "timings": {},
+          "reasoning": "",
+          "output": "<think>\nOkay, let's tackle this. The user wants me to summarize a synthetic project log in five concise bullets, keeping the first milestone, final milestone, and all the risks. \n\nFirst, I need to parse the original text. The context mentions that the first milestone is alpha, the final is omega. The open risks are memory, latency, and quality. Then there's some repetition of record record record record... which might be a formatting error or a placeholder. But the main points are the milestones and the risks.\n\nSo, the first milestone is alpha, final is omega. The open risks are memory, latency, and quality"
+        },
+        {
+          "wall_seconds": 1.2118126670102356,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "completion_tokens_details": null,
+            "prompt_tokens": 477,
+            "prompt_tokens_details": null,
+            "total_tokens": 605
+          },
+          "timings": {},
+          "reasoning": "",
+          "output": "<think>\nOkay, let's tackle this. The user wants me to summarize a synthetic project log in five concise bullets, keeping the first milestone, final milestone, and all the risks. \n\nFirst, I need to parse the original text. The context mentions that the first milestone is alpha, the final is omega. The open risks are memory, latency, and quality. Then there's some repetition of record record record record... which might be a formatting error or a placeholder. But the main points are the milestones and the risks.\n\nSo, the first milestone is alpha, final is omega. The open risks are memory, latency, and quality"
+        },
+        {
+          "wall_seconds": 1.2132215839956189,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 128,
+            "completion_tokens_details": null,
+            "prompt_tokens": 477,
+            "prompt_tokens_details": null,
+            "total_tokens": 605
+          },
+          "timings": {},
+          "reasoning": "",
+          "output": "<think>\nOkay, let's tackle this. The user wants me to summarize a synthetic project log in five concise bullets, keeping the first milestone, final milestone, and all the risks. \n\nFirst, I need to parse the original text. The context mentions that the first milestone is alpha, the final is omega. The open risks are memory, latency, and quality. Then there's some repetition of record record record record... which might be a formatting error or a placeholder. But the main points are the milestones and the risks.\n\nSo, the first milestone is alpha, final is omega. The open risks are memory, latency, and quality"
+        }
+      ]
+    }
+  ]
+}

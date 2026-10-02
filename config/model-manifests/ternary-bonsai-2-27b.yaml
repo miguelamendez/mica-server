@@ -1,0 +1,35 @@
+schema: 1
+id: ternary-bonsai-2-27b
+capability: vision
+input_modalities: [text, image]
+output_modalities: [text]
+description: Ternary 27B multimodal coding model with a BF16 vision projector; requires Prism llama.cpp.
+source_repository: prism-ml/Ternary-Bonsai-2-27B-gguf
+declared_context_tokens: 262144
+tags: [image-text-to-text, coding, ternary, experimental]
+thinking_modes: [none, low, medium, xhigh]
+thinking_budget_supported: true
+license: apache-2.0
+gguf_parallel_slots: 1
+startup_priority: 50
+required: false
+required_by_backend: {mlx: false, gguf: false, vllm: false}
+artifacts:
+  - id: pq2_0
+    backend: gguf
+    engine: prism-llama-cpp
+    format: gguf
+    quantization_type: PQ2_0
+    repository: prism-ml/Ternary-Bonsai-2-27B-gguf
+    revision: 6ed5e12bf84b7a63069882c91dd9e9218647d17b
+    reservation_gib: 12.0
+    required_features: [prism-activation-transform, vision-projector]
+    files:
+      - role: model
+        path: Ternary-Bonsai-2-27B-PQ2_0.gguf
+        size_bytes: 7206168928
+        sha256: 3907dc1658db1f78a9826bf8d5bcb8dc65db0d466388937af57f2294fae62ec1
+      - role: vision-projector
+        path: Ternary-Bonsai-2-27B-mmproj-BF16.gguf
+        size_bytes: 931145856
+        sha256: e287342d92332fa3577ed1d42e921dac9370c08da58ba9337fa450f6cc76cfd7

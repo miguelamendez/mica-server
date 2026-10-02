@@ -1,0 +1,181 @@
+{
+  "schema": 1,
+  "created_unix_seconds": 1790045260.801145,
+  "model": "minicpm-v46-thinking",
+  "backend": "mlx",
+  "quantization": "q4",
+  "base_url": "http://127.0.0.1:8081",
+  "max_output_tokens": 384,
+  "peak_rss_gib": null,
+  "hardware": {
+    "accelerators": [
+      {
+        "apis": [
+          "metal"
+        ],
+        "architecture": "",
+        "driver": "",
+        "id": "0",
+        "memory_gib": 24.0,
+        "name": "Apple M4 GPU",
+        "runtime": "metal",
+        "type": "gpu",
+        "unified_memory": true,
+        "vendor": "apple"
+      }
+    ],
+    "backend_targets": {
+      "audio": {
+        "device": "metal"
+      },
+      "gguf": {
+        "device": "metal"
+      },
+      "mlx": {
+        "device": "metal"
+      },
+      "vllm": {
+        "device": "metal"
+      }
+    },
+    "build_policy": {
+      "max_memory_gib": 16.0,
+      "max_parallel_jobs": 2
+    },
+    "cpu": {
+      "logical_cores": 10,
+      "model": "Apple M4",
+      "physical_cores": 10,
+      "vendor": "apple"
+    },
+    "memory": {
+      "system_ram_gib": 24.0,
+      "unified_memory_gib": 24.0
+    },
+    "schema": 1,
+    "system": {
+      "apple_silicon": true,
+      "arch": "arm64",
+      "os": "macos",
+      "version": "26.5.1",
+      "wsl": false
+    },
+    "toolchains": {}
+  },
+  "cases": [
+    {
+      "task": "image",
+      "target_context_tokens": 0,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 4.927404457994271,
+        "latency_seconds": {
+          "min": 4.925729542039335,
+          "median": 4.925729542039335,
+          "p95": 4.925729542039335,
+          "max": 4.925729542039335
+        },
+        "actual_prompt_tokens": {
+          "min": 233,
+          "max": 233,
+          "mean": 233.0
+        },
+        "completion_tokens": 49,
+        "aggregate_completion_tokens_per_second": 9.944383583227454,
+        "mean_backend_decode_tokens_per_second": 73.74474064718491,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 4.925729542039335,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 49,
+            "prompt_tokens": 233,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 282
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 2.818227902,
+            "predicted_ms": 664.4541640525858,
+            "predicted_n": 49,
+            "predicted_per_second": 73.74474064718491,
+            "predicted_per_token_ms": 13.56028906229767,
+            "prompt_ms": 710.565168003086,
+            "prompt_n": 233,
+            "prompt_per_second": 327.9079956238273,
+            "prompt_per_token_ms": 3.049635914176335
+          },
+          "reasoning": null,
+          "output": "The large text reads 'MICA 31415'. The blue square is on the left, and the red square is on the right, with the text 'MICA 31415' in the center."
+        }
+      ]
+    },
+    {
+      "task": "video",
+      "target_context_tokens": 0,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 18.148150208988227,
+        "latency_seconds": {
+          "min": 18.147753833036404,
+          "median": 18.147753833036404,
+          "p95": 18.147753833036404,
+          "max": 18.147753833036404
+        },
+        "actual_prompt_tokens": {
+          "min": 800,
+          "max": 800,
+          "mean": 800.0
+        },
+        "completion_tokens": 59,
+        "aggregate_completion_tokens_per_second": 3.2510200389888273,
+        "mean_backend_decode_tokens_per_second": 73.20050984785755,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 18.147753833036404,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 59,
+            "prompt_tokens": 800,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 859
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 3.011188698,
+            "predicted_ms": 806.005315026188,
+            "predicted_n": 59,
+            "predicted_per_second": 73.20050984785755,
+            "predicted_per_token_ms": 13.66110703434217,
+            "prompt_ms": 2475.7075419765897,
+            "prompt_n": 800,
+            "prompt_per_second": 323.13994542395943,
+            "prompt_per_token_ms": 3.094634427470737
+          },
+          "reasoning": null,
+          "output": "The sequence begins with 'FIRST RED' in the first image, followed by 'SECOND GREEN' in the second image, and 'THIRD BLUE' in the third image. Each subsequent image introduces the next term in the sequence, maintaining the same format of white text on a solid background."
+        }
+      ]
+    }
+  ]
+}

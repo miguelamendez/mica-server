@@ -1,0 +1,21 @@
+schema: 4
+id: swap-b
+description: Test task B with the same worker policy and a different priority.
+mode: interactive
+memory:
+  required_ram_gib: 6
+  required_vram_gib: 0
+  safety_reserve_gib: 0.25
+  maximum_resident_workers: 1
+models:
+  - id: spark-x25-4b
+    engine: llama-cpp
+    artifact: {id: q4}
+    context: {max_input_tokens: 7168, max_output_tokens: 1024, max_total_tokens: 8192}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: q8}
+    placement: {mode: auto, device: auto}
+    residency: on-demand
+    priority: 110
+    startup: false
+    idle_seconds: 60

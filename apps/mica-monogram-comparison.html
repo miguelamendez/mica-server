@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mica monogram comparison</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#101216;color:#f4f4f5;font:15px Inter,ui-sans-serif,system-ui,sans-serif}
+  main{width:min(1000px,calc(100% - 28px));margin:auto;padding:48px 0}
+  h1{font-size:32px;letter-spacing:-.035em;margin:0 0 8px}
+  header p{max-width:760px;color:#a9b0ba;line-height:1.55;margin:0 0 28px}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+  .card{overflow:hidden;border:1px solid #2c3139;border-radius:20px;background:#191c22}
+  .stage{height:300px;display:grid;place-items:center;background:#f4f1ea}
+  .hero{width:176px;height:176px}
+  .mark{fill:none;stroke:#20242a;stroke-width:7;stroke-linejoin:round}
+  .copy{padding:20px}
+  .copy h2{margin:0 0 8px;font-size:21px}
+  .copy p{min-height:72px;color:#b5bdc8;line-height:1.55;margin:0}
+  .wordmark{display:flex;align-items:center;gap:12px;margin-top:20px;font-size:22px;font-weight:700;letter-spacing:-.02em}
+  .wordmark svg{width:38px;height:38px}
+  .wordmark .mark,.sizes .mark{stroke:#f4f1ea}
+  .poly-mark polygon{fill:#f4f1ea;fill-opacity:.16;stroke:#20242a;stroke-width:5.5;stroke-linejoin:round}
+  .wordmark .poly-mark polygon,.sizes .poly-mark polygon{fill:#191c22;stroke:#f4f1ea}
+  .sizes .poly-mark polygon{stroke-width:7.5}
+  .sizes{display:flex;align-items:end;gap:18px;margin-top:19px;padding-top:17px;border-top:1px solid #303640}
+  .sample{text-align:center;color:#838d9b;font:10px ui-monospace,monospace}
+  .sample svg{display:block;margin:0 auto 7px}
+  .tag{display:inline-block;margin-top:14px;padding:4px 8px;border-radius:999px;background:#282d35;color:#ced4dd;font-size:11px}
+  @media(max-width:940px){.grid{grid-template-columns:1fr}.copy p{min-height:0}.stage{height:260px}}
+</style>
+<main>
+  <header>
+    <h1>Mica monogram study</h1>
+    <p>The original diamond monogram beside monochrome executions of hexagon studies 05 and 06. Identical presentation and small-size tests keep the comparison focused on silhouette and overlap.</p>
+  </header>
+  <section class="grid">
+    <article class="card">
+      <div class="stage">
+        <svg class="hero" viewBox="0 0 96 96" role="img" aria-label="Two vertically overlapping diamond outlines">
+          <path class="mark" d="M48 8 78 38 48 68 18 38Z"/>
+          <path class="mark" d="M48 28 78 58 48 88 18 58Z"/>
+        </svg>
+      </div>
+      <div class="copy">
+        <h2>Original · Diamond Stack</h2>
+        <p>Two equal layers move vertically. The open intersection keeps the mark quiet, modular, and easy to reproduce.</p>
+        <div class="wordmark">
+          <svg viewBox="0 0 96 96"><path class="mark" d="M48 8 78 38 48 68 18 38Z"/><path class="mark" d="M48 28 78 58 48 88 18 58Z"/></svg>Mica
+        </div>
+        <div class="sizes">
+          <div class="sample"><svg width="48" height="48" viewBox="0 0 96 96"><path class="mark" d="M48 8 78 38 48 68 18 38Z"/><path class="mark" d="M48 28 78 58 48 88 18 58Z"/></svg>48 px</div>
+          <div class="sample"><svg width="32" height="32" viewBox="0 0 96 96"><path class="mark" style="stroke-width:9" d="M48 8 78 38 48 68 18 38Z"/><path class="mark" style="stroke-width:9" d="M48 28 78 58 48 88 18 58Z"/></svg>32 px</div>
+          <div class="sample"><svg width="20" height="20" viewBox="0 0 96 96"><path class="mark" style="stroke-width:12" d="M48 8 78 38 48 68 18 38Z"/><path class="mark" style="stroke-width:12" d="M48 28 78 58 48 88 18 58Z"/></svg>20 px</div>
+        </div>
+        <span class="tag">Layered · balanced · open</span>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="stage">
+        <svg class="hero" viewBox="0 0 96 96" role="img" aria-label="A small hexagon nested inside a larger hexagon">
+          <path class="mark" d="M48 5 84 26 84 68 48 89 12 68 12 26Z"/>
+          <path class="mark" d="M48 24 68 36 68 60 48 72 28 60 28 36Z"/>
+        </svg>
+      </div>
+      <div class="copy">
+        <h2>05 · Nested Runtime</h2>
+        <p>A compact runtime sits inside the orchestration boundary. It reads as protected, focused, and centralized.</p>
+        <div class="wordmark">
+          <svg viewBox="0 0 96 96"><path class="mark" d="M48 5 84 26 84 68 48 89 12 68 12 26Z"/><path class="mark" d="M48 24 68 36 68 60 48 72 28 60 28 36Z"/></svg>Mica
+        </div>
+        <div class="sizes">
+          <div class="sample"><svg width="48" height="48" viewBox="0 0 96 96"><path class="mark" d="M48 5 84 26 84 68 48 89 12 68 12 26Z"/><path class="mark" d="M48 24 68 36 68 60 48 72 28 60 28 36Z"/></svg>48 px</div>
+          <div class="sample"><svg width="32" height="32" viewBox="0 0 96 96"><path class="mark" style="stroke-width:9" d="M48 5 84 26 84 68 48 89 12 68 12 26Z"/><path class="mark" style="stroke-width:9" d="M48 24 68 36 68 60 48 72 28 60 28 36Z"/></svg>32 px</div>
+          <div class="sample"><svg width="20" height="20" viewBox="0 0 96 96"><path class="mark" style="stroke-width:12" d="M48 5 84 26 84 68 48 89 12 68 12 26Z"/><path class="mark" style="stroke-width:12" d="M48 24 68 36 68 60 48 72 28 60 28 36Z"/></svg>20 px</div>
+        </div>
+        <span class="tag">Contained · precise · centered</span>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="stage">
+        <svg class="hero" viewBox="0 0 96 96" role="img" aria-label="Two horizontally overlapping hexagon outlines">
+          <path class="mark" d="M34 18 61 34 61 66 34 82 7 66 7 34Z"/>
+          <path class="mark" d="M62 18 89 34 89 66 62 82 35 66 35 34Z"/>
+        </svg>
+      </div>
+      <div class="copy">
+        <h2>06 · Peer Engines</h2>
+        <p>Two equal engines share one central lane. It feels distributed and collaborative, with stronger horizontal movement.</p>
+        <div class="wordmark">
+          <svg viewBox="0 0 96 96"><path class="mark" d="M34 18 61 34 61 66 34 82 7 66 7 34Z"/><path class="mark" d="M62 18 89 34 89 66 62 82 35 66 35 34Z"/></svg>Mica
+        </div>
+        <div class="sizes">
+          <div class="sample"><svg width="48" height="48" viewBox="0 0 96 96"><path class="mark" d="M34 18 61 34 61 66 34 82 7 66 7 34Z"/><path class="mark" d="M62 18 89 34 89 66 62 82 35 66 35 34Z"/></svg>48 px</div>
+          <div class="sample"><svg width="32" height="32" viewBox="0 0 96 96"><path class="mark" style="stroke-width:9" d="M34 18 61 34 61 66 34 82 7 66 7 34Z"/><path class="mark" style="stroke-width:9" d="M62 18 89 34 89 66 62 82 35 66 35 34Z"/></svg>32 px</div>
+          <div class="sample"><svg width="20" height="20" viewBox="0 0 96 96"><path class="mark" style="stroke-width:12" d="M34 18 61 34 61 66 34 82 7 66 7 34Z"/><path class="mark" style="stroke-width:12" d="M62 18 89 34 89 66 62 82 35 66 35 34Z"/></svg>20 px</div>
+        </div>
+        <span class="tag">Peer-to-peer · active · horizontal</span>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="stage">
+        <svg class="hero poly-mark" viewBox="0 0 96 96" role="img" aria-label="Flattened projection of a truncated octahedron"></svg>
+      </div>
+      <div class="copy">
+        <h2>07 · Truncated Octahedron</h2>
+        <p>An exact orthographic projection flattened into one-color facets. Its square and hexagonal faces express multiple engines fitting into one space-filling system.</p>
+        <div class="wordmark">
+          <svg class="poly-mark" viewBox="0 0 96 96"></svg>Mica
+        </div>
+        <div class="sizes">
+          <div class="sample"><svg class="poly-mark" width="48" height="48" viewBox="0 0 96 96"></svg>48 px</div>
+          <div class="sample"><svg class="poly-mark" width="32" height="32" viewBox="0 0 96 96"></svg>32 px</div>
+          <div class="sample"><svg class="poly-mark" width="20" height="20" viewBox="0 0 96 96"></svg>20 px</div>
+        </div>
+        <span class="tag">Crystalline · space-filling · faceted</span>
+      </div>
+    </article>
+  </section>
+</main>
+<script>
+  // Vertices of a regular truncated octahedron are all permutations of
+  // (0, ±1, ±2). Project its camera-facing square and hexagonal faces into 2D.
+  const permutations = values => {
+    const output = [];
+    const walk = (prefix, rest) => {
+      if (!rest.length) { output.push(prefix); return; }
+      rest.forEach((value, index) => walk(prefix.concat(value), rest.slice(0,index).concat(rest.slice(index+1))));
+    };
+    walk([], values);
+    return output;
+  };
+  const vertexMap = new Map();
+  permutations([0,1,2]).forEach(permutation => {
+    for (let mask=0; mask<8; mask++) {
+      const vertex = permutation.map((value, axis) => value === 0 ? 0 : value * ((mask >> axis) & 1 ? -1 : 1));
+      vertexMap.set(vertex.join(','), vertex);
+    }
+  });
+  const vertices = [...vertexMap.values()];
+  const dot = (a,b) => a.reduce((sum,value,index) => sum + value*b[index], 0);
+  const cross = (a,b) => [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+  const scale = (vector, amount) => vector.map(value => value*amount);
+  const norm = vector => scale(vector, 1/Math.hypot(...vector));
+  const faces = [];
+  for (let axis=0; axis<3; axis++) for (const sign of [-1,1]) {
+    const normal = [0,0,0]; normal[axis] = sign;
+    faces.push({normal, vertices:vertices.filter(vertex => vertex[axis] === sign*2)});
+  }
+  for (let mask=0; mask<8; mask++) {
+    const normal = [0,1,2].map(axis => (mask >> axis) & 1 ? -1 : 1);
+    faces.push({normal, vertices:vertices.filter(vertex => dot(normal,vertex) === 3)});
+  }
+  const camera = norm([5,4,6]);
+  const horizontal = norm(cross([0,0,1],camera));
+  const vertical = cross(camera,horizontal);
+  const projectedFaces = faces.filter(face => dot(face.normal,camera) > 0).map(face => {
+    const center = face.vertices.reduce((sum,vertex) => sum.map((value,index) => value+vertex[index]),[0,0,0]).map(value => value/face.vertices.length);
+    const normal = norm(face.normal);
+    const tangent = norm(face.vertices[0].map((value,index) => value-center[index]));
+    const bitangent = cross(normal,tangent);
+    const ordered = [...face.vertices].sort((a,b) => {
+      const aa = a.map((value,index) => value-center[index]);
+      const bb = b.map((value,index) => value-center[index]);
+      return Math.atan2(dot(aa,bitangent),dot(aa,tangent))-Math.atan2(dot(bb,bitangent),dot(bb,tangent));
+    });
+    return ordered.map(vertex => [dot(vertex,horizontal),-dot(vertex,vertical)]);
+  });
+  const allPoints = projectedFaces.flat();
+  const xs = allPoints.map(point => point[0]);
+  const ys = allPoints.map(point => point[1]);
+  const bounds = {minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)};
+  const fit = Math.min(78/(bounds.maxX-bounds.minX),78/(bounds.maxY-bounds.minY));
+  const centerX = (bounds.minX+bounds.maxX)/2;
+  const centerY = (bounds.minY+bounds.maxY)/2;
+  document.querySelectorAll('.poly-mark').forEach(svg => {
+    projectedFaces.forEach(face => {
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+      polygon.setAttribute('points',face.map(point => `${48+(point[0]-centerX)*fit},${48+(point[1]-centerY)*fit}`).join(' '));
+      svg.appendChild(polygon);
+    });
+  });
+</script>
+</html>

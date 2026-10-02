@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "created_unix_seconds": 1789692856.653203,
+  "model": "spark-x25-4b",
+  "backend": "gguf",
+  "quantization": "q4",
+  "base_url": "http://127.0.0.1:8081",
+  "max_output_tokens": 512,
+  "peak_rss_gib": null,
+  "hardware": null,
+  "cases": [
+    {
+      "task": "summary",
+      "target_context_tokens": 16384,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 85.89105941700109,
+        "latency_seconds": {
+          "min": 85.88908045900462,
+          "median": 85.88908045900462,
+          "p95": 85.88908045900462,
+          "max": 85.88908045900462
+        },
+        "actual_prompt_tokens": {
+          "min": 16360,
+          "max": 16360,
+          "mean": 16360.0
+        },
+        "completion_tokens": 512,
+        "aggregate_completion_tokens_per_second": 5.961039524663912,
+        "mean_backend_decode_tokens_per_second": 25.498353085824665,
+        "all_stopped_normally": false
+      },
+      "requests": [
+        {
+          "wall_seconds": 85.88908045900462,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 512,
+            "prompt_tokens": 16360,
+            "prompt_tokens_details": {
+              "cached_tokens": 9
+            },
+            "total_tokens": 16872
+          },
+          "timings": {
+            "cache_n": 9,
+            "predicted_ms": 20040.51,
+            "predicted_n": 512,
+            "predicted_per_second": 25.498353085824665,
+            "predicted_per_token_ms": 39.21821917808219,
+            "prompt_ms": 65773.794,
+            "prompt_n": 16351,
+            "prompt_per_second": 248.59444781306064,
+            "prompt_per_token_ms": 4.022615986789798
+          },
+          "reasoning": "We need answer user query. User asks: \"Summarize the supplied synthetic project log in five concise bullets, preserving the first milestone, final milestone, and all risks.\"\n\nWe need answer in Chinese. Need summarize synthetic project log in five concise bullets, preserving first milestone, final milestone, and all risks.\n\nWe need parse user query. It says \"Summarize the supplied synthetic project log in five concise bullets, preserving the first milestone, final milestone, and all risks.\"\n\nWe need produce answer in Chinese. Need understand context? The user says \"supplied synthetic project log\" but no actual log supplied in prompt? We only have context: \"Summarize the supplied synthetic project log in five concise bullets, preserving the first milestone, final milestone, and all risks.\" There is no actual log provided in the user message. We need maybe infer? We need respond appropriately. Since no log supplied, we cannot summarize. But maybe this is a test of instruction following? We need answer maybe say unable to summarize because no project log provided. But user asks to summarize supplied synthetic project log. We need maybe produce generic? But we must not fabricate. We should state that no project log was provided in the message, so cannot summarize. However maybe they expect us to generate a generic summary? But instruction says \"Summarize the supplied synthetic project log...\" There is no supplied log. We need respond that no project log was supplied. But maybe there is hidden context? The conversation includes only that. We need answer in Chinese.\n\nNeed be careful: We are an AI assistant. We should not fabricate. We should say: \u7531\u4e8e\u60a8\u672a\u63d0\u4f9b\u5177\u4f53\u7684\u9879\u76ee\u65e5\u5fd7\u5185\u5bb9\uff0c\u65e0\u6cd5\u8fdb\u884c\u603b\u7ed3\u3002\u8bf7\u63d0\u4f9b\u9879\u76ee\u65e5\u5fd7\u5185\u5bb9\uff0c\u6211\u5c06\u6309\u8981\u6c42\u7528\u4e94\u6761\u8981\u70b9\u603b\u7ed3\uff0c\u4fdd\u7559\u9996\u3001\u672b\u91cc\u7a0b\u7891\u53ca\u5168\u90e8\u98ce\u9669\u3002\n\nBut maybe they expect a generic template? Let's examine exact wording: \"Summarize the supplied synthetic project log in five concise bullets, preserving the first milestone, final milestone, and all risks.\" This is a request to summarize a supplied synthetic project log. Since no log supplied, we cannot. We should ask for the log.\n\nNeed maybe mention if log were provided, would summarize in five concise bullets. But final answer should be concise.\n\nLet's craft final in Chinese: \"\u60a8\u672a\u5728\u6d88\u606f\u4e2d\u63d0\u4f9b\u5177\u4f53\u7684\u9879\u76ee\u65e5\u5fd7\u5185\u5bb9\uff0c\u56e0\u6b64\u65e0\u6cd5\u8fdb\u884c\u4e94\u70b9\u603b\u7ed3\u3002\u8bf7\u63d0\u4f9b\u9879\u76ee\u65e5\u5fd7\u539f\u6587\uff0c\u6211\u5c06\u6309\u8981\u6c42\u4fdd\u7559\u9996\u3001\u672b\u91cc\u7a0b\u7891\u53ca",
+          "output": ""
+        }
+      ]
+    }
+  ]
+}

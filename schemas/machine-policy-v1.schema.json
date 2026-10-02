@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/miguelamendez/mica-server/main/schemas/machine-policy-v1.schema.json",
+  "title": "Mica machine policy schema 1",
+  "type": "object",
+  "required": ["schema"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {"const": 1},
+    "allowed_devices": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^(cpu|[a-z][a-z0-9-]*:[0-9]+)$"}
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "inference": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "ram_gib": {"type": "number", "exclusiveMinimum": 0},
+            "cpu_threads": {"type": "integer", "minimum": 1},
+            "dedicated_memory_gib": {
+              "type": "object",
+              "patternProperties": {
+                "^[a-z][a-z0-9-]*:[0-9]+$": {"type": "number", "minimum": 0}
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "build": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "ram_gib": {"type": "number", "exclusiveMinimum": 0},
+            "parallel_jobs": {"type": "integer", "minimum": 1}
+          }
+        }
+      }
+    }
+  }
+}

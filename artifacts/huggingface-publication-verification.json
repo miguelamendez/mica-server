@@ -1,0 +1,768 @@
+{
+  "schema": 1,
+  "repositories": {
+    "miguelamendez/mica-spark-x25-4b": {
+      "revision": "6209fa799a80aba06772f1532cd53579cdff22da",
+      "checks": [
+        {
+          "path": "README.md",
+          "present": true
+        },
+        {
+          "path": "artifact-manifest.json",
+          "present": true
+        },
+        {
+          "path": "source-provenance.json",
+          "present": true
+        },
+        {
+          "path": "mlx/q4/README.md",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/chat_template.jinja",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/configuration_spark.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/generation_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/images/model-benchmark-comparison.svg",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/images/post_training_pipeline.svg",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/images/spark25-hybrid-architecture-light.png",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "mlx/q4/images/xhtoken-wechat.jpg",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "mlx/q4/model.safetensors",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "mlx/q4/model.safetensors.index.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/modeling_spark.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/special_tokens_map.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/tokenizer.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/tokenizer_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/vocab.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/README.md",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/chat_template.jinja",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/configuration_spark.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/generation_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/images/model-benchmark-comparison.svg",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/images/post_training_pipeline.svg",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/images/spark25-hybrid-architecture-light.png",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "mlx/q8/images/xhtoken-wechat.jpg",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "mlx/q8/model.safetensors",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "mlx/q8/model.safetensors.index.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/modeling_spark.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/special_tokens_map.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/tokenizer.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/tokenizer_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/vocab.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "gguf/Spark-X2.5-4B-Q4_K_M.gguf",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "gguf/Spark-X2.5-4B-Q8_0.gguf",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        }
+      ],
+      "passed": true
+    },
+    "miguelamendez/mica-granite-speech-5": {
+      "revision": "75c7bef3739e5f11b23be568e9da36918e59c8d6",
+      "checks": [
+        {
+          "path": "README.md",
+          "present": true
+        },
+        {
+          "path": "artifact-manifest.json",
+          "present": true
+        },
+        {
+          "path": "source-provenance.json",
+          "present": true
+        },
+        {
+          "path": "mlx/q4/README.md",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/configuration_ctc_conformer.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/generation_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/granite_encoder.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/model.safetensors",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "mlx/q4/model.safetensors.index.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/modeling_ctc_conformer.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/preprocessor_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/processing_ctc_conformer.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/processor_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/tokenizer.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/tokenizer_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/README.md",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/configuration_ctc_conformer.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/generation_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/granite_encoder.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/model.safetensors",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "mlx/q8/model.safetensors.index.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/modeling_ctc_conformer.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/preprocessor_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/processing_ctc_conformer.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/processor_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/tokenizer.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/tokenizer_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "gguf/granite-speech-5.0-470m-turboctc-q4_k.gguf",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "gguf/granite-speech-5.0-470m-turboctc-q8_0.gguf",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        }
+      ],
+      "passed": true
+    },
+    "miguelamendez/mica-audio8-tts-06b": {
+      "revision": "efc4c494f5dba474708cbbfbd0765d18c0cb2316",
+      "checks": [
+        {
+          "path": "README.md",
+          "present": true
+        },
+        {
+          "path": "artifact-manifest.json",
+          "present": true
+        },
+        {
+          "path": "source-provenance.json",
+          "present": true
+        },
+        {
+          "path": "mlx/q4/README.md",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/configuration_arktts.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/generation_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/model.safetensors",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "mlx/q4/model.safetensors.index.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/modeling_arktts.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/modeling_arktts_codec.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/preprocessor_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/processing_arktts.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/processor_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/special_tokens_map.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/tokenizer.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "mlx/q4/tokenizer_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/README.md",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/configuration_arktts.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/generation_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/model.safetensors",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "mlx/q8/model.safetensors.index.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/modeling_arktts.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/modeling_arktts_codec.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/preprocessor_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/processing_arktts.py",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/processor_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/special_tokens_map.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/tokenizer.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "mlx/q8/tokenizer_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "gguf/audio8-tts-preview-0.6b-q4_0.gguf",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "gguf/audio8-tts-preview-0.6b-q8_0.gguf",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        }
+      ],
+      "passed": true
+    },
+    "miguelamendez/mica-minicpm-v46-thinking": {
+      "revision": "de9d5141139e0936ed4754ea0b9a6ea97053c125",
+      "checks": [
+        {
+          "path": "README.md",
+          "present": true
+        },
+        {
+          "path": "artifact-manifest.json",
+          "present": true
+        },
+        {
+          "path": "source-provenance.json",
+          "present": true
+        },
+        {
+          "path": "mlx/q4/README.md",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/chat_template.jinja",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/generation_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/model.safetensors",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "mlx/q4/model.safetensors.index.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/preprocessor_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/processor_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q4/tokenizer.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "mlx/q4/tokenizer_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/README.md",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/chat_template.jinja",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/generation_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/model.safetensors",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "mlx/q8/model.safetensors.index.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/preprocessor_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/processor_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "mlx/q8/tokenizer.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "mlx/q8/tokenizer_config.json",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": null
+        },
+        {
+          "path": "gguf/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "gguf/MiniCPM-V-4_6-Thinking-Q8_0.gguf",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        },
+        {
+          "path": "gguf/mmproj-model-f16.gguf",
+          "present": true,
+          "size_matches": true,
+          "sha256_matches": true
+        }
+      ],
+      "passed": true
+    }
+  },
+  "passed": true
+}

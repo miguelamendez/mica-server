@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "created_unix_seconds": 1789692920.2526221,
+  "model": "vllm-qwen3-06b-control",
+  "backend": "vllm",
+  "quantization": "q4",
+  "base_url": "http://127.0.0.1:8081",
+  "max_output_tokens": 256,
+  "peak_rss_gib": null,
+  "hardware": null,
+  "cases": [
+    {
+      "task": "summary",
+      "target_context_tokens": 4096,
+      "concurrency": 2,
+      "runs": 1,
+      "summary": {
+        "request_count": 2,
+        "batch_wall_seconds": 5.062780707987258,
+        "latency_seconds": {
+          "min": 5.059700124998926,
+          "median": 5.060393104497052,
+          "p95": 5.061086083995178,
+          "max": 5.061086083995178
+        },
+        "actual_prompt_tokens": {
+          "min": 4061,
+          "max": 4061,
+          "mean": 4061.0
+        },
+        "completion_tokens": 512,
+        "aggregate_completion_tokens_per_second": 101.13019495239978,
+        "mean_backend_decode_tokens_per_second": 0.0,
+        "all_stopped_normally": false
+      },
+      "requests": [
+        {
+          "wall_seconds": 5.059700124998926,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 256,
+            "completion_tokens_details": null,
+            "prompt_tokens": 4061,
+            "prompt_tokens_details": null,
+            "total_tokens": 4317
+          },
+          "timings": {},
+          "reasoning": "",
+          "output": "<think>\nOkay, let's start by understanding the user's request. They want me to summarize a synthetic project log in five concise bullets, including the first milestone, final milestone, and all the risks. \n\nFirst, I need to identify the key elements in the project log. The user mentioned the first milestone is \"alpha\" and the final milestone is \"omega\". The open risks are memory, latency, and quality. \n\nSo, breaking it down:\n\n1. **First Milestone (Alpha)**: The user specified \"alpha\" as the first milestone. That's probably a placeholder or a specific term in the project log. I should note that as a milestone.\n\n2. **Final Milestone (Omega)**: Similarly, \"omega\" is the final milestone. This is likely the highest level in the project, so it's included as a milestone.\n\n3. **Open Risks**: The open risks are memory, latency, and quality. These are the components that need to be addressed in the project. Each of these is a risk, so they should be included in the summary.\n\nPutting this together into five concise bullets:\n\n- **First Milestone**: Alpha\n- **Final Milestone**: Omega\n- **Open Risks**: Memory, Latency, Quality"
+        },
+        {
+          "wall_seconds": 5.061086083995178,
+          "finish_reason": "length",
+          "usage": {
+            "completion_tokens": 256,
+            "completion_tokens_details": null,
+            "prompt_tokens": 4061,
+            "prompt_tokens_details": null,
+            "total_tokens": 4317
+          },
+          "timings": {},
+          "reasoning": "",
+          "output": "<think>\nOkay, let's start by understanding the user's request. They want me to summarize a synthetic project log in five concise bullets, including the first milestone, final milestone, and all the risks. \n\nFirst, I need to identify the key elements in the project log. The user mentioned the first milestone is \"alpha\" and the final milestone is \"omega\". The open risks are memory, latency, and quality. \n\nSo, the first step is to list the milestones. The first milestone is alpha, the final is omega. Then, the open risks are memory, latency, and quality. \n\nI should structure each bullet with the milestone name and the associated risk. For example, the first bullet would be the first milestone, then the final milestone, and the risks. Each bullet should be concise, so I need to make sure each bullet is a separate bullet point with the milestone and the risk. \n\nWait, the user wants all the risks included. So, in the bullets, I need to mention all three risks: memory, latency, and quality. \n\nLet me check the original text again. The user provided the first milestone as alpha, final as omega, and the open risks are memory, latency, and quality. \n\nSo, the first bullet is"
+        }
+      ]
+    }
+  ]
+}

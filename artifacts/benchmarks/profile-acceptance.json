@@ -1,0 +1,170 @@
+{
+  "schema": 1,
+  "generated_at": "2026-09-18T00:57:35Z",
+  "ram_limit_gib": 8.0,
+  "passed": true,
+  "cases": [
+    {
+      "backend": "mlx",
+      "tier": "small",
+      "profile": "mlx-small",
+      "model": "spark-x25-4b",
+      "passed": true,
+      "target_input_tokens": 512,
+      "actual_prompt_tokens": {
+        "min": 488,
+        "max": 488,
+        "mean": 488.0
+      },
+      "completion_tokens": 512,
+      "concurrency": 4,
+      "batch_wall_seconds": 10.655790999997407,
+      "aggregate_completion_tokens_per_second": 48.048990450368684,
+      "elapsed_seconds": 17.264395334001165
+    },
+    {
+      "backend": "mlx",
+      "tier": "medium",
+      "profile": "mlx-medium",
+      "model": "spark-x25-4b",
+      "passed": true,
+      "target_input_tokens": 4096,
+      "actual_prompt_tokens": {
+        "min": 4072,
+        "max": 4072,
+        "mean": 4072.0
+      },
+      "completion_tokens": 370,
+      "concurrency": 2,
+      "batch_wall_seconds": 33.64169491699431,
+      "aggregate_completion_tokens_per_second": 10.998256803437457,
+      "elapsed_seconds": 39.22600045798754
+    },
+    {
+      "backend": "mlx",
+      "tier": "long",
+      "profile": "mlx-long",
+      "model": "spark-x25-4b",
+      "passed": true,
+      "target_input_tokens": 16384,
+      "actual_prompt_tokens": {
+        "min": 16360,
+        "max": 16360,
+        "mean": 16360.0
+      },
+      "completion_tokens": 512,
+      "concurrency": 1,
+      "batch_wall_seconds": 79.19925041699025,
+      "aggregate_completion_tokens_per_second": 6.464707649432032,
+      "elapsed_seconds": 84.79565512500994
+    },
+    {
+      "backend": "gguf",
+      "tier": "small",
+      "profile": "gguf-small",
+      "model": "spark-x25-4b",
+      "passed": true,
+      "target_input_tokens": 512,
+      "actual_prompt_tokens": {
+        "min": 488,
+        "max": 488,
+        "mean": 488.0
+      },
+      "completion_tokens": 512,
+      "concurrency": 4,
+      "batch_wall_seconds": 20.251281542005017,
+      "aggregate_completion_tokens_per_second": 25.282350597813497,
+      "elapsed_seconds": 24.65627300000051
+    },
+    {
+      "backend": "gguf",
+      "tier": "medium",
+      "profile": "gguf-medium",
+      "model": "spark-x25-4b",
+      "passed": true,
+      "target_input_tokens": 4096,
+      "actual_prompt_tokens": {
+        "min": 4072,
+        "max": 4072,
+        "mean": 4072.0
+      },
+      "completion_tokens": 512,
+      "concurrency": 2,
+      "batch_wall_seconds": 42.336882082992815,
+      "aggregate_completion_tokens_per_second": 12.093474408349875,
+      "elapsed_seconds": 45.0680888749921
+    },
+    {
+      "backend": "gguf",
+      "tier": "long",
+      "profile": "gguf-long",
+      "model": "spark-x25-4b",
+      "passed": true,
+      "target_input_tokens": 16384,
+      "actual_prompt_tokens": {
+        "min": 16360,
+        "max": 16360,
+        "mean": 16360.0
+      },
+      "completion_tokens": 512,
+      "concurrency": 1,
+      "batch_wall_seconds": 85.89105941700109,
+      "aggregate_completion_tokens_per_second": 5.961039524663912,
+      "elapsed_seconds": 89.13599083300505
+    },
+    {
+      "backend": "vllm",
+      "tier": "small",
+      "profile": "vllm-small",
+      "model": "vllm-qwen3-06b-control",
+      "passed": true,
+      "target_input_tokens": 512,
+      "actual_prompt_tokens": {
+        "min": 477,
+        "max": 477,
+        "mean": 477.0
+      },
+      "completion_tokens": 512,
+      "concurrency": 4,
+      "batch_wall_seconds": 1.2151552920113318,
+      "aggregate_completion_tokens_per_second": 421.3453238166249,
+      "elapsed_seconds": 36.00119779200759
+    },
+    {
+      "backend": "vllm",
+      "tier": "medium",
+      "profile": "vllm-medium",
+      "model": "vllm-qwen3-06b-control",
+      "passed": true,
+      "target_input_tokens": 4096,
+      "actual_prompt_tokens": {
+        "min": 4061,
+        "max": 4061,
+        "mean": 4061.0
+      },
+      "completion_tokens": 512,
+      "concurrency": 2,
+      "batch_wall_seconds": 5.062780707987258,
+      "aggregate_completion_tokens_per_second": 101.13019495239978,
+      "elapsed_seconds": 27.00457550000283
+    },
+    {
+      "backend": "vllm",
+      "tier": "long",
+      "profile": "vllm-long",
+      "model": "vllm-qwen3-06b-control",
+      "passed": true,
+      "target_input_tokens": 16384,
+      "actual_prompt_tokens": {
+        "min": 16349,
+        "max": 16349,
+        "mean": 16349.0
+      },
+      "completion_tokens": 15,
+      "concurrency": 1,
+      "batch_wall_seconds": 21.433053583998117,
+      "aggregate_completion_tokens_per_second": 0.6998536135419815,
+      "elapsed_seconds": 56.08283554200898
+    }
+  ]
+}

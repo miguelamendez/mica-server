@@ -1,0 +1,5 @@
+schema: 1
+allowed_devices: [cpu]
+limits:
+  inference:
+    ram_gib: 16

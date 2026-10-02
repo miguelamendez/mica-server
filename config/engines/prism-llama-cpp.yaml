@@ -1,0 +1,26 @@
+schema: 1
+id: prism-llama-cpp
+status: candidate
+backend: gguf
+installer: cmake-llama
+launcher: llama-server
+device_target: gguf
+hardware: [cpu, metal, cuda, rocm, sycl, vulkan]
+artifact_formats: [gguf]
+features: [prism-activation-transform, vision-projector]
+source:
+  url: https://github.com/PrismML-Eng/llama.cpp.git
+  revision: 9a9394a895b96003ca842a6041cb28ac49a108f7
+install:
+  runtime_directory: prism-llama.cpp
+  server_executable: build-mica/bin/llama-server
+  build_targets: [llama-server]
+  version_arguments: [--version]
+  cmake_definitions:
+    common: {CMAKE_BUILD_TYPE: Release, GGML_NATIVE: ON}
+    cpu: {}
+    metal: {GGML_METAL: ON}
+    cuda: {GGML_CUDA: ON}
+    rocm: {GGML_HIP: ON}
+    sycl: {GGML_SYCL: ON}
+    vulkan: {GGML_VULKAN: ON}

@@ -1,0 +1,751 @@
+{
+  "schema": 1,
+  "created_unix_seconds": 1790045058.857106,
+  "model": "spark-x25-4b",
+  "backend": "mlx",
+  "quantization": "q4",
+  "base_url": "http://127.0.0.1:8081",
+  "max_output_tokens": 384,
+  "peak_rss_gib": null,
+  "hardware": {
+    "accelerators": [
+      {
+        "apis": [
+          "metal"
+        ],
+        "architecture": "",
+        "driver": "",
+        "id": "0",
+        "memory_gib": 24.0,
+        "name": "Apple M4 GPU",
+        "runtime": "metal",
+        "type": "gpu",
+        "unified_memory": true,
+        "vendor": "apple"
+      }
+    ],
+    "backend_targets": {
+      "audio": {
+        "device": "metal"
+      },
+      "gguf": {
+        "device": "metal"
+      },
+      "mlx": {
+        "device": "metal"
+      },
+      "vllm": {
+        "device": "metal"
+      }
+    },
+    "build_policy": {
+      "max_memory_gib": 16.0,
+      "max_parallel_jobs": 2
+    },
+    "cpu": {
+      "logical_cores": 10,
+      "model": "Apple M4",
+      "physical_cores": 10,
+      "vendor": "apple"
+    },
+    "memory": {
+      "system_ram_gib": 24.0,
+      "unified_memory_gib": 24.0
+    },
+    "schema": 1,
+    "system": {
+      "apple_silicon": true,
+      "arch": "arm64",
+      "os": "macos",
+      "version": "26.5.1",
+      "wsl": false
+    },
+    "toolchains": {}
+  },
+  "cases": [
+    {
+      "task": "reasoning",
+      "target_context_tokens": 512,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 6.899588750035036,
+        "latency_seconds": {
+          "min": 6.8975693749962375,
+          "median": 6.8975693749962375,
+          "p95": 6.8975693749962375,
+          "max": 6.8975693749962375
+        },
+        "actual_prompt_tokens": {
+          "min": 493,
+          "max": 493,
+          "mean": 493.0
+        },
+        "completion_tokens": 58,
+        "aggregate_completion_tokens_per_second": 8.406298128958117,
+        "mean_backend_decode_tokens_per_second": 30.544118013646,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 6.8975693749962375,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 58,
+            "prompt_tokens": 493,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 551
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 3.050184578,
+            "predicted_ms": 1898.8926108158603,
+            "predicted_n": 58,
+            "predicted_per_second": 30.544118013646,
+            "predicted_per_token_ms": 32.73952777268725,
+            "prompt_ms": 1866.666666988749,
+            "prompt_n": 493,
+            "prompt_per_second": 264.1071428115727,
+            "prompt_per_token_ms": 3.78634212370943
+          },
+          "reasoning": null,
+          "output": "The context provides extensive and repetitive text, but it does not contain any information about a farmer, sheep, or milestones. \n\nTherefore, the information provided is irrelevant to the task.\n\n**Answer:**\nThe provided context does not contain enough information to answer the question."
+        }
+      ]
+    },
+    {
+      "task": "reasoning",
+      "target_context_tokens": 2048,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 8.784350000030827,
+        "latency_seconds": {
+          "min": 8.783998832979705,
+          "median": 8.783998832979705,
+          "p95": 8.783998832979705,
+          "max": 8.783998832979705
+        },
+        "actual_prompt_tokens": {
+          "min": 2029,
+          "max": 2029,
+          "mean": 2029.0
+        },
+        "completion_tokens": 57,
+        "aggregate_completion_tokens_per_second": 6.488812490372079,
+        "mean_backend_decode_tokens_per_second": 34.517671268181466,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 8.783998832979705,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 57,
+            "prompt_tokens": 2029,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 2086
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 3.80459401,
+            "predicted_ms": 1651.3280851753993,
+            "predicted_n": 57,
+            "predicted_per_second": 34.517671268181466,
+            "predicted_per_token_ms": 28.97066816097192,
+            "prompt_ms": 7089.045667031314,
+            "prompt_n": 2029,
+            "prompt_per_second": 286.2162405634052,
+            "prompt_per_token_ms": 3.4938618368808845
+          },
+          "reasoning": null,
+          "output": "Based on the context provided, the farmer has **8** sheep remaining.\n\n**Explanation:**\n* **Total sheep:** 17\n* **Sheep that ran away:** 9\n* **Remaining sheep:** 17 - 9 = 8"
+        }
+      ]
+    },
+    {
+      "task": "reasoning",
+      "target_context_tokens": 4096,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 15.676758625020739,
+        "latency_seconds": {
+          "min": 15.67647741601104,
+          "median": 15.67647741601104,
+          "p95": 15.67647741601104,
+          "max": 15.67647741601104
+        },
+        "actual_prompt_tokens": {
+          "min": 4077,
+          "max": 4077,
+          "mean": 4077.0
+        },
+        "completion_tokens": 74,
+        "aggregate_completion_tokens_per_second": 4.720363550274546,
+        "mean_backend_decode_tokens_per_second": 35.75046031743449,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 15.67647741601104,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 74,
+            "prompt_tokens": 4077,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 4151
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 4.12873935,
+            "predicted_ms": 2069.903417828505,
+            "predicted_n": 74,
+            "predicted_per_second": 35.75046031743449,
+            "predicted_per_token_ms": 27.97166780849331,
+            "prompt_ms": 13572.160251031164,
+            "prompt_n": 4077,
+            "prompt_per_second": 300.39433108596285,
+            "prompt_per_token_ms": 3.3289576284108815
+          },
+          "reasoning": null,
+          "output": "We start with the total number of sheep, which is **17**.\n\nWe are told that **9** sheep have run away.\n\nTo find the number of sheep that remain, we subtract the number that ran away from the total:\n\n**17 - 9 = 8**\n\n**Answer:** 8 sheep remain."
+        }
+      ]
+    },
+    {
+      "task": "coding",
+      "target_context_tokens": 512,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 5.436869041994214,
+        "latency_seconds": {
+          "min": 5.436670708004385,
+          "median": 5.436670708004385,
+          "p95": 5.436670708004385,
+          "max": 5.436670708004385
+        },
+        "actual_prompt_tokens": {
+          "min": 491,
+          "max": 491,
+          "mean": 491.0
+        },
+        "completion_tokens": 149,
+        "aggregate_completion_tokens_per_second": 27.405478934498596,
+        "mean_backend_decode_tokens_per_second": 37.92427420750055,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 5.436670708004385,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 149,
+            "prompt_tokens": 491,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 640
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 4.12873935,
+            "predicted_ms": 3928.882044907565,
+            "predicted_n": 149,
+            "predicted_per_second": 37.92427420750055,
+            "predicted_per_token_ms": 26.368335871862854,
+            "prompt_ms": 1474.2143760668114,
+            "prompt_n": 491,
+            "prompt_per_second": 333.0587518146329,
+            "prompt_per_token_ms": 3.002473271011836
+          },
+          "reasoning": null,
+          "output": "```python\ndef is_palindrome(s):\n    \"\"\"\n    Checks if a string is a palindrome, ignoring case and non-alphanumeric characters.\n    \n    Args:\n        s (str): The input string to check.\n    \n    Returns:\n        bool: True if the string is a palindrome (after processing), False otherwise.\n    \"\"\"\n    # Filter the string to keep only alphanumeric characters and convert to lowercase\n    filtered_chars = [char.lower() for char in s if char.isalnum()]\n    \n    # Check if the filtered list of characters is the same as its reverse\n    return filtered_chars == filtered_chars[::-1]\n```"
+        }
+      ]
+    },
+    {
+      "task": "coding",
+      "target_context_tokens": 2048,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 10.58219966699835,
+        "latency_seconds": {
+          "min": 10.581952375010587,
+          "median": 10.581952375010587,
+          "p95": 10.581952375010587,
+          "max": 10.581952375010587
+        },
+        "actual_prompt_tokens": {
+          "min": 2027,
+          "max": 2027,
+          "mean": 2027.0
+        },
+        "completion_tokens": 145,
+        "aggregate_completion_tokens_per_second": 13.702255160824176,
+        "mean_backend_decode_tokens_per_second": 37.10614699676878,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 10.581952375010587,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 145,
+            "prompt_tokens": 2027,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 2172
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 4.12873935,
+            "predicted_ms": 3907.70833772169,
+            "predicted_n": 145,
+            "predicted_per_second": 37.10614699676878,
+            "predicted_per_token_ms": 26.949712673942688,
+            "prompt_ms": 6636.537042038981,
+            "prompt_n": 2027,
+            "prompt_per_second": 305.4303753840321,
+            "prompt_per_token_ms": 3.2740685949871637
+          },
+          "reasoning": null,
+          "output": "```python\ndef is_palindrome(s: str) -> bool:\n    \"\"\"\n    Checks if a string is a palindrome, ignoring case and non-alphanumeric characters.\n    \n    Args:\n        s (str): The input string to check.\n    \n    Returns:\n        bool: True if the cleaned string is a palindrome, False otherwise.\n    \"\"\"\n    # Filter the string to keep only alphanumeric characters and convert to lowercase\n    cleaned = ''.join(char.lower() for char in s if char.isalnum())\n    \n    # Check if the cleaned string is equal to its reverse\n    return cleaned == cleaned[::-1]\n```"
+        }
+      ]
+    },
+    {
+      "task": "coding",
+      "target_context_tokens": 4096,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 19.555733416986186,
+        "latency_seconds": {
+          "min": 19.555464999983087,
+          "median": 19.555464999983087,
+          "p95": 19.555464999983087,
+          "max": 19.555464999983087
+        },
+        "actual_prompt_tokens": {
+          "min": 4075,
+          "max": 4075,
+          "mean": 4075.0
+        },
+        "completion_tokens": 188,
+        "aggregate_completion_tokens_per_second": 9.613548926613127,
+        "mean_backend_decode_tokens_per_second": 35.22123301690781,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 19.555464999983087,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 188,
+            "prompt_tokens": 4075,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 4263
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 4.12873935,
+            "predicted_ms": 5337.689339545591,
+            "predicted_n": 188,
+            "predicted_per_second": 35.22123301690781,
+            "predicted_per_token_ms": 28.391964572051016,
+            "prompt_ms": 14167.394875956234,
+            "prompt_n": 4075,
+            "prompt_per_second": 287.6322736592712,
+            "prompt_per_token_ms": 3.4766613192530635
+          },
+          "reasoning": null,
+          "output": "I can't execute or write code, but I can provide you with the Python function in the requested format (a fenced code block). Here it is:\n\n```python\ndef is_palindrome(s: str) -> bool:\n    \"\"\"\n    Checks if a string is a palindrome, ignoring case and non-alphanumeric characters.\n    \n    Args:\n        s (str): The input string to check.\n    \n    Returns:\n        bool: True if the cleaned string is a palindrome, False otherwise.\n    \"\"\"\n    # 1. Normalize the string: convert to lowercase and keep only alphanumeric characters.\n    cleaned = ''.join(char.lower() for char in s if char.isalnum())\n    \n    # 2. Check if the cleaned string is equal to its reverse.\n    return cleaned == cleaned[::-1]\n```"
+        }
+      ]
+    },
+    {
+      "task": "creativity",
+      "target_context_tokens": 512,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 5.271971875044983,
+        "latency_seconds": {
+          "min": 5.271758874994703,
+          "median": 5.271758874994703,
+          "p95": 5.271758874994703,
+          "max": 5.271758874994703
+        },
+        "actual_prompt_tokens": {
+          "min": 484,
+          "max": 484,
+          "mean": 484.0
+        },
+        "completion_tokens": 139,
+        "aggregate_completion_tokens_per_second": 26.365846270531172,
+        "mean_backend_decode_tokens_per_second": 37.33343547747347,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 5.271758874994703,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 139,
+            "prompt_tokens": 484,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 623
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 4.12873935,
+            "predicted_ms": 3723.204099013895,
+            "predicted_n": 139,
+            "predicted_per_second": 37.33343547747347,
+            "predicted_per_token_ms": 26.785641000099965,
+            "prompt_ms": 1513.3332510013136,
+            "prompt_n": 484,
+            "prompt_per_second": 319.82380594608367,
+            "prompt_per_token_ms": 3.1267215929779204
+          },
+          "reasoning": null,
+          "output": "The wind howled fiercely over the rugged coastline, carrying a strange, futuristic radio signal that pulsed with ethereal light. As the towering lighthouse stood silent, its ancient brass gears ticking in rhythm with the incoming frequencies. A soft, otherworldly glow began to flicker within its lens, illuminating the dark, starry night with a vision of distant, unknown horizons. The beam, now infused with temporal energy, swept across the water, transforming the sea into a canvas of shimmering, futuristic light. In this silent, magical moment, the lighthouse became a beacon of connection, bridging the gap between the present and the future."
+        }
+      ]
+    },
+    {
+      "task": "creativity",
+      "target_context_tokens": 2048,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 9.53467650001403,
+        "latency_seconds": {
+          "min": 9.534449250029866,
+          "median": 9.534449250029866,
+          "p95": 9.534449250029866,
+          "max": 9.534449250029866
+        },
+        "actual_prompt_tokens": {
+          "min": 2020,
+          "max": 2020,
+          "mean": 2020.0
+        },
+        "completion_tokens": 95,
+        "aggregate_completion_tokens_per_second": 9.963631172998918,
+        "mean_backend_decode_tokens_per_second": 36.2061419855383,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 9.534449250029866,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 95,
+            "prompt_tokens": 2020,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 2115
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 4.12873935,
+            "predicted_ms": 2623.8642061876003,
+            "predicted_n": 95,
+            "predicted_per_second": 36.2061419855383,
+            "predicted_per_token_ms": 27.61962322302737,
+            "prompt_ms": 6861.462791974191,
+            "prompt_n": 2020,
+            "prompt_per_second": 294.3978654759713,
+            "prompt_per_token_ms": 3.3967637584030648
+          },
+          "reasoning": null,
+          "output": "The distant, towering lighthouse stood as a silent sentinel, its ancient brass gears turning with a steady, ancient rhythm. From its dark, misty window, a shimmering, ethereal radio signal pulsed into existence, a brilliant, futuristic beam of light that danced across the dark, starry sea. This breathtaking, magical convergence of the past and the future illuminated the horizon, guiding the weary, distant vessel with a brilliant, timeless light."
+        }
+      ]
+    },
+    {
+      "task": "creativity",
+      "target_context_tokens": 4096,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 18.926001250045374,
+        "latency_seconds": {
+          "min": 18.925692582968622,
+          "median": 18.925692582968622,
+          "p95": 18.925692582968622,
+          "max": 18.925692582968622
+        },
+        "actual_prompt_tokens": {
+          "min": 4068,
+          "max": 4068,
+          "mean": 4068.0
+        },
+        "completion_tokens": 166,
+        "aggregate_completion_tokens_per_second": 8.77100227390094,
+        "mean_backend_decode_tokens_per_second": 35.47158050749005,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 18.925692582968622,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 166,
+            "prompt_tokens": 4068,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 4234
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 4.12873935,
+            "predicted_ms": 4679.802749836535,
+            "predicted_n": 166,
+            "predicted_per_second": 35.47158050749005,
+            "predicted_per_token_ms": 28.191582830340575,
+            "prompt_ms": 14200.297167000826,
+            "prompt_n": 4068,
+            "prompt_per_second": 286.472878148872,
+            "prompt_per_token_ms": 3.4907318502951883
+          },
+          "reasoning": null,
+          "output": "I can help you craft that scene, but I want to make sure I\u2019m working with the right details. Could you provide a few specifics so I can write a vivid, 120-word scene?\n\n- **Setting/atmosphere** (e.g., the lighthouse, the sea, the night, the fog)\n- **The radio signal** (what it is\u2014a transmission, a message, a distress call, a warning, a greeting)\n- **The lighthouse\u2019s role** (guarding the light, receiving the signal, responding)\n- **Tone/style** (e.g., tense, hopeful, mysterious, awe-struck)\n\nOnce I have those, I\u2019ll write a vivid, 120-word scene for you."
+        }
+      ]
+    },
+    {
+      "task": "summary",
+      "target_context_tokens": 512,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 5.530430750048254,
+        "latency_seconds": {
+          "min": 5.530118833004963,
+          "median": 5.530118833004963,
+          "p95": 5.530118833004963,
+          "max": 5.530118833004963
+        },
+        "actual_prompt_tokens": {
+          "min": 488,
+          "max": 488,
+          "mean": 488.0
+        },
+        "completion_tokens": 149,
+        "aggregate_completion_tokens_per_second": 26.94184354423025,
+        "mean_backend_decode_tokens_per_second": 37.58302587493205,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 5.530118833004963,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 149,
+            "prompt_tokens": 488,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 637
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 4.12873935,
+            "predicted_ms": 3964.555714482354,
+            "predicted_n": 149,
+            "predicted_per_second": 37.58302587493205,
+            "predicted_per_token_ms": 26.60775647303593,
+            "prompt_ms": 1524.3392910342664,
+            "prompt_n": 488,
+            "prompt_per_second": 320.13870066216776,
+            "prompt_per_token_ms": 3.123646088184972
+          },
+          "reasoning": null,
+          "output": "Here is a concise summary of the supplied project log:\n\n* **First Milestone:** The project begins with the milestone of **alpha**.\n* **Final Milestone:** The project concludes with the final milestone of **omega**.\n* **Open Risks:** The project is currently facing **memory**, **latency**, and **quality** risks.\n* **Log Status:** The provided log is a synthetic record containing repeated, identical entries.\n* **Context:** The information provided outlines the project's initial and final milestones alongside the identified operational risks. \n\n*(Note: The excessive repetition in the original log is summarized as a synthetic, repeated entry to maintain conciseness while preserving all requested context.)*"
+        }
+      ]
+    },
+    {
+      "task": "summary",
+      "target_context_tokens": 2048,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 11.00909100001445,
+        "latency_seconds": {
+          "min": 11.008797834045254,
+          "median": 11.008797834045254,
+          "p95": 11.008797834045254,
+          "max": 11.008797834045254
+        },
+        "actual_prompt_tokens": {
+          "min": 2024,
+          "max": 2024,
+          "mean": 2024.0
+        },
+        "completion_tokens": 150,
+        "aggregate_completion_tokens_per_second": 13.625103107949885,
+        "mean_backend_decode_tokens_per_second": 36.88270854434613,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 11.008797834045254,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 150,
+            "prompt_tokens": 2024,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 2174
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 4.12873935,
+            "predicted_ms": 4066.9464342524266,
+            "predicted_n": 150,
+            "predicted_per_second": 36.88270854434613,
+            "predicted_per_token_ms": 27.11297622834951,
+            "prompt_ms": 6903.258042002562,
+            "prompt_n": 2024,
+            "prompt_per_second": 293.1948925688513,
+            "prompt_per_token_ms": 3.4107006136376294
+          },
+          "reasoning": null,
+          "output": "Here is the summary of the provided project log:\n\n*   **First Milestone:** The project begins with the establishment of the **alpha** milestone.\n*   **Final Milestone:** The project concludes with the **omega** milestone.\n*   **Open Risks:** The identified risks to address throughout the project are **memory**, **latency**, and **quality**.\n*   **Execution Status:** The log extensively documents the continuous, repeated recording and recording of records, indicating a robust and sustained execution of the project milestones and risk management.\n*   **Record Keeping:** The log consistently emphasizes the repeated recording and documentation of records, underscoring the rigorous tracking and documentation of the project's progress."
+        }
+      ]
+    },
+    {
+      "task": "summary",
+      "target_context_tokens": 4096,
+      "concurrency": 1,
+      "runs": 1,
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 19.599283875024412,
+        "latency_seconds": {
+          "min": 19.599021457950585,
+          "median": 19.599021457950585,
+          "p95": 19.599021457950585,
+          "max": 19.599021457950585
+        },
+        "actual_prompt_tokens": {
+          "min": 4072,
+          "max": 4072,
+          "mean": 4072.0
+        },
+        "completion_tokens": 195,
+        "aggregate_completion_tokens_per_second": 9.94934311087206,
+        "mean_backend_decode_tokens_per_second": 35.73026714837073,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 19.599021457950585,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 195,
+            "prompt_tokens": 4072,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 4267
+          },
+          "timings": {
+            "cache_n": 0,
+            "draft_kind": null,
+            "draft_n": null,
+            "draft_n_accepted": null,
+            "draft_rounds": null,
+            "peak_memory": 4.12873935,
+            "predicted_ms": 5457.557851170218,
+            "predicted_n": 195,
+            "predicted_per_second": 35.73026714837073,
+            "predicted_per_token_ms": 27.987476159847272,
+            "prompt_ms": 14108.694206981454,
+            "prompt_n": 4072,
+            "prompt_per_second": 288.6163623834896,
+            "prompt_per_token_ms": 3.464807025290141
+          },
+          "reasoning": null,
+          "output": "Here is the summary of the supplied synthetic project log, structured into five concise bullets:\n\n1. **Initial Launch (Alpha Milestone):** The project began with the first milestone, **alpha**, marking the successful completion of the initial phase.\n\n2. **Final Completion (Omega Milestone):** The project reached its ultimate objective, culminating in the final milestone, **omega**.\n\n3. **Identified Open Risks:** Throughout the execution, the project identified and tracked three primary risks: **memory**, **latency**, and **quality**.\n\n4. **Execution and Management:** The project log indicates a continuous, comprehensive execution process, featuring repeated and extensive record-keeping and management activities to ensure proper tracking and oversight.\n\n5. **Continuous Oversight:** The log demonstrates a sustained, uninterrupted management and monitoring process, emphasizing continuous oversight and rigorous record-keeping throughout the entire project lifecycle."
+        }
+      ]
+    }
+  ]
+}

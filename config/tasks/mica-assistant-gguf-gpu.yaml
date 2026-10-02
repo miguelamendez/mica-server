@@ -1,0 +1,99 @@
+schema: 4
+id: mica-assistant-gguf-gpu
+description: ""
+default_chat_model: ""
+mode: interactive-gpu
+memory:
+  required_ram_gib: 8
+  maximum_resident_workers: 0
+  required_vram_gib: 16
+  safety_reserve_gib: 0.5
+models:
+  - artifact:
+      id: q4
+    batching:
+      max_concurrent_requests: 1
+    context:
+      max_input_tokens: 7168
+      max_output_tokens: 1024
+      max_total_tokens: 8192
+    engine: llama-cpp
+    id: spark-x25-4b
+    idle_seconds: 0
+    kv_cache:
+      precision: q8
+    placement:
+      device: accelerator:0
+      gpu_layers: 99
+      mode: fixed
+      ram_reservation_gib: 0.5
+      vram_reservation_gib: 4.8
+    priority: 100
+    residency: pinned
+    startup: true
+  - artifact:
+      id: q4
+    batching:
+      max_concurrent_requests: 1
+    context:
+      max_input_tokens: 1
+      max_output_tokens: 1
+      max_total_tokens: 2
+    engine: audio-cpp
+    id: granite-speech-5
+    idle_seconds: 600
+    kv_cache:
+      precision: not-applicable
+    placement:
+      device: accelerator:0
+      gpu_layers: 99
+      mode: fixed
+      ram_reservation_gib: 0.5
+      vram_reservation_gib: 0.9
+    priority: 90
+    residency: warm
+    startup: true
+  - artifact:
+      id: q4
+    batching:
+      max_concurrent_requests: 1
+    context:
+      max_input_tokens: 1024
+      max_output_tokens: 1024
+      max_total_tokens: 2048
+    engine: audio-cpp
+    id: audio8-tts-06b
+    idle_seconds: 180
+    kv_cache:
+      precision: runtime-managed
+    placement:
+      device: accelerator:0
+      gpu_layers: 99
+      mode: fixed
+      ram_reservation_gib: 0.5
+      vram_reservation_gib: 1.6
+    priority: 70
+    residency: warm
+    startup: true
+  - artifact:
+      id: q4
+    batching:
+      max_concurrent_requests: 1
+    context:
+      max_input_tokens: 6144
+      max_output_tokens: 2048
+      max_total_tokens: 8192
+    engine: llama-cpp
+    id: minicpm-v46-thinking
+    idle_seconds: 30
+    kv_cache:
+      precision: q4
+    placement:
+      device: accelerator:0
+      gpu_layers: 99
+      mode: fixed
+      ram_reservation_gib: 0.5
+      vram_reservation_gib: 2.2
+    priority: 40
+    residency: on-demand
+    startup: false

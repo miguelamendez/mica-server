@@ -1,0 +1,70 @@
+schema: 1
+id: minicpm-v46-thinking
+capability: vision
+input_modalities: [text, image, video]
+output_modalities: [text]
+description: MiniCPM-V 4.6 Thinking for image, video, and rendered document-page analysis.
+source_repository: openbmb/MiniCPM-V-4.6-Thinking
+declared_context_tokens: 8192
+tags: [image-text-to-text, video-text-to-text, document-analysis]
+thinking_modes: [none, on]
+thinking_budget_supported: true
+license: apache-2.0
+mlx_converter: mlx_vlm.convert
+gguf_parallel_slots: 1
+startup_priority: 40
+required: false
+required_by_backend: {mlx: false, gguf: false, vllm: false}
+artifacts:
+  - id: q4
+    backend: mlx
+    engine: mlx-vlm
+    format: mlx
+    quantization_type: selective-mlx-affine-q4-g64
+    repository: miguelamendez/mica-minicpm-v46-thinking
+    revision: dfad66c29f50dc9b0545baf9e9ec3a67c1c8bd7d
+    reservation_gib: 3.3
+    required_features: [image-understanding]
+    files:
+      - role: model
+        path: q4
+        repository_path: mlx/q4
+        size_bytes: 2177913514
+  - id: q8
+    backend: mlx
+    engine: mlx-vlm
+    format: mlx
+    quantization_type: selective-mlx-affine-q8-g64
+    repository: miguelamendez/mica-minicpm-v46-thinking
+    revision: dfad66c29f50dc9b0545baf9e9ec3a67c1c8bd7d
+    reservation_gib: 3.5
+    required_features: [image-understanding]
+    files:
+      - role: model
+        path: q8
+        repository_path: mlx/q8
+        size_bytes: 2332054242
+  - id: q4
+    backend: gguf
+    engine: llama-cpp
+    format: gguf
+    quantization_type: Q4_K_M
+    repository: miguelamendez/mica-minicpm-v46-thinking
+    revision: dfad66c29f50dc9b0545baf9e9ec3a67c1c8bd7d
+    reservation_gib: 2.2
+    required_features: [vision-projector]
+    files:
+      - {role: model, path: MiniCPM-V-4_6-Thinking-Q4_K_M.gguf, repository_path: gguf/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf, size_bytes: 529101536}
+      - {role: vision-projector, path: mmproj-model-f16.gguf, repository_path: gguf/mmproj-model-f16.gguf, size_bytes: 1108746976}
+  - id: q8
+    backend: gguf
+    engine: llama-cpp
+    format: gguf
+    quantization_type: Q8_0
+    repository: miguelamendez/mica-minicpm-v46-thinking
+    revision: dfad66c29f50dc9b0545baf9e9ec3a67c1c8bd7d
+    reservation_gib: 2.6
+    required_features: [vision-projector]
+    files:
+      - {role: model, path: MiniCPM-V-4_6-Thinking-Q8_0.gguf, repository_path: gguf/MiniCPM-V-4_6-Thinking-Q8_0.gguf, size_bytes: 811591648}
+      - {role: vision-projector, path: mmproj-model-f16.gguf, repository_path: gguf/mmproj-model-f16.gguf, size_bytes: 1108746976}
