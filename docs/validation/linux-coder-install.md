@@ -31,6 +31,10 @@ The artifact now requests `image_min_tokens: 1024`, passed to native
 acceptance passed; this is not a claim that the quantization preserves all
 visual accuracy.
 
+The acceptance client also exposed a startup race: systemd may return before
+Mica binds the API socket. Readiness polling now retries connection-refused
+and timeout errors within its deadline instead of misreporting a setup failure.
+
 ## Workload
 
 | Model | Artifact | KV cache | Startup | Context allocation |

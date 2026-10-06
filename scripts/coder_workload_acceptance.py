@@ -61,8 +61,12 @@ def main() -> int:
     def ready():
         deadline = time.monotonic() + args.timeout
         while time.monotonic() < deadline:
-            if request("/ready", authenticated=False)["status"] == 200:
-                return
+            try:
+                if request("/ready", authenticated=False)["status"] == 200:
+                    return
+            except (urllib.error.URLError, TimeoutError):
+                # systemd start returns before the server binds its socket.
+                pass
             time.sleep(1)
         raise TimeoutError("server not ready")
 
