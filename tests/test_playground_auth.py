@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import importlib.util
+import shutil
+import subprocess
 import tempfile
 import unittest
 from argparse import Namespace
@@ -21,6 +23,18 @@ SPEC.loader.exec_module(PLAYGROUND)
 
 
 class PlaygroundAuthTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("node"), "Node is optional; required only for frontend tests")
+    def test_frontend_capability_matrix(self) -> None:
+        subprocess.run(["node", str(ROOT / "tests/test_playground_capabilities.js")], check=True)
+
+    def test_chat_refreshes_active_models_and_validates_before_sending(self) -> None:
+        page = PLAYGROUND.CHAT_HTML
+        self.assertIn('src="/mica-capabilities.js"', page)
+        self.assertIn("await refreshModels();validateInput()", page)
+        self.assertIn("setInterval(()=>", page)
+        self.assertIn("f.append('speech_reply',String(c.speech))", page)
+        self.assertIn("$('files').disabled=busy||!canAttach", page)
+
     @staticmethod
     def handler(key: str = "", fallback: str = ""):
         handler = object.__new__(PLAYGROUND.Handler)

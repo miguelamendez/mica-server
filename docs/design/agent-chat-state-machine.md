@@ -1,13 +1,28 @@
 # Unified agent chat state machine
 
-Status: implemented prototype on the MLX path  
-Last updated: 2026-09-18
+Status: implemented prototype; MLX and llama.cpp chat paths
+Last updated: 2026-10-06
 
 The chat has one main reasoning model. ASR, VLM, and TTS are utilities used by
 that model; they are not separate conversations. A session persists messages,
 uploaded paths, attachment counts, tool calls, tool observations, generated
 audio paths, and state history in temporary JSON so a later turn can continue
 the same task.
+
+The chat derives controls from the active workload's `/v1/models` response,
+intersecting model interactions with the selected engine's endpoint contracts.
+It refreshes every five seconds and before sending, including after workload
+hot swaps. Stopped, on-demand models remain selectable; the global registry is
+not a list of currently usable models. Missing capability metadata fails closed.
+
+Voice input needs ASR; spoken replies independently need TTS. The UI sends
+`speech_reply=false` for voice turns without TTS, so transcription can still
+produce a text reply. Omitting this field preserves automatic speech replies
+for existing clients. Custom reference controls require voice conditioning.
+Images and rendered documents need an image-capable media model; videos need
+video support. Both also need a tool-capable main assistant and engine because
+this chat uses `vlm_tool`. Unsupported file types/combinations are rejected
+before upload. Streaming chat requires a streaming-capable chat endpoint.
 
 ```mermaid
 stateDiagram-v2
@@ -20,8 +35,8 @@ stateDiagram-v2
     AgentPlanning --> VLMToolRunning: attachments require inspection
     VLMToolRunning --> AgentPlanning: observation injected as tool result
     AgentPlanning --> LLMFinal: no tool needed / tools complete
-    LLMFinal --> TTSGenerating: voice was present
-    LLMFinal --> PersistingSession: text-only input
+    LLMFinal --> TTSGenerating: voice present and speech reply enabled
+    LLMFinal --> PersistingSession: no speech reply
     TTSGenerating --> PersistingSession
     PersistingSession --> Ready
 
@@ -38,8 +53,8 @@ stateDiagram-v2
 | Supplied input | Main instruction | Supporting context | Reply |
 | --- | --- | --- | --- |
 | Text only | Typed text | Attachments, when present | Text |
-| Voice only | ASR transcript | Attachments, when present | Text and audio |
-| Text and voice | Typed text | ASR transcript plus attachments | Text and audio |
+| Voice only | ASR transcript | Attachments, when present | Text; audio when TTS is available |
+| Text and voice | Typed text | ASR transcript plus attachments | Text; audio when TTS is available |
 | Attachments only | Inspect and summarize | Attachment manifest | Text |
 
 Uploaded files are copied beneath the session directory. The LLM sees only

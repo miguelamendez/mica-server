@@ -870,7 +870,7 @@ install(FILES schemas/profile-v3.schema.json
               schemas/model-v2.schema.json
               schemas/workload-v5.schema.json
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/schemas)
-install(FILES apps/mica_playground.py apps/mica-logo.svg apps/mica-readme-header.svg
+install(FILES apps/mica_playground.py apps/mica-logo.svg apps/mica-readme-header.svg apps/mica-capabilities.js
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps)
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/docs
         FILES_MATCHING PATTERN "*.md")

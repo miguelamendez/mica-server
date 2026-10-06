@@ -1691,6 +1691,17 @@ class WorkerManager {
                                   {"device", policy->device},
                                   {"gpu_layers", policy->gpu_layers}};
           }
+          json contracts = json::array();
+          const auto& engine = registry_.engine(item.at("engine").get<std::string>());
+          for (const auto& endpoint : engine.endpoint_contracts) {
+            contracts.push_back({{"operation", endpoint.operation},
+                                 {"required_inputs", endpoint.required_inputs},
+                                 {"optional_inputs", endpoint.optional_inputs},
+                                 {"outputs", endpoint.outputs},
+                                 {"streaming", endpoint.streaming},
+                                 {"supports_tools", endpoint.supports_tools}});
+          }
+          item["endpoint_contracts"] = std::move(contracts);
           data.push_back(std::move(item));
         }
       }
@@ -3787,7 +3798,7 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
       if (!emit) transition("llm_final");
       std::string audio;
       std::string audio_path;
-      if (voice_path) {
+      if (voice_path && field("speech_reply") != "false") {
         transition("tts_generating");
         const auto tts_model = manager->select_request_model(
             "tts", {"text"}, field("tts_model"));
