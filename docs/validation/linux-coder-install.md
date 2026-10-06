@@ -59,7 +59,8 @@ never commit it or embed its value in example commands.
 ## Acceptance checklist
 
 - Core source build and native hardware detection: passed before this workload.
-- Existing core test suite: 75/75 passed on Linux before the new model addition.
+- Existing core test suite: 75/75 passed on Linux before the new model addition;
+  76/76 passed locally after registering the new workload and model.
 - New manifest/schema checks: passed locally (59 documents).
 - Prism CUDA build: in progress.
 - Stock llama.cpp CUDA build: pending completion of the Prism build.
@@ -71,3 +72,35 @@ never commit it or embed its value in example commands.
 
 Completion will be recorded only after actual inference, not merely a healthy
 proxy endpoint or successful download.
+
+## Live workload-swap test
+
+The authenticated switch route is `POST /admin/profile/activate`, with
+`{"profile":"coder-qwen-swap-test"}` as its body. The active workload and
+worker PIDs are visible through authenticated `GET /admin/models`.
+
+The two-model fixture is
+[`tests/fixtures/coder-qwen-swap.yaml`](../../tests/fixtures/coder-qwen-swap.yaml).
+It has exactly the same engine, artifact, context, KV, and placement settings
+for Spark and Qwen3.5 as the main three-model workload. Install it **before**
+starting the server so the running registry knows the workload:
+
+```sh
+mica-server profile install-file tests/fixtures/coder-qwen-swap.yaml
+```
+
+After startup, run the optional standard-library acceptance client:
+
+```sh
+python3 scripts/coder_workload_acceptance.py \
+  --api-key-file "$HOME/.mica/secrets/api-key" \
+  --image artifacts/test-assets/minicpm-scene.png \
+  --video artifacts/test-assets/minicpm-sequence.mp4 \
+  --output "$HOME/.mica/state/coder-acceptance.json"
+```
+
+It compares retained worker PIDs across workload changes, verifies that the
+larger Qwen coder is unloaded/excluded in the smaller workload, checks image
+and video default routing, and exercises streamed text generation. It restores
+the original workload on successful completion. If a check fails, inspect
+the checkpoint and current active workload before resuming normal use.

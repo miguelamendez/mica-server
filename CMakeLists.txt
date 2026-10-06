@@ -401,6 +401,18 @@ if(MICA_SERVER_BUILD_TESTS)
   set_tests_properties(mica-server-coder-qwen-gguf-linux-cuda-plan PROPERTIES
     PASS_REGULAR_EXPRESSION "GGML_CUDA=ON"
     FAIL_REGULAR_EXPRESSION "prism-llama|mlx-lm|mlx-vlm|GGML_METAL=ON")
+  add_test(
+    NAME mica-server-coder-qwen-swap-workload
+    COMMAND $<TARGET_FILE:mica-server> plan
+            --profile-file ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/coder-qwen-swap.yaml
+            --ram-gib 16 --vram-gib 15.5
+            --root /tmp/mica-coder-qwen-swap-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cuda.json
+  )
+  set_tests_properties(mica-server-coder-qwen-swap-workload PROPERTIES
+    PASS_REGULAR_EXPRESSION "coder-qwen-swap-test"
+    FAIL_REGULAR_EXPRESSION "qwen38-27b|prism-llama|mlx-lm|mlx-vlm")
   foreach(MICA_HARDWARE_CASE IN ITEMS mac-metal linux-cuda linux-rocm linux-xpu)
     add_test(
       NAME mica-server-gguf-build-${MICA_HARDWARE_CASE}
