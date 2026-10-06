@@ -10,6 +10,8 @@
 namespace mica {
 
 HardwareInfo detect_hardware();
+// Unique (core, socket) pairs, ignoring SMT duplicates and unavailable values.
+int physical_cores_from_lscpu(const std::string& csv);
 HardwareInfo hardware_from_json(const nlohmann::json& profile);
 nlohmann::json hardware_to_json(const HardwareInfo& hardware);
 HardwareInfo load_hardware_profile(const std::filesystem::path& path);

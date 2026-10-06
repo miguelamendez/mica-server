@@ -17,8 +17,10 @@ claims that every backend has an OS-enforced GPU memory limit.
 
 CUDA compiler 12.8.93 and development libraries were installed without
 upgrading the working NVIDIA driver. Native Blackwell compilation is enabled.
-The detector currently reports zero physical CPU cores on this host; logical
-core detection works. That discovery bug remains open.
+The detector previously left physical CPU cores at zero on Linux. The fix
+counts unique online (socket, core) pairs from `lscpu`, without counting SMT
+threads twice. Its parser has tests for SMT, multiple sockets, and unavailable
+topology. Remote verification of the rebuilt detector is pending.
 
 ## Workload
 

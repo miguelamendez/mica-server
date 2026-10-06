@@ -628,6 +628,10 @@ int main() {
   assert(linux_cuda.recommended_vllm_device() == mica::VllmDevice::cuda);
 
   const auto hardware_fixtures = config.parent_path() / "tests/fixtures/hardware";
+  assert(mica::physical_cores_from_lscpu("# Core,Socket\n0,0\n1,0\n0,0\n1,0\n") == 2);
+  assert(mica::physical_cores_from_lscpu("0,0\n0,1\n") == 2);
+  assert(mica::physical_cores_from_lscpu("\n# unavailable\n-,-\n-1,0\n0,0,extra\ninvalid\n") == 0);
+  assert(mica::physical_cores_from_lscpu(" 0,0 \n1,0\r\n") == 2);
   const auto cuda_fixture =
       mica::load_hardware_profile(hardware_fixtures / "linux-cuda.json");
   const auto rocm_fixture =

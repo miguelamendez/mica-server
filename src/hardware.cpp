@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <fstream>
 #include <iomanip>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -162,6 +163,25 @@ void derive_targets(HardwareInfo* info) {
 
 }  // namespace
 
+int physical_cores_from_lscpu(const std::string& csv) {
+  std::set<std::pair<int, int>> cores;
+  std::istringstream lines(csv);
+  std::string line;
+  while (std::getline(lines, line)) {
+    line = trim(line);
+    if (line.empty() || line.front() == '#') continue;
+    std::istringstream fields(line);
+    int core = -1, socket = -1;
+    char separator = 0;
+    if (!(fields >> core >> separator >> socket) || separator != ',' ||
+        core < 0 || socket < 0) continue;
+    fields >> std::ws;
+    if (!fields.eof()) continue;
+    cores.emplace(socket, core);
+  }
+  return static_cast<int>(cores.size());
+}
+
 bool HardwareInfo::has_runtime(const std::string& runtime) const {
   return std::any_of(accelerators.begin(), accelerators.end(), [&](const auto& device) {
     return device.runtime == runtime;
@@ -225,6 +245,8 @@ HardwareInfo detect_hardware() {
   info.cpu_model = cpuinfo_value("model name");
   if (info.cpu_model.empty()) info.cpu_model = cpuinfo_value("Hardware");
   info.logical_cpu_cores = static_cast<int>(sysconf(_SC_NPROCESSORS_ONLN));
+  info.physical_cpu_cores = physical_cores_from_lscpu(
+      capture("LC_ALL=C lscpu --online -p=CORE,SOCKET 2>/dev/null"));
 #else
   info.os = "unsupported";
 #endif
