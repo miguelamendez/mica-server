@@ -162,6 +162,33 @@ void validate_policy(const Registry& registry, const Profile& profile,
   if (!cache_precisions.contains(policy.kv_cache_precision)) {
     throw std::invalid_argument("unsupported KV-cache precision for " + policy.id);
   }
+  if (policy.token_batch_size < 0 || policy.token_batch_size > 8192 ||
+      policy.micro_batch_size < 0 || policy.micro_batch_size > 8192 ||
+      (policy.micro_batch_size > 0 &&
+       (policy.token_batch_size == 0 || policy.micro_batch_size > policy.token_batch_size)) ||
+      policy.context_checkpoints < -1 || policy.context_checkpoints > 64 ||
+      policy.ram_cache_mib < -1 || policy.ram_cache_mib > 32768 ||
+      policy.draft_max_tokens < 1 || policy.draft_max_tokens > 32 ||
+      policy.draft_gpu_layers < -1 || policy.draft_gpu_layers > 999 ||
+      (policy.draft_kv_cache_precision != "q4" && policy.draft_kv_cache_precision != "q8") ||
+      (policy.speculative_method != "auto" && policy.speculative_method != "none" &&
+       policy.speculative_method != "mtp" && policy.speculative_method != "dflash")) {
+    throw std::invalid_argument("invalid native inference options for " + policy.id);
+  }
+  if (profile_native_options(policy) != profile_native_options(ProfileModel{}) &&
+      (profile.schema < 5 || registry.engine(policy.engine).launcher != "llama-server")) {
+    throw std::invalid_argument("native inference options require a schema-5 llama-server workload");
+  }
+  if (policy.projector_on_cpu && selected_artifact.projector_pattern.empty()) {
+    throw std::invalid_argument("CPU projector placement requires a projector");
+  }
+  if (policy.speculative_method == "mtp" || policy.speculative_method == "dflash") {
+    const auto role = policy.speculative_method + "-drafter";
+    if (std::none_of(selected_artifact.files.begin(), selected_artifact.files.end(),
+                     [&](const auto& file) { return file.role == role; })) {
+      throw std::invalid_argument("speculative method requires its registered drafter: " + policy.id);
+    }
+  }
   if (policy.priority < 0 || policy.priority > 1000 || policy.idle_seconds < 0) {
     throw std::invalid_argument("invalid residency policy for " + policy.id);
   }
@@ -749,6 +776,18 @@ std::string select_profile_model(const Registry& registry, const Profile& profil
   return candidates.front();
 }
 
+json profile_native_options(const ProfileModel& policy) {
+  return {{"token_batch_size", policy.token_batch_size},
+          {"micro_batch_size", policy.micro_batch_size},
+          {"context_checkpoints", policy.context_checkpoints},
+          {"ram_cache_mib", policy.ram_cache_mib},
+          {"speculative_method", policy.speculative_method},
+          {"draft_max_tokens", policy.draft_max_tokens},
+          {"draft_gpu_layers", policy.draft_gpu_layers},
+          {"draft_kv_cache_precision", policy.draft_kv_cache_precision},
+          {"projector_on_cpu", policy.projector_on_cpu}};
+}
+
 json profile_to_document(const Profile& profile) {
   json models = json::array();
   for (const auto& policy : profile.model_policies) {
@@ -774,6 +813,20 @@ json profile_to_document(const Profile& profile) {
                  {"kv_cache", {{"precision", policy.kv_cache_precision}}}};
     if (policy.engine_explicit) item["engine"] = policy.engine;
     if (policy.artifact_explicit) item["artifact"] = {{"id", to_string(policy.quantization)}};
+    if (profile.schema >= 5) {
+      if (policy.token_batch_size > 0) item["batching"]["token_batch_size"] = policy.token_batch_size;
+      if (policy.micro_batch_size > 0) item["batching"]["micro_batch_size"] = policy.micro_batch_size;
+      if (policy.context_checkpoints >= 0) item["kv_cache"]["context_checkpoints"] = policy.context_checkpoints;
+      if (policy.ram_cache_mib >= 0) item["kv_cache"]["ram_cache_mib"] = policy.ram_cache_mib;
+      if (policy.projector_on_cpu) item["placement"]["projector_on_cpu"] = true;
+      if (policy.speculative_method != "auto" || policy.draft_gpu_layers >= 0 ||
+          policy.draft_max_tokens != 7 || policy.draft_kv_cache_precision != "q4") {
+        item["speculative"] = {{"method", policy.speculative_method},
+                                {"max_draft_tokens", policy.draft_max_tokens},
+                                {"kv_cache_precision", policy.draft_kv_cache_precision}};
+        if (policy.draft_gpu_layers >= 0) item["speculative"]["gpu_layers"] = policy.draft_gpu_layers;
+      }
+    }
     models.push_back(std::move(item));
   }
   json document = {{"schema", profile.schema >= 5 ? 5 : 4},
@@ -946,7 +999,7 @@ Profile profile_from_document(Registry& registry, const json& document) {
         {"id", "execution", "description", "tags", "modality", "engine",
          "family", "declared_context_tokens", "source", "artifact", "context",
          "batching", "kv_cache", "placement", "residency", "priority",
-         "startup", "idle_seconds"},
+         "startup", "idle_seconds", "speculative"},
         "profile model");
     ProfileModel policy;
     policy.id = entry.at("id").get<std::string>();
@@ -1035,16 +1088,43 @@ Profile profile_from_document(Registry& registry, const json& document) {
     }
     if (entry.contains("batching")) {
       reject_unknown_fields(entry.at("batching"),
-                            {"max_concurrent_requests"},
+                            {"max_concurrent_requests", "token_batch_size", "micro_batch_size"},
                             "profile model batching");
       policy.max_concurrent_requests =
           entry.at("batching").value("max_concurrent_requests", 1);
+      for (const auto key : {"token_batch_size", "micro_batch_size"}) {
+        if (entry.at("batching").contains(key) &&
+            !entry.at("batching").at(key).is_number_integer())
+          throw std::invalid_argument("native batch sizes must be integers");
+      }
+      policy.token_batch_size = entry.at("batching").value("token_batch_size", 0);
+      policy.micro_batch_size = entry.at("batching").value("micro_batch_size", 0);
     }
     if (entry.contains("kv_cache")) {
-      reject_unknown_fields(entry.at("kv_cache"), {"precision"},
+      reject_unknown_fields(entry.at("kv_cache"), {"precision", "context_checkpoints", "ram_cache_mib"},
                             "profile model KV cache");
       policy.kv_cache_precision =
           entry.at("kv_cache").value("precision", std::string("q8"));
+      for (const auto key : {"context_checkpoints", "ram_cache_mib"}) {
+        if (entry.at("kv_cache").contains(key) &&
+            !entry.at("kv_cache").at(key).is_number_integer())
+          throw std::invalid_argument("native cache sizes must be integers");
+      }
+      policy.context_checkpoints = entry.at("kv_cache").value("context_checkpoints", -1);
+      policy.ram_cache_mib = entry.at("kv_cache").value("ram_cache_mib", -1);
+    }
+    if (entry.contains("speculative")) {
+      const auto& speculative = entry.at("speculative");
+      reject_unknown_fields(speculative, {"method", "max_draft_tokens", "gpu_layers", "kv_cache_precision"},
+                            "profile speculative decoding");
+      for (const auto key : {"max_draft_tokens", "gpu_layers"}) {
+        if (speculative.contains(key) && !speculative.at(key).is_number_integer())
+          throw std::invalid_argument("speculative sizes must be integers");
+      }
+      policy.speculative_method = speculative.value("method", std::string("auto"));
+      policy.draft_max_tokens = speculative.value("max_draft_tokens", 7);
+      policy.draft_gpu_layers = speculative.value("gpu_layers", -1);
+      policy.draft_kv_cache_precision = speculative.value("kv_cache_precision", std::string("q4"));
     }
     if (entry.contains("placement")) {
       const auto& placement = entry.at("placement");
@@ -1054,13 +1134,14 @@ Profile profile_from_document(Registry& registry, const json& document) {
       reject_unknown_fields(
           placement,
           {"mode", "device", "gpu_layers", "ram_reservation_gib",
-           "vram_reservation_gib"},
+           "vram_reservation_gib", "projector_on_cpu"},
           "profile model placement");
       policy.placement_mode = placement.value("mode", std::string("auto"));
       policy.device = placement.value("device", std::string("auto"));
       policy.gpu_layers = placement.value("gpu_layers", -1);
       policy.ram_reservation_gib = placement.value("ram_reservation_gib", -1.0);
       policy.vram_reservation_gib = placement.value("vram_reservation_gib", -1.0);
+      policy.projector_on_cpu = placement.value("projector_on_cpu", false);
     }
     if (policy.engine_explicit && policy.artifact_explicit) validate_policy(working, profile, policy);
     profile.models.push_back(policy.id);

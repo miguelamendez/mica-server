@@ -22,6 +22,7 @@
         "mode": {"enum": ["auto", "fixed"]},
         "device": {"type": "string", "pattern": "^(auto|cpu|(accelerator|cuda|rocm|xpu|metal):[0-9]+)$"},
         "gpu_layers": {"type": "integer", "minimum": -1, "maximum": 999},
+        "projector_on_cpu": {"type": "boolean"},
         "ram_reservation_gib": {"type": "number", "minimum": -1},
         "vram_reservation_gib": {"type": "number", "minimum": -1}
       }
@@ -101,11 +102,28 @@
           "context": {"$ref": "#/$defs/context"},
           "batching": {
             "type": "object", "additionalProperties": false,
-            "properties": {"max_concurrent_requests": {"type": "integer", "minimum": 1, "maximum": 64}}
+            "properties": {
+              "max_concurrent_requests": {"type": "integer", "minimum": 1, "maximum": 64},
+              "token_batch_size": {"type": "integer", "minimum": 1, "maximum": 8192},
+              "micro_batch_size": {"type": "integer", "minimum": 1, "maximum": 8192}
+            }
           },
           "kv_cache": {
             "type": "object", "additionalProperties": false,
-            "properties": {"precision": {"enum": ["q4", "q8", "auto", "runtime-managed", "not-applicable"]}}
+            "properties": {
+              "precision": {"enum": ["q4", "q8", "auto", "runtime-managed", "not-applicable"]},
+              "context_checkpoints": {"type": "integer", "minimum": 0, "maximum": 64},
+              "ram_cache_mib": {"type": "integer", "minimum": 0, "maximum": 32768}
+            }
+          },
+          "speculative": {
+            "type": "object", "additionalProperties": false,
+            "properties": {
+              "method": {"enum": ["auto", "none", "mtp", "dflash"]},
+              "max_draft_tokens": {"type": "integer", "minimum": 1, "maximum": 32},
+              "gpu_layers": {"type": "integer", "minimum": -1, "maximum": 999},
+              "kv_cache_precision": {"enum": ["q4", "q8"]}
+            }
           },
           "placement": {"$ref": "#/$defs/placement"},
           "residency": {"enum": ["pinned", "warm", "on-demand", "ephemeral"]},

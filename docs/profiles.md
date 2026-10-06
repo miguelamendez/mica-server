@@ -356,6 +356,49 @@ and reservations of 4 GiB for Q4, 8 GiB for Q8, or 12 GiB for native weights
 (or `size_gib × 1.4 + 0.5`). These defaults prevent optimistic scheduling; they
 do not certify compatibility or quality.
 
+## Native GGUF tuning and speculative decoding
+
+Schema-5 `llama-server` workloads can pin the following optional per-model
+settings. Defaults retain the existing engine behavior; unsupported engines
+are rejected rather than silently ignoring the options.
+
+```yaml
+batching: {max_concurrent_requests: 1, token_batch_size: 512, micro_batch_size: 128}
+kv_cache: {precision: q4, context_checkpoints: 2, ram_cache_mib: 0}
+speculative: {method: dflash, max_draft_tokens: 7, gpu_layers: 99, kv_cache_precision: q4}
+placement: {device: 'cuda:0', mode: fixed, gpu_layers: 99, projector_on_cpu: false}
+```
+
+`token_batch_size` and `micro_batch_size` tune **prefill**, not the number of
+simultaneous requests. The micro-batch cannot exceed the token batch.
+`context_checkpoints` limits native context snapshots; `ram_cache_mib: 0`
+disables the native host prompt-cache buffer. `speculative.method` accepts
+`auto`, `none`, `mtp`, or `dflash`; an explicit method requires the matching
+pinned `mtp-drafter` or `dflash-drafter` file in the model's artifact bundle.
+`speculative.gpu_layers: 0` moves the draft model to CPU, whereas
+`placement.gpu_layers` controls the target. `projector_on_cpu` requires a
+vision projector. These options use native Jinja templates and Flash
+Attention with automatic context fitting disabled, making the configured
+window reproducible rather than silently shrinking it.
+
+The model artifact may pin `image_min_tokens` and `image_max_tokens` to bound
+image preprocessing; these are per-image, not whole-request limits. Adding
+more images still uses more context and workspace. DFlash with a projector is
+currently rejected; MTP with a projector is supported for the explicitly
+tested Qwen bundle. Engine compatibility tags alone are not a substitute for
+testing another model/drafter combination.
+
+Memory planning includes **all bundle files**, target KV cache, bounded host
+prompt cache, and explicit CPU placement of projector/drafter weights. Plain
+text GGUF artifacts with a verified `gguf_block_count` also support an
+approximate CPU/GPU split for partial layer offload. This remains reservation
+accounting, not a hard VRAM allocator or an exact per-layer memory model.
+All new native options participate in hot-swap compatibility: changing them
+reloads the affected worker rather than retaining its old configuration.
+
+For the 16 GiB NVIDIA Qwen example, see
+[Qwen 27B modes and measured memory limits](validation/qwen27b-modes-linux.md).
+
 ## Per-model engine selection
 
 Each schema-5 model entry resolves to one concrete engine and one compatible

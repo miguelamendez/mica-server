@@ -171,6 +171,48 @@ int main() {
   const auto& gsq_artifact = gsq.artifact_for(
       mica::Backend::gguf, mica::parse_quantization("iq3_xxs"), "llama-cpp");
   assert(gsq_artifact.quantization_type == "IQ3_XXS");
+  {
+    const auto& modes = registry.profile("qwen27b-modes");
+    assert(modes.model_policies.size() == 2);
+    assert(modes.maximum_resident_workers == 1);
+    assert(mica::select_profile_model(registry, modes, "chat", {"text"}) ==
+           "qwen38-27b-text-dflash");
+    assert(mica::select_profile_model(registry, modes, "chat", {"text", "image"}) ==
+           "qwen38-27b-vision-mtp");
+    const auto document = mica::profile_to_document(modes);
+    auto working = registry;
+    const auto roundtrip = mica::profile_from_document(working, document);
+    for (const auto& policy : modes.model_policies) {
+      assert(mica::profile_native_options(policy) ==
+             mica::profile_native_options(*roundtrip.policy_for(policy.id)));
+    }
+    for (const auto& invalid : std::vector<nlohmann::json>{
+             {{"speculative", {{"method", "mtp"}}}},
+             {{"speculative", {{"method", "dflash"}, {"max_draft_tokens", 0}}}},
+             {{"speculative", {{"method", "dflash"}, {"gpu_layers", -2}}}},
+             {{"speculative", {{"kv_cache_precision", "f16"}}}},
+             {{"batching", {{"max_concurrent_requests", 1}, {"token_batch_size", 128}, {"micro_batch_size", 512}}}},
+             {{"kv_cache", {{"precision", "q4"}, {"ram_cache_mib", -2}}}},
+             {{"placement", {{"mode", "fixed"}, {"device", "cuda:0"}, {"projector_on_cpu", true}}}}}) {
+      auto bad = document;
+      bad["models"][0].update(invalid);
+      bool rejected = false;
+      try { (void)mica::profile_from_document(working, bad); }
+      catch (const std::exception&) { rejected = true; }
+      assert(rejected);
+    }
+    const auto& draft_artifact = registry.model("qwen38-27b-text-dflash").artifact_for(
+        mica::Backend::gguf, mica::parse_quantization("iq3_xxs"), "llama-cpp");
+    assert(draft_artifact.projector_pattern.empty());
+    assert(draft_artifact.files.size() == 2);
+    assert(draft_artifact.files[1].role == "dflash-drafter");
+    assert(draft_artifact.files[1].repository == "z-lab/Qwen3.8-27B-DFlash2-GGUF");
+    const auto& vision_artifact = registry.model("qwen38-27b-vision-mtp").artifact_for(
+        mica::Backend::gguf, mica::parse_quantization("iq3_xxs"), "llama-cpp");
+    assert(vision_artifact.image_min_tokens == 1024 && vision_artifact.image_max_tokens == 1024);
+    assert(vision_artifact.files.size() == 3);
+    assert(vision_artifact.files[2].repository_path == "MTP/mtp-Qwen3.8-27B-Q4_0.gguf");
+  }
   assert(gsq_artifact.files.size() == 2);
   assert(gsq_artifact.files.at(0).size_bytes == 10094357632ULL);
   assert(gsq_artifact.files.at(1).role == "vision-projector");
@@ -522,7 +564,9 @@ int main() {
   {
     const auto ledger = mica::registry_catalog(registry);
     assert(ledger.at("schema") == 2);
-    assert(ledger.at("data").size() == 10);
+    assert(ledger.at("data").size() == static_cast<std::size_t>(std::count_if(
+        registry.models.begin(), registry.models.end(),
+        [](const auto& model) { return model.catalog_visible; })));
     const auto hidden = std::find_if(
         ledger.at("data").begin(), ledger.at("data").end(), [](const auto& item) {
           return item.value("id", "") == "vllm-qwen3-06b-control";
@@ -648,6 +692,43 @@ int main() {
   assert(mica::physical_cores_from_lscpu(" 0,0 \n1,0\r\n") == 2);
   const auto cuda_fixture =
       mica::load_hardware_profile(hardware_fixtures / "linux-cuda.json");
+  {
+    const auto& modes = registry.profile("qwen27b-modes");
+    const auto& draft_policy = *modes.policy_for("qwen38-27b-text-dflash");
+    const auto& draft_artifact = registry.model(draft_policy.id).artifact_for(
+        mica::Backend::gguf, draft_policy.quantization, draft_policy.engine);
+    const auto gpu = mica::resolve_model_placement(draft_policy, draft_artifact, cuda_fixture);
+    assert(gpu.ram_reservation_gib == 12);
+    assert(gpu.vram_reservation_gib < 15 && gpu.vram_reservation_gib > 14);
+    auto cpu_draft = draft_policy;
+    cpu_draft.draft_gpu_layers = 0;
+    const auto cpu = mica::resolve_model_placement(cpu_draft, draft_artifact, cuda_fixture);
+    assert(cpu.ram_reservation_gib > gpu.ram_reservation_gib);
+    assert(cpu.vram_reservation_gib < gpu.vram_reservation_gib);
+    auto large_file = draft_artifact;
+    large_file.reservation_gib = 1;
+    large_file.files[1].size_bytes = 10ULL * 1024 * 1024 * 1024;
+    assert(mica::resolve_model_placement(draft_policy, large_file, cuda_fixture)
+               .vram_reservation_gib > 20);
+    const auto& vision_policy = *modes.policy_for("qwen38-27b-vision-mtp");
+    const auto& vision_artifact = registry.model(vision_policy.id).artifact_for(
+        mica::Backend::gguf, vision_policy.quantization, vision_policy.engine);
+    auto projector_cpu = vision_policy;
+    projector_cpu.projector_on_cpu = true;
+    projector_cpu.vram_reservation_gib = 15;
+    const auto projector = mica::resolve_model_placement(projector_cpu, vision_artifact, cuda_fixture);
+    assert(projector.vram_reservation_gib == 15);  // Never lower an explicit floor.
+    assert(projector.ram_reservation_gib > 13);
+    const auto& maximum = registry.profile("qwen27b-modes-max-context").model_policies.front();
+    const auto& target = registry.model(maximum.id).artifact_for(
+        mica::Backend::gguf, maximum.quantization, maximum.engine);
+    const auto partial = mica::resolve_model_placement(maximum, target, cuda_fixture);
+    assert(partial.vram_reservation_gib < 15);
+    assert(partial.ram_reservation_gib == 12);
+    auto all_gpu = maximum;
+    all_gpu.gpu_layers = 99;
+    assert(mica::resolve_model_placement(all_gpu, target, cuda_fixture).vram_reservation_gib > 15);
+  }
   const auto rocm_fixture =
       mica::load_hardware_profile(hardware_fixtures / "linux-rocm.json");
   const auto xpu_fixture =

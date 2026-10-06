@@ -103,8 +103,10 @@ struct Artifact {
   std::string size_source;
   double reservation_gib{0.0};
   std::uint64_t kv_bytes_per_token_f16{0};
+  int gguf_block_count{0};
   // Optional native vision preprocessing floor; zero retains engine defaults.
   int image_min_tokens{0};
+  int image_max_tokens{0};
   std::string projector_pattern;
   std::string projector_repository_pattern;
   std::string sha256;
@@ -227,6 +229,15 @@ struct ProfileModel {
   int max_total_tokens{8192};
   int max_concurrent_requests{1};
   std::string kv_cache_precision{"q8"};
+  int token_batch_size{0};
+  int micro_batch_size{0};
+  int context_checkpoints{-1};
+  int ram_cache_mib{-1};
+  std::string speculative_method{"auto"};
+  int draft_max_tokens{7};
+  int draft_gpu_layers{-1};
+  std::string draft_kv_cache_precision{"q4"};
+  bool projector_on_cpu{false};
   // Placement is resolved per worker. "auto" follows the detected engine
   // target; "fixed" requires device to be cpu, accelerator:N, or runtime:N.
   std::string placement_mode{"auto"};

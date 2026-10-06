@@ -784,7 +784,8 @@ void write_runtime_state(const Registry& registry, const ResolvedSetup& setup) {
           {"device", policy.device},
           {"gpu_layers", policy.gpu_layers},
           {"ram_reservation_gib", policy.ram_reservation_gib},
-          {"vram_reservation_gib", policy.vram_reservation_gib}};
+          {"vram_reservation_gib", policy.vram_reservation_gib},
+          {"native_options", profile_native_options(policy)}};
     }
   } else {
     for (const auto& id : profile.models) {

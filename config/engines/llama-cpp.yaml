@@ -7,7 +7,7 @@ launcher: llama-server
 device_target: gguf
 hardware: [cpu, metal, cuda, rocm, sycl, vulkan]
 artifact_formats: [gguf]
-compatibility_tags: [text-generation, vision-projector]
+compatibility_tags: [text-generation, vision-projector, speculative-mtp, speculative-dflash]
 endpoint_contracts:
   - {id: chat, operation: chat.generate, transport: http, adapter_call: openai_chat, method: POST, path: /v1/chat/completions, required_inputs: [text], optional_inputs: [image, video], outputs: [text], streaming: true, supports_tools: true}
   - {id: completion, operation: text.generate, transport: http, adapter_call: mica_completion_adapter, method: POST, path: /v1/chat/completions, required_inputs: [text], outputs: [text], streaming: true}

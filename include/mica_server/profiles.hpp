@@ -13,6 +13,7 @@ inline constexpr const char* kDefaultProfileCatalogUrl =
     "https://raw.githubusercontent.com/miguelamendez/mica-server/main/profiles/catalog.yaml";
 
 nlohmann::json profile_to_document(const Profile& profile);
+nlohmann::json profile_native_options(const ProfileModel& policy);
 void resolve_profile_engines(Registry& registry, Profile& profile,
                             const HardwareInfo& hardware,
                             const std::filesystem::path& root);

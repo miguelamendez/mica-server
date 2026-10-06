@@ -1,0 +1,20 @@
+schema: 5
+id: qwen27b-modes-max-context
+description: Experimental full 256K declared Qwen window (224K input plus 32K output), Q4 KV and eight of 64 decoder blocks on CPU. Single request, no projector/drafter. Slower than all-GPU. Memory validation does not establish retrieval quality or output-length reliability.
+selection:
+  defaults:
+    - {operation: chat.generate, required_inputs: [text], model: qwen38-27b-text}
+mode: coding
+memory: {required_ram_gib: 16, required_vram_gib: 15.5, maximum_resident_workers: 1, safety_reserve_gib: 0.5}
+models:
+  - id: qwen38-27b-text
+    artifact: {id: iq3_xxs}
+    context: {max_input_tokens: 229376, max_output_tokens: 32768, max_total_tokens: 262144}
+    batching: {max_concurrent_requests: 1, token_batch_size: 512, micro_batch_size: 128}
+    kv_cache: {precision: q4, context_checkpoints: 2, ram_cache_mib: 0}
+    speculative: {method: none}
+    placement: {device: 'cuda:0', mode: fixed, gpu_layers: 56, ram_reservation_gib: 12}
+    priority: 100
+    residency: warm
+    startup: true
+    idle_seconds: 120

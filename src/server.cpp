@@ -713,7 +713,9 @@ void validate_runtime_profile(const RuntimeState& state, const Profile& profile)
         saved.value("device", "") != policy.device ||
         saved.value("gpu_layers", -2) != policy.gpu_layers ||
         saved.value("ram_reservation_gib", -2.0) != policy.ram_reservation_gib ||
-        saved.value("vram_reservation_gib", -2.0) != policy.vram_reservation_gib) {
+        saved.value("vram_reservation_gib", -2.0) != policy.vram_reservation_gib ||
+        saved.value("native_options", profile_native_options(ProfileModel{})) !=
+            profile_native_options(policy)) {
       stale();
     }
   }
@@ -907,12 +909,6 @@ void write_audio_config(const Worker& worker,
 std::vector<std::string> worker_command(const Worker& worker, const RuntimeState& state,
                                         const Profile& profile,
                                         const std::filesystem::path& root) {
-  for (const auto& file : worker.artifact.files) {
-    if (file.role == "mtp-drafter" || file.role == "dflash-drafter") {
-      throw std::runtime_error("speculative drafter launch is not validated for engine " +
-                               worker.engine->id);
-    }
-  }
   const auto port = std::to_string(worker.port);
   const auto* model_policy = profile.policy_for(worker.model->id);
   const int max_total_tokens = model_policy ? model_policy->max_total_tokens
@@ -1023,6 +1019,10 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
         command.insert(command.end(), {"--image-min-tokens",
                                        std::to_string(worker.artifact.image_min_tokens)});
       }
+      if (worker.artifact.image_max_tokens > 0) {
+        command.insert(command.end(), {"--image-max-tokens",
+                                       std::to_string(worker.artifact.image_max_tokens)});
+      }
     }
     command.insert(command.end(), {"--n-gpu-layers",
                                    std::to_string(worker.gpu_layers)});
@@ -1030,6 +1030,36 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
       const auto cache_type = kv_cache_precision == "q4" ? "q4_0" : "q8_0";
       command.insert(command.end(), {"--cache-type-k", cache_type,
                                      "--cache-type-v", cache_type});
+    }
+    if (model_policy) {
+      if (model_policy->token_batch_size > 0)
+        command.insert(command.end(), {"--batch-size", std::to_string(model_policy->token_batch_size)});
+      if (model_policy->micro_batch_size > 0)
+        command.insert(command.end(), {"--ubatch-size", std::to_string(model_policy->micro_batch_size)});
+      if (model_policy->context_checkpoints >= 0)
+        command.insert(command.end(), {"--ctx-checkpoints", std::to_string(model_policy->context_checkpoints)});
+      if (model_policy->ram_cache_mib >= 0)
+        command.insert(command.end(), {"--cache-ram", std::to_string(model_policy->ram_cache_mib)});
+      if (model_policy->projector_on_cpu) command.emplace_back("--no-mmproj-offload");
+      if (profile_native_options(*model_policy) != profile_native_options(ProfileModel{}))
+        command.insert(command.end(), {"--fit", "off", "--flash-attn", "on", "--jinja"});
+    }
+    const auto method = model_policy ? model_policy->speculative_method : std::string("auto");
+    if (method == "none") command.insert(command.end(), {"--spec-type", "none"});
+    else {
+      for (const auto& file : worker.artifact.files) {
+        if (file.role != "mtp-drafter" && file.role != "dflash-drafter") continue;
+        const auto draft_type = file.role == "mtp-drafter" ? "mtp" : "dflash";
+        if (method != "auto" && method != draft_type)
+          throw std::runtime_error("speculative method does not match registered drafter");
+        const auto draft_cache = model_policy && model_policy->draft_kv_cache_precision == "q8" ? "q8_0" : "q4_0";
+        command.insert(command.end(), {"--spec-type", "draft-" + std::string(draft_type),
+            "--spec-draft-model", (worker.artifact_path.parent_path() / file.path).string(),
+            "--spec-draft-n-max", std::to_string(model_policy ? model_policy->draft_max_tokens : 7),
+            "--spec-draft-type-k", draft_cache, "--spec-draft-type-v", draft_cache});
+        if (model_policy && model_policy->draft_gpu_layers >= 0)
+          command.insert(command.end(), {"--spec-draft-ngl", std::to_string(model_policy->draft_gpu_layers)});
+      }
     }
     return command;
   }
@@ -1469,7 +1499,8 @@ class WorkerManager {
             old.placement_mode == policy->placement_mode &&
             old.device == policy->device && old.gpu_layers == policy->gpu_layers &&
             old.ram_reservation_gib == policy->ram_reservation_gib &&
-            old.vram_reservation_gib == policy->vram_reservation_gib;
+            old.vram_reservation_gib == policy->vram_reservation_gib &&
+            profile_native_options(old) == profile_native_options(*policy);
       }
       if (compatible) retained.insert(key);
       else unloaded.insert(key);
@@ -1541,6 +1572,7 @@ class WorkerManager {
             {"gpu_layers", policy.gpu_layers},
             {"ram_reservation_gib", policy.ram_reservation_gib},
             {"vram_reservation_gib", policy.vram_reservation_gib}};
+        entry["native_options"] = profile_native_options(policy);
         configured[policy.id] = entry;
         policies[policy.id] = std::move(entry);
         quantizations[policy.id + "@" + backend] = {policy.quantization};
@@ -1671,6 +1703,7 @@ class WorkerManager {
                           {"required_engine_features", artifact.required_features},
                           {"minimum_engine_commit", artifact.minimum_engine_commit},
                           {"image_min_tokens", artifact.image_min_tokens},
+                          {"image_max_tokens", artifact.image_max_tokens},
                           {"sha256", artifact.sha256},
                           {"projector_sha256", artifact.projector_sha256},
                           {"artifact_size_bytes", artifact.size_bytes},
@@ -1683,6 +1716,7 @@ class WorkerManager {
                                              : artifact.files.front().repository},
                           {"state", loaded == workers_.end() ? "stopped" : "ready"}};
           if (const auto* policy = profile.policy_for(id)) {
+            item["native_options"] = profile_native_options(*policy);
             item["engine"] = policy->engine;
             item["residency"] = to_string(policy->residency);
             item["priority"] = policy->priority;
@@ -1746,6 +1780,7 @@ class WorkerManager {
                           {"max_total_tokens", policy.max_total_tokens},
                           {"max_concurrent_requests", policy.max_concurrent_requests},
                           {"kv_cache_precision", policy.kv_cache_precision},
+                          {"native_options", profile_native_options(policy)},
                           {"placement", {{"mode", policy.placement_mode},
                                           {"device", policy.device},
                                           {"gpu_layers", policy.gpu_layers},
@@ -1819,12 +1854,6 @@ class WorkerManager {
                              worker.artifact.files.end(), [&](const auto& file) {
         return std::filesystem::exists(base / file.path);
       });
-    }
-    for (const auto& file : worker.artifact.files) {
-      if (file.role == "mtp-drafter" || file.role == "dflash-drafter") {
-        throw std::runtime_error("engine " + worker.engine->id +
-            " has no validated speculative-drafter launch adapter for " + file.role);
-      }
     }
 
     const auto repository_it = worker.model->repositories.find(worker.backend);
@@ -1911,6 +1940,38 @@ class WorkerManager {
         std::filesystem::create_directories(stage);
         try {
           for (const auto& file : worker.artifact.files) {
+            // A pre-seeded bundle may share verified weights with another
+            // mode. Reuse only immutable, size-and-SHA pinned files; stage
+            // before publishing the bundle's completion marker as usual.
+            std::vector<std::filesystem::path> candidates{base / file.path};
+            // Mode IDs can reference the exact same target. Look only in
+            // sibling model caches and require the complete size+SHA pin.
+            for (const auto& sibling : std::filesystem::directory_iterator(base.parent_path())) {
+              if (sibling.is_directory() && sibling.path() != base)
+                candidates.push_back(sibling.path() / file.path);
+            }
+            bool reused = false;
+            for (const auto& cached : candidates) {
+              if (file.size_bytes == 0 || file.sha256.empty() ||
+                  !std::filesystem::is_regular_file(cached) ||
+                  std::filesystem::file_size(cached) != file.size_bytes) continue;
+#ifdef __APPLE__
+              const auto checksum = run_command({"shasum", "-a", "256", cached.string()}, true);
+#else
+              const auto checksum = run_command({"sha256sum", cached.string()}, true);
+#endif
+              const auto separator = checksum.output.find_first_of(" \t\r\n");
+              if (checksum.exit_code == 0 && checksum.output.substr(0, separator) == file.sha256) {
+                const auto staged = stage / file.path;
+                std::filesystem::create_directories(staged.parent_path());
+                std::error_code error;
+                std::filesystem::create_hard_link(cached, staged, error);
+                if (error) std::filesystem::copy_file(cached, staged);
+                reused = true;
+                break;
+              }
+            }
+            if (reused) continue;
             download_file(file.repository, file.revision, file.repository_path,
                           stage / file.path, file.size_bytes, file.sha256);
           }

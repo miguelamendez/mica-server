@@ -1,0 +1,41 @@
+schema: 2
+id: qwen38-27b-text-dflash
+description: Qwen3.8 27B GSQ-RCO IQ3_XXS text-only bundle with the external DFlash2 Q4_K_M drafter. No vision projector is loaded.
+source_repository: ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF
+license: apache-2.0
+references:
+  - {kind: model-card, title: Qwen3.8 GSQ-RCO target, url: 'https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF'}
+  - {kind: model-card, title: DFlash2 GGUF drafter, url: 'https://huggingface.co/z-lab/Qwen3.8-27B-DFlash2-GGUF'}
+  - {kind: code, title: DFlash2 engine support, url: 'https://github.com/ggml-org/llama.cpp/pull/27342'}
+input_modalities: [text]
+output_modalities: [text]
+abilities: [text_generation, instruction_following, reasoning]
+supported_interactions:
+  - {operation: chat.generate, required_inputs: [text], outputs: [text]}
+declared_context_tokens: 262144
+tags: [coding, reasoning, gsq, rco, dflash, speculative, experimental]
+gguf_parallel_slots: 1
+startup_priority: 50
+required: false
+artifacts:
+  - id: iq3_xxs
+    compatible_engines: [llama-cpp]
+    format: gguf
+    quantization_type: IQ3_XXS
+    repository: ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF
+    revision: d562806dbafae37109975e970aae91b43e73b440
+    reservation_gib: 12.5
+    kv_bytes_per_token_f16: 65536
+    gguf_block_count: 64
+    required_compatibility: [text-generation, speculative-dflash]
+    minimum_engine_commit: 5e03bdd8700948b9c41c54dd1b00f28a2aebc03f
+    files:
+      - role: model
+        path: Qwen3.8-27B-GSQ-RCO-IQ3_XXS.gguf
+        size_bytes: 10094357632
+        sha256: fdfcb6a29b11188956dfbfd904223588a6c1b77eb250c3e8a36e1bd269df91f7
+      - role: dflash-drafter
+        path: Qwen3.8-27B-DFlash2-Q4_K_M.gguf
+        source: {repository: z-lab/Qwen3.8-27B-DFlash2-GGUF, revision: 2d9571f8ce46e151f61c6499c99dee6079e1d610, license: apache-2.0}
+        size_bytes: 1143006816
+        sha256: 1a25c56858e1ebe93f2718ac1d49d1151f9323325c1bbfd6209370f4db131ebd

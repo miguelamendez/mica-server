@@ -31,12 +31,13 @@ not a runtime, and an inference profile is not an installation script.
 | --- | --- | --- |
 | Machine facts and policy | Setup writes `state/hardware.yaml`, retains older hardware snapshots for migration, and creates `config/machine.yaml` only when absent. `plan` reads existing policy and synthetic YAML/JSON hardware fixtures. | Validate per-device reservations on real multi-GPU hardware and retire older hardware snapshots after migration. |
 | Engine manifest | Packaged schema-2 `config/engines/*.yaml` records drive installation and declare the adapter endpoints Mica can actually call. | User engine directories and all installer options resolved from manifests. |
-| Model/artifact registry | Curated schema-2 `config/model-manifests/*.yaml` records declare modality flows, abilities, operations, pinned artifacts, and compatible engines. GGUF bundle downloads stage and verify files before the completion marker. | Add image/audio-generation adapters and validate drafter launch. |
-| Inference profile | Twenty-five built-in self-contained schema-5 YAML workloads contain model collections and intended-use descriptions. Optional engine/artifact selection resolves installed and declared variants; request defaults use operations and inputs. | Retire legacy Lua diagnostics and validate real multi-GPU behavior. |
+| Model/artifact registry | Curated schema-2 `config/model-manifests/*.yaml` records declare modality flows, abilities, operations, pinned artifacts, and compatible engines. GGUF bundle downloads stage and verify files before the completion marker; native MTP/DFlash bundles can select a separately pinned drafter. | Add image/audio-generation adapters and certify additional drafter/model pairs. |
+| Inference profile | Built-in self-contained schema-5 YAML workloads contain model collections and intended-use descriptions. Optional engine/artifact selection resolves installed and declared variants; request defaults use operations and inputs. | Retire legacy Lua diagnostics and validate real multi-GPU behavior. |
 
 The packaged YAML path is implemented for all built-in workloads. User engine
-directories, speculative MTP/DFlash launch, cross-repository drafter
-compatibility proofs, and observed-memory hard caps remain future work.
+directories, general cross-repository drafter compatibility proofs, and
+observed-memory hard caps remain future work. Native MTP/DFlash launch is
+implemented for pinned GGUF bundles; see the [Qwen 27B validation](validation/qwen27b-modes-linux.md).
 
 An engine manifest may track `latest` or pin an immutable Git commit. Setup
 records the concrete installed commit; `latest` does not update an existing
@@ -222,8 +223,11 @@ Optional acceleration is modeled as another artifact variant rather than a
 half-installed required component. For example, `q8` can contain only the
 primary model while `q8_with_mtp` contains the same pinned model plus a pinned
 `mtp-drafter` from another repository. The latter requires an engine feature
-such as `mtp-speculative-decoding`; a DFlash variant similarly requires the
-corresponding DFlash feature.
+such as `speculative-mtp`; a DFlash variant requires `speculative-dflash`.
+The registry currently indexes one artifact per quantization and engine for a
+given model ID. The Qwen example therefore uses distinct **bundle IDs** for
+text+DFlash, vision+MTP, and target-only modes, all referencing the exact same
+target weights. These IDs do not represent independently trained models.
 
 Artifact compatibility is more than file format. Both stock and Prism
 llama.cpp read GGUF, but only the Prism fork implements the activation

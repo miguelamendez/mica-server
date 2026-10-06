@@ -86,29 +86,69 @@ ResolvedModelPlacement resolve_model_placement(
                                   resolved.unified_memory;
   // File bytes are a conservative lower bound, not a measured peak. KV grows
   // with context AND concurrent sequences; quantized caches include scales.
-  const double file_gib = static_cast<double>(artifact.size_bytes +
-      artifact.projector_size_bytes) / (1024.0 * 1024 * 1024);
+  std::uint64_t file_bytes = artifact.size_bytes + artifact.projector_size_bytes;
+  if (!artifact.files.empty()) {
+    file_bytes = 0;
+    for (const auto& file : artifact.files) file_bytes += file.size_bytes;
+  }
+  const double file_gib = static_cast<double>(file_bytes) / (1024.0 * 1024 * 1024);
   const double cache_factor = policy.kv_cache_precision == "q4" ? 0.3125 :
                               policy.kv_cache_precision == "q8" ? 0.5625 : 1.0;
   const double kv_gib = static_cast<double>(artifact.kv_bytes_per_token_f16) *
       policy.max_total_tokens * policy.max_concurrent_requests * cache_factor /
       (1024.0 * 1024 * 1024);
-  const double footprint = std::max(artifact.reservation_gib, file_gib * 1.1 + 0.25) + kv_gib;
+  const double base_gib = std::max(artifact.reservation_gib, file_gib * 1.1 + 0.25);
+  const double footprint = base_gib + kv_gib;
+  const double host_cache_gib = policy.ram_cache_mib > 0 ? policy.ram_cache_mib / 1024.0 : 0;
   if (system_memory_only) {
     // A discrete profile may declare only its small host-side overhead. If
     // that same logical placement resolves to unified memory, the complete
     // model must still be charged to RAM rather than just that overhead.
     resolved.ram_reservation_gib = policy.ram_reservation_gib >= 0
                                        ? std::max(policy.ram_reservation_gib,
-                                                  footprint)
-                                       : footprint;
+                                                  footprint + host_cache_gib)
+                                       : footprint + host_cache_gib;
   } else {
     resolved.ram_reservation_gib = policy.ram_reservation_gib >= 0
-                                       ? policy.ram_reservation_gib
-                                       : 0.5;
+                                       ? std::max(policy.ram_reservation_gib, 0.5 + host_cache_gib)
+                                       : 0.5 + host_cache_gib;
     resolved.vram_reservation_gib = policy.vram_reservation_gib >= 0
                                         ? std::max(policy.vram_reservation_gib, footprint)
                                         : footprint;
+    if (policy.projector_on_cpu && artifact.projector_size_bytes > 0) {
+      const double projector_gib = artifact.projector_size_bytes / (1024.0 * 1024 * 1024);
+      resolved.vram_reservation_gib = std::max(
+          policy.vram_reservation_gib >= 0 ? policy.vram_reservation_gib : 0,
+          resolved.vram_reservation_gib - projector_gib * 0.9);
+      resolved.ram_reservation_gib += projector_gib * 1.25 + 0.25;
+    }
+    if (policy.draft_gpu_layers == 0 && policy.speculative_method != "none") {
+      for (const auto& file : artifact.files) {
+        if (file.role != "mtp-drafter" && file.role != "dflash-drafter") continue;
+        const double draft_gib = file.size_bytes / (1024.0 * 1024 * 1024);
+        resolved.ram_reservation_gib += draft_gib * 1.25 + 0.25;
+        resolved.vram_reservation_gib = std::max(
+            policy.vram_reservation_gib >= 0 ? policy.vram_reservation_gib : 0,
+            resolved.vram_reservation_gib - draft_gib * 0.9);
+      }
+    }
+    if (policy.backend == Backend::gguf && artifact.gguf_block_count > 0 &&
+        policy.gpu_layers > 0 && policy.gpu_layers < artifact.gguf_block_count &&
+        artifact.projector_pattern.empty() &&
+        std::none_of(artifact.files.begin(), artifact.files.end(), [](const auto& f) {
+          return f.role == "mtp-drafter" || f.role == "dflash-drafter";
+        })) {
+      // Conservative split: embeddings, allocator and graph overhead remain
+      // charged to GPU; add 0.5 GiB rather than assuming uniform layer costs.
+      // Only verified block counts and plain text GGUFs use this estimate.
+      const double fraction = static_cast<double>(policy.gpu_layers) / artifact.gguf_block_count;
+      resolved.vram_reservation_gib = std::max(
+          policy.vram_reservation_gib >= 0 ? policy.vram_reservation_gib : 0,
+          footprint * fraction + 0.5);
+      resolved.ram_reservation_gib = std::max(
+          policy.ram_reservation_gib >= 0 ? policy.ram_reservation_gib : 0.5,
+          footprint * (1.0 - fraction) + 0.5 + host_cache_gib);
+    }
   }
   resolved.gpu_layers = policy.gpu_layers >= 0
                             ? policy.gpu_layers
