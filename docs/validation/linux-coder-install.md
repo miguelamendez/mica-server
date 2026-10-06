@@ -35,6 +35,16 @@ The acceptance client also exposed a startup race: systemd may return before
 Mica binds the API socket. Readiness polling now retries connection-refused
 and timeout errors within its deadline instead of misreporting a setup failure.
 
+Raw-output review found another test weakness: checking for any occurrence of
+`9` accepted a Qwen3.8 answer that started with `8` and then explained nine.
+That non-thinking output is inconsistent, not a correct answer. The reasoning
+case now enables thinking explicitly and requires the final answer to start
+with `9`; the separate reasoning-enabled probe returned the coherent answer
+`9 — “all but 9” means 9 sheep did not run away.` Vision tests keep thinking
+disabled. The video task grades color order only, not time localization; the
+earlier unconstrained response invented timestamps. Its prompt now requests
+only color names, and timestamp accuracy is not certified.
+
 ## Workload
 
 | Model | Artifact | KV cache | Startup | Context allocation |

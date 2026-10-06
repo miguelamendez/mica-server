@@ -10,6 +10,7 @@ import argparse
 import base64
 import json
 import mimetypes
+import re
 import time
 import urllib.error
 import urllib.request
@@ -92,10 +93,10 @@ def main() -> int:
         mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
         return "data:" + mime + ";base64," + base64.b64encode(path.read_bytes()).decode()
 
-    def chat(name, content, model=None):
+    def chat(name, content, model=None, thinking=False):
         body = {"messages": [{"role": "user", "content": content}],
                 "max_tokens": 512, "temperature": 0, "stream": False,
-                "chat_template_kwargs": {"enable_thinking": False}}
+                "chat_template_kwargs": {"enable_thinking": thinking}}
         if model:
             body["model"] = model
         result = request("/v1/chat/completions", body)
@@ -117,7 +118,7 @@ def main() -> int:
         initial = state()
         check("correct initial workload", initial["profile"]["name"] == args.profile)
         text = chat("default_spark_text", "What is 17 times 19? Reply only with the integer.")
-        check("Spark arithmetic", "323" in text, text)
+        check("Spark arithmetic", text.strip() == "323", text)
         before = state()
         spark_pid = worker(before, "spark-x25-4b")["pid"]
         switched = activate(args.swap_profile)
@@ -128,8 +129,8 @@ def main() -> int:
         check("excluded coder rejected", 400 <= denied["status"] < 500, denied)
         activate(args.profile)
         check("Spark retained on return", worker(state(), "spark-x25-4b")["pid"] == spark_pid)
-        text = chat("qwen27_reasoning", "A farmer has 17 sheep. All but 9 run away. How many remain? Reply with the number and one short explanation.", "qwen38-27b-gsq-rco")
-        check("Qwen27 reasoning answer", "9" in text or "nine" in text.lower(), text)
+        text = chat("qwen27_reasoning", "A farmer has 17 sheep. All but 9 run away. How many remain? Reply with the number and one short explanation.", "qwen38-27b-gsq-rco", thinking=True)
+        check("Qwen27 reasoning answer begins with nine", bool(re.match(r"^\s*9\b", text)), text)
         before = state()
         excluded_id = worker(before, "qwen38-27b-gsq-rco")["id"]
         switched = activate(args.swap_profile)
@@ -139,7 +140,7 @@ def main() -> int:
         text = chat("default_qwen9_image", [
             {"type": "image_url", "image_url": {"url": uri(args.image)}},
             {"type": "text", "text": "Read the large text and name the colors of the upper-left and lower-right squares."}])
-        check("image OCR and colors", all(word in text.lower() for word in ("31415", "blue", "red")), text)
+        check("image OCR and colors", all(word in text.lower() for word in ("mica", "31415", "blue", "red")), text)
         before = state()
         vision_pid = worker(before, "qwen35-9b")["pid"]
         switched = activate(args.swap_profile)
@@ -148,7 +149,7 @@ def main() -> int:
         activate(args.profile)
         text = chat("default_qwen9_video", [
             {"type": "input_video", "input_video": {"data": uri(args.video)}},
-            {"type": "text", "text": "List the three background colors in chronological order, from the beginning to the end."}])
+            {"type": "text", "text": "List the three background colors in chronological order, from the beginning to the end. Output only the color names, without explanations or timestamps."}])
         lowered = text.lower()
         check("video temporal colors", all(word in lowered for word in ("red", "green", "blue")) and
               lowered.index("red") < lowered.index("green") < lowered.index("blue"), text)
