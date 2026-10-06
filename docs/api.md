@@ -29,12 +29,12 @@ The same `api_key` or `api_key_file` fields may be set in
 | --- | --- | --- |
 | `GET /health` | No | Process liveness. |
 | `GET /ready` | No | Warmup/readiness; returns 503 while required startup work fails. |
-| `GET /v1/models` | Yes | Models and variants enabled by the active profile, plus its ID and default chat model. |
+| `GET /v1/models` | Yes | Models and variants enabled by the active profile, plus its ID and per-category defaults. |
 | `GET /v1/catalog` | Yes | Complete curated registry, filterable by modality, capability, engine, or artifact family. |
 | `GET /admin/models` | Yes | Active profile, memory budget, policies, and resident workers. |
-| `POST /admin/profile/activate` | Yes | Switch to an installed task profile while retaining compatible workers. |
+| `POST /admin/profile/activate` | Yes | Switch to an installed workload profile while retaining compatible workers. |
 
-Activate an already-installed schema-4 task without restarting the proxy:
+Activate an already-installed schema-5 workload without restarting the proxy:
 
 ```sh
 curl "$MICA_BASE_URL/admin/profile/activate" \
@@ -64,9 +64,20 @@ curl "$MICA_BASE_URL/v1/catalog?modality=asr&engine=mlx-audio" \
 `registry ping` performs a remote availability check for each selected curated
 Hugging Face repository. It does not download weights.
 
+## Model selection
+
+Inference requests may omit `model`. Mica then checks the active workload profile's
+`selection.defaults` for the requested operation and input modalities—for
+example, `chat.generate` with text-plus-image or `audio.transcribe` with audio.
+Without a matching default, the highest-priority eligible model wins; ties
+break by model ID. An explicit model must belong to the active profile and
+accept the request's modalities. `GET /v1/models` currently exposes these
+resolved defaults using legacy `text`, `image`, `video`, `asr`, and `tts` keys;
+the public response shape has not yet been migrated to operation IDs.
+
 `engine` selects a concrete runtime such as `mlx-lm`, `mlx-vlm`, `mlx-audio`,
 `llama-cpp`, or `audio-cpp`. The legacy `backend` filter selects an artifact
-family (`mlx`, `gguf`, or `vllm`). Each schema-4 task selection includes its
+family (`mlx`, `gguf`, or `vllm`). Each schema-5 workload selection includes its
 description, modalities, license, repositories/revisions, and variant records
 with format, exact quantization type, artifact/download bytes, component roles,
 projector size,
@@ -75,7 +86,7 @@ size provenance, and memory reservation.
 ## Model IDs
 
 An unsuffixed ID, such as `spark-x25-4b`, resolves to the exact execution
-selected by the active task profile. The explicit form is:
+selected by the active workload profile. The explicit form is:
 
 ```text
 model-id@backend:quantization
@@ -239,6 +250,28 @@ chunks as they arrive without presenting multiple permanent audio messages.
 
 Session IDs and media paths are validated. Imports reject traversal paths,
 symbolic links, duplicate paths, malformed manifests, and oversized archives.
+
+## Speaker diarization
+
+`POST /v1/audio/diarizations` accepts multipart `file` and optional `model`.
+For the Nemotron offline adapter, provide a 16 kHz mono PCM WAV of at most
+60 seconds. This endpoint returns speaker turns, not an ASR transcript:
+
+```json
+{
+  "model": "nemotron-3-diarization",
+  "timestamp_unit": "seconds",
+  "speaker_turns": [
+    {"start": 0.12, "end": 2.99, "speaker_id": "speaker_0"}
+  ]
+}
+```
+
+`confidence` is optional and is retained only when the engine reports it;
+Mica does not fabricate confidence for the MLX segment API. Speaker IDs are
+anonymous within each recording. `stream: true` is rejected until an adapter
+with a certified streaming contract is selected. Upstream native batch/live
+diarization is not yet a public Mica endpoint. See [model details](models.md#nemotron-3-diarization).
 
 ## Errors
 

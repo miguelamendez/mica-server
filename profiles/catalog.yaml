@@ -1,8 +1,28 @@
 profiles:
-  - schema: 4
+  - schema: 5
+    id: diarization
+    description: Nemotron Q8 speaker turns without transcription; automatically selects an installed compatible engine or the hardware-compatible manifest default.
+    available: true
+    memory: {required_ram_gib: 2, required_vram_gib: 0, safety_reserve_gib: 0.5}
+    models:
+      - id: nemotron-3-diarization
+        artifact: {id: q8}
+        context: {max_input_tokens: 1, max_output_tokens: 1, max_total_tokens: 2}
+        kv_cache: {precision: not-applicable}
+        startup: true
+        residency: warm
+        priority: 100
+  - schema: 5
     id: mica-assistant-mlx
-    description: ""
-    default_chat_model: ""
+    description: General Apple Silicon MLX assistant combining text chat, visual understanding, speech recognition, and speech replies.
+    selection:
+      engine_policy: explicit-only
+      defaults:
+        - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
+        - {operation: chat.generate, required_inputs: [text, image], model: minicpm-v46-thinking}
+        - {operation: chat.generate, required_inputs: [text, video], model: minicpm-v46-thinking}
+        - {operation: audio.transcribe, required_inputs: [audio], model: granite-speech-5}
+        - {operation: audio.synthesize_speech, required_inputs: [text], model: audio8-tts-06b}
     available: true
     mode: interactive
     memory:
@@ -88,10 +108,17 @@ profiles:
         residency: on-demand
         startup: false
     catalog_visible: true
-  - schema: 4
+  - schema: 5
     id: mica-assistant-gguf
-    description: ""
-    default_chat_model: ""
+    description: General GGUF assistant combining text chat, visual understanding, speech recognition, and speech replies.
+    selection:
+      engine_policy: explicit-only
+      defaults:
+        - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
+        - {operation: chat.generate, required_inputs: [text, image], model: minicpm-v46-thinking}
+        - {operation: chat.generate, required_inputs: [text, video], model: minicpm-v46-thinking}
+        - {operation: audio.transcribe, required_inputs: [audio], model: granite-speech-5}
+        - {operation: audio.synthesize_speech, required_inputs: [text], model: audio8-tts-06b}
     available: true
     mode: interactive
     memory:
@@ -177,10 +204,9 @@ profiles:
         residency: on-demand
         startup: false
     catalog_visible: true
-  - schema: 4
+  - schema: 5
     id: mica-assistant-gguf-cpu
-    description: ""
-    default_chat_model: ""
+    description: CPU-only GGUF assistant for validating text, speech, and vision without accelerator placement.
     available: true
     mode: interactive-cpu
     memory:
@@ -270,10 +296,9 @@ profiles:
         residency: on-demand
         startup: false
     catalog_visible: true
-  - schema: 4
+  - schema: 5
     id: mica-assistant-gguf-gpu
-    description: ""
-    default_chat_model: ""
+    description: GPU-placed GGUF assistant for validating accelerator-only model placement and serving.
     available: true
     mode: interactive-gpu
     memory:
@@ -371,10 +396,9 @@ profiles:
         residency: on-demand
         startup: false
     catalog_visible: true
-  - schema: 4
+  - schema: 5
     id: mica-assistant-gguf-mixed
-    description: ""
-    default_chat_model: ""
+    description: Mixed CPU/GPU GGUF assistant for validating per-model placement and memory reservations.
     available: true
     mode: interactive-mixed
     memory:
@@ -468,10 +492,9 @@ profiles:
         residency: on-demand
         startup: false
     catalog_visible: true
-  - schema: 4
+  - schema: 5
     id: bonsai-pq2-vision-cpu
-    description: ""
-    default_chat_model: ""
+    description: CPU-only Bonsai PQ2 vision validation profile for checking image input without GPU offload.
     available: true
     mode: vision-cpu-validation
     memory:
@@ -501,10 +524,9 @@ profiles:
         residency: on-demand
         startup: false
     catalog_visible: true
-  - schema: 4
+  - schema: 5
     id: bonsai-pq2-vision-gpu
-    description: ""
-    default_chat_model: ""
+    description: GPU-offloaded Bonsai PQ2 vision validation profile for checking image input and device placement.
     available: true
     mode: vision-gpu-validation
     memory:
@@ -536,10 +558,15 @@ profiles:
         residency: on-demand
         startup: false
     catalog_visible: true
-  - schema: 4
+  - schema: 5
     id: mica-coder-bonsai-macos
     description: Apple Silicon coding workspace with Bonsai as primary coder, Ling and Spark as alternate text models, and MiniCPM for image or PDF-page analysis.
-    default_chat_model: ternary-bonsai-2-27b
+    selection:
+      engine_policy: explicit-only
+      defaults:
+        - {operation: chat.generate, required_inputs: [text], model: ternary-bonsai-2-27b}
+        - {operation: chat.generate, required_inputs: [text, image], model: minicpm-v46-thinking}
+        - {operation: chat.generate, required_inputs: [text, video], model: minicpm-v46-thinking}
     available: true
     mode: coding
     memory:
@@ -627,10 +654,13 @@ profiles:
         residency: on-demand
         startup: false
     catalog_visible: true
-  - schema: 3
+  - schema: 5
     id: mica-xing-q4-baseline-macos
-    description: Staged Xing IQ4_NL experiment on 24 GiB Apple Silicon; not yet certified for Metal inference or peak memory.
-    default_chat_model: xing4-29b-a4b
+    description: Experimental Xing IQ4_NL baseline for 24 GiB Apple Silicon; 20 GiB admission budget is not a physical memory hard cap.
+    selection:
+      engine_policy: explicit-only
+      defaults:
+        - {operation: chat.generate, required_inputs: [text], model: xing4-29b-a4b}
     available: false
     mode: evaluation
     memory:

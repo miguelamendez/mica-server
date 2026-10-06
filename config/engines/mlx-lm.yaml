@@ -1,14 +1,17 @@
-schema: 1
+schema: 2
 id: mlx-lm
 status: current
 backend: mlx
 installer: python-mlx
-launcher: mlx-lm
+launcher: mlx-vlm
 device_target: mlx
 hardware: [apple-silicon]
 artifact_formats: [mlx]
-features: [text-generation, streaming]
+compatibility_tags: [text-generation]
+endpoint_contracts:
+  - {id: chat, operation: chat.generate, transport: http, adapter_call: openai_chat, method: POST, path: /v1/chat/completions, required_inputs: [text], outputs: [text], streaming: true, supports_tools: true}
+  - {id: completion, operation: text.generate, transport: http, adapter_call: mica_completion_adapter, method: POST, path: /v1/chat/completions, required_inputs: [text], outputs: [text], streaming: true}
 install:
   environment_group: mlx
   # Spark's current worker path uses mlx_vlm.server for its custom architecture.
-  python_packages: [mlx-lm, mlx-vlm]
+  python_packages: ["mlx-lm>=0.31.3", "mlx-vlm>=0.7.2"]

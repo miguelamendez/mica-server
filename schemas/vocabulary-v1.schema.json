@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/miguelamendez/mica-server/schemas/vocabulary-v1.schema.json",
+  "title": "Mica model and operation vocabulary v1",
+  "description": "Shared identifiers for the next-generation manifests. Listing an identifier here does not mean Mica can serve it yet.",
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "modality": {"enum": ["text", "image", "video", "audio"]},
+    "modalities": {
+      "type": "array", "minItems": 1, "uniqueItems": true,
+      "items": {"$ref": "#/$defs/modality"}
+    },
+    "ability": {
+      "enum": [
+        "text_generation", "instruction_following", "tool_calling",
+        "reasoning", "structured_output", "image_understanding",
+        "video_understanding", "audio_understanding", "speech_recognition", "speech_translation",
+        "speaker_diarization", "speech_synthesis", "voice_conditioning",
+        "general_audio_generation", "music_generation", "audio_transformation",
+        "image_generation", "image_editing", "video_generation", "video_editing"
+      ]
+    },
+    "operation": {
+      "enum": [
+        "text.generate", "chat.generate", "decisions.score",
+        "audio.transcribe", "audio.translate", "audio.diarize",
+        "audio.synthesize_speech", "audio.generate", "audio.transform",
+        "image.generate", "image.edit", "video.generate", "video.edit"
+      ]
+    },
+    "interaction": {
+      "type": "object", "additionalProperties": false,
+      "required": ["operation", "required_inputs", "outputs"],
+      "properties": {
+        "operation": {"$ref": "#/$defs/operation"},
+        "required_inputs": {"$ref": "#/$defs/modalities"},
+        "optional_inputs": {
+          "type": "array", "uniqueItems": true,
+          "items": {"$ref": "#/$defs/modality"}
+        },
+        "outputs": {"$ref": "#/$defs/modalities"},
+        "description": {"type": "string"}
+      }
+    }
+  }
+}

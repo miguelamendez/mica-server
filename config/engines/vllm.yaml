@@ -1,4 +1,4 @@
-schema: 1
+schema: 2
 id: vllm
 status: current
 backend: vllm
@@ -7,6 +7,9 @@ launcher: vllm
 device_target: vllm
 hardware: [cpu, cuda, rocm, xpu, tpu, metal]
 artifact_formats: [safetensors, compressed-tensors, mlx]
-features: [text-generation, batching, streaming]
+compatibility_tags: [text-generation]
+endpoint_contracts:
+  - {id: chat, operation: chat.generate, transport: http, adapter_call: openai_chat, method: POST, path: /v1/chat/completions, required_inputs: [text], outputs: [text], streaming: true}
+  - {id: completion, operation: text.generate, transport: http, adapter_call: mica_completion_adapter, method: POST, path: /v1/chat/completions, required_inputs: [text], outputs: [text], streaming: true}
 install:
   environment_group: vllm

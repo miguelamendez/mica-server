@@ -1,8 +1,10 @@
-schema: 1
+schema: 2
 id: granite-speech-5
-capability: asr
 input_modalities: [audio]
 output_modalities: [text]
+abilities: [speech_recognition]
+supported_interactions:
+  - {operation: audio.transcribe, required_inputs: [audio], outputs: [text]}
 description: Granite Speech 5.0 470M TurboCTC automatic speech recognition model.
 source_repository: ibm-granite/granite-speech-5.0-470m-turboctc
 tags: [automatic-speech-recognition, audio, commercial-use]
@@ -15,46 +17,42 @@ required: true
 required_by_backend: {mlx: true, gguf: true, vllm: false}
 artifacts:
   - id: q4
-    backend: mlx
-    engine: mlx-audio
+    compatible_engines: [mlx-audio]
     format: mlx
     quantization_type: selective-mlx-affine-q4-g64
     repository: miguelamendez/mica-granite-speech-5
     revision: 1bd2ab6e8b006062f6336a0ab15d4707295f932d
     reservation_gib: 0.9
-    required_features: [asr]
+    required_compatibility: [asr]
     files:
       - {role: model, path: q4, repository_path: mlx/q4, size_bytes: 320409580}
   - id: q8
-    backend: mlx
-    engine: mlx-audio
+    compatible_engines: [mlx-audio]
     format: mlx
     quantization_type: selective-mlx-affine-q8-g64
     repository: miguelamendez/mica-granite-speech-5
     revision: 1bd2ab6e8b006062f6336a0ab15d4707295f932d
     reservation_gib: 1.2
-    required_features: [asr]
+    required_compatibility: [asr]
     files:
       - {role: model, path: q8, repository_path: mlx/q8, size_bytes: 538513660}
   - id: q4
-    backend: gguf
-    engine: audio-cpp
+    compatible_engines: [audio-cpp]
     format: gguf
     quantization_type: Q4_K
     repository: miguelamendez/mica-granite-speech-5
     revision: 1bd2ab6e8b006062f6336a0ab15d4707295f932d
     reservation_gib: 0.9
-    required_features: [asr]
+    required_compatibility: [asr]
     files:
       - {role: model, path: granite-speech-5.0-470m-turboctc-q4_k.gguf, repository_path: gguf/granite-speech-5.0-470m-turboctc-q4_k.gguf, size_bytes: 272112352}
   - id: q8
-    backend: gguf
-    engine: audio-cpp
+    compatible_engines: [audio-cpp]
     format: gguf
     quantization_type: Q8_0
     repository: miguelamendez/mica-granite-speech-5
     revision: 1bd2ab6e8b006062f6336a0ab15d4707295f932d
     reservation_gib: 1.4
-    required_features: [asr]
+    required_compatibility: [asr]
     files:
       - {role: model, path: granite-speech-5.0-470m-turboctc-q8_0.gguf, repository_path: gguf/granite-speech-5.0-470m-turboctc-q8_0.gguf, size_bytes: 504718560}

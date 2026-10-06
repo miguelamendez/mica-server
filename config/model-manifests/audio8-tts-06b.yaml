@@ -1,8 +1,10 @@
-schema: 1
+schema: 2
 id: audio8-tts-06b
-capability: tts
 input_modalities: [text, audio]
 output_modalities: [audio]
+abilities: [speech_synthesis, voice_conditioning]
+supported_interactions:
+  - {operation: audio.synthesize_speech, required_inputs: [text], optional_inputs: [audio], outputs: [audio]}
 description: Audio8 TTS Preview 0.6B local text-to-speech model.
 source_repository: Audio8/Audio8-TTS-Preview-0.6b
 tags: [text-to-speech, audio, commercial-use]
@@ -15,46 +17,42 @@ required: false
 required_by_backend: {mlx: false, gguf: false, vllm: false}
 artifacts:
   - id: q4
-    backend: mlx
-    engine: mlx-audio
+    compatible_engines: [mlx-audio]
     format: mlx
     quantization_type: selective-mlx-affine-q4-g64
     repository: miguelamendez/mica-audio8-tts-06b
     revision: 610e0202c26f581678e5544aae2be2ef3f71adb9
-    reservation_gib: 1.2
-    required_features: [tts]
+    reservation_gib: 2.5
+    required_compatibility: [tts]
     files:
       - {role: model, path: q4, repository_path: mlx/q4, size_bytes: 1965243688}
   - id: q8
-    backend: mlx
-    engine: mlx-audio
+    compatible_engines: [mlx-audio]
     format: mlx
     quantization_type: selective-mlx-affine-q8-g64
     repository: miguelamendez/mica-audio8-tts-06b
     revision: 610e0202c26f581678e5544aae2be2ef3f71adb9
-    reservation_gib: 1.8
-    required_features: [tts]
+    reservation_gib: 3.0
+    required_compatibility: [tts]
     files:
       - {role: model, path: q8, repository_path: mlx/q8, size_bytes: 2173975882}
   - id: q4
-    backend: gguf
-    engine: audio-cpp
+    compatible_engines: [audio-cpp]
     format: gguf
     quantization_type: Q4_0
     repository: miguelamendez/mica-audio8-tts-06b
     revision: 610e0202c26f581678e5544aae2be2ef3f71adb9
     reservation_gib: 1.6
-    required_features: [tts]
+    required_compatibility: [tts]
     files:
       - {role: model, path: audio8-tts-preview-0.6b-q4_0.gguf, repository_path: gguf/audio8-tts-preview-0.6b-q4_0.gguf, size_bytes: 1092886528}
   - id: q8
-    backend: gguf
-    engine: audio-cpp
+    compatible_engines: [audio-cpp]
     format: gguf
     quantization_type: Q8_0
     repository: miguelamendez/mica-audio8-tts-06b
     revision: 610e0202c26f581678e5544aae2be2ef3f71adb9
     reservation_gib: 1.9
-    required_features: [tts]
+    required_compatibility: [tts]
     files:
       - {role: model, path: audio8-tts-preview-0.6b-q8_0.gguf, repository_path: gguf/audio8-tts-preview-0.6b-q8_0.gguf, size_bytes: 1429544960}

@@ -1,0 +1,15 @@
+schema: 2
+id: mlx-audio-diarization
+status: current
+backend: mlx
+installer: python-mlx
+launcher: mlx-diarization
+device_target: mlx
+hardware: [apple-silicon]
+artifact_formats: [mlx]
+compatibility_tags: [speaker-diarization]
+endpoint_contracts:
+  - {id: diarize, operation: audio.diarize, transport: http, adapter_call: audio_diarization, method: POST, path: /v1/audio/diarizations, required_inputs: [audio], outputs: [text], streaming: false}
+install:
+  environment_group: mlx
+  python_packages: ["mlx-audio[server] @ git+https://github.com/Blaizzy/mlx-audio.git@70f4add32911bab6f869b824864ad9f1e24dcb97"]

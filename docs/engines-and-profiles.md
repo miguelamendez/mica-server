@@ -1,8 +1,8 @@
-# Machine, engine, model, and task configuration
+# Machine, engine, model, and workload configuration
 
 Mica's core is a deterministic resolver. It combines facts about one machine,
 declarative engine installation recipes, immutable model artifacts, and a
-task-specific inference policy into one auditable runtime plan.
+workload-specific inference policy into one auditable runtime plan.
 
 The dependency graph is one-way:
 
@@ -30,11 +30,11 @@ not a runtime, and an inference profile is not an installation script.
 | Layer | Current alpha | Target contract |
 | --- | --- | --- |
 | Machine facts and policy | Setup writes `state/hardware.yaml`, retains older hardware snapshots for migration, and creates `config/machine.yaml` only when absent. `plan` reads existing policy and synthetic YAML/JSON hardware fixtures. | Validate per-device reservations on real multi-GPU hardware and retire older hardware snapshots after migration. |
-| Engine manifest | Packaged `config/engines/*.yaml` records are authoritative and drive native CMake flags and selected MLX packages. | User engine directories and all installer options resolved from manifests. |
-| Model/artifact registry | Curated models now use `config/model-manifests/*.yaml` with pinned revisions, file roles, modality lists, and optional provenance-backed token limits. GGUF bundle downloads stage and verify files before the completion marker. | Validate drafter launch adapters and fill only documented model metadata. |
-| Inference profile | Twenty-three built-in self-contained schema-4 YAML tasks select explicit models, engines, and artifacts. JSON profile files are rejected; legacy Lua acceptance profiles remain for diagnostics only. | Retire the legacy diagnostic profiles and validate real multi-GPU behavior. |
+| Engine manifest | Packaged schema-2 `config/engines/*.yaml` records drive installation and declare the adapter endpoints Mica can actually call. | User engine directories and all installer options resolved from manifests. |
+| Model/artifact registry | Curated schema-2 `config/model-manifests/*.yaml` records declare modality flows, abilities, operations, pinned artifacts, and compatible engines. GGUF bundle downloads stage and verify files before the completion marker. | Add image/audio-generation adapters and validate drafter launch. |
+| Inference profile | Twenty-five built-in self-contained schema-5 YAML workloads contain model collections and intended-use descriptions. Optional engine/artifact selection resolves installed and declared variants; request defaults use operations and inputs. | Retire legacy Lua diagnostics and validate real multi-GPU behavior. |
 
-The packaged YAML path is implemented for all built-in tasks. User engine
+The packaged YAML path is implemented for all built-in workloads. User engine
 directories, speculative MTP/DFlash launch, cross-repository drafter
 compatibility proofs, and observed-memory hard caps remain future work.
 
@@ -80,7 +80,7 @@ It does not contain llama.cpp CMake flags, Python package names, preferred
 models, or task policy. Engine-specific data belongs to engine manifests.
 User limits such as a 16-GiB build or inference budget belong to the separate
 user-owned `config/machine.yaml` policy. CLI memory arguments may override that
-global allocation; task profiles declare the minimum RAM/VRAM required but do
+global allocation; workload profiles declare the minimum RAM/VRAM required but do
 not create a second ceiling. Server config continues to own networking and
 credentials. `plan` accepts `--machine-file PATH` to validate an alternate
 machine policy without writing user files. Schema-4 startup and live worker
@@ -102,15 +102,15 @@ The active manifests declare:
 - runtime directory or Python environment group;
 - build targets and executable/module entry point;
 - version-check arguments;
-- artifact formats and required runtime features;
-- feature names used for artifact compatibility.
+- artifact formats and compatibility tags for loading artifacts;
+- actual adapter endpoint contracts, including operation and input/output modalities.
 
 It must not contain arbitrary shell fragments. Typed adapters and typed CMake
 definitions prevent an engine manifest from becoming an unchecked code-
 execution mechanism.
 
 ```yaml
-schema: 1
+schema: 2
 id: prism-llama-cpp
 status: candidate
 backend: gguf
@@ -119,7 +119,9 @@ launcher: llama-server
 device_target: gguf
 hardware: [cpu, metal, cuda, rocm, sycl, vulkan]
 artifact_formats: [gguf]
-features: [prism-activation-transform, vision-projector]
+compatibility_tags: [prism-activation-transform, vision-projector]
+endpoint_contracts:
+  - {id: chat, operation: chat.generate, transport: http, adapter_call: openai_chat, method: POST, path: /v1/chat/completions, required_inputs: [text], optional_inputs: [image], outputs: [text], streaming: true}
 source:
   url: https://github.com/PrismML-Eng/llama.cpp.git
   revision: 9a9394a895b96003ca842a6041cb28ac49a108f7
@@ -152,7 +154,7 @@ A GGUF-only profile installs no Python.
 
 ## 3. Models and multi-file artifacts
 
-A model record describes logical identity, capability, license, upstream
+A model record describes logical identity, modality flows, abilities, license, upstream
 provenance, architectural limits, and its available artifacts. An artifact is
 one concrete downloadable weight package for one precision and format.
 
@@ -179,17 +181,27 @@ For example, the active
 record includes both the language weights and the BF16 vision projector:
 
 ```yaml
-schema: 1
+schema: 2
 id: ternary-bonsai-2-27b
-capabilities: [text-to-text, image-text-to-text]
+description: Ternary multimodal coding model with a vision projector.
+source_repository: prism-ml/Ternary-Bonsai-2-27B-gguf
+input_modalities: [text, image]
+output_modalities: [text]
+abilities: [text_generation, instruction_following, reasoning, image_understanding]
+supported_interactions:
+  - {operation: chat.generate, required_inputs: [text], outputs: [text]}
+  - {operation: chat.generate, required_inputs: [text, image], outputs: [text]}
 license: apache-2.0
 
 artifacts:
-  pq2_0:
+  - id: pq2_0
     repository: prism-ml/Ternary-Bonsai-2-27B-gguf
     revision: 6ed5e12bf84b7a63069882c91dd9e9218647d17b
     format: gguf
-    quantization: PQ2_0
+    quantization_type: PQ2_0
+    compatible_engines: [prism-llama-cpp]
+    required_compatibility: [prism-activation-transform, vision-projector]
+    reservation_gib: 12
     files:
       - role: model
         path: Ternary-Bonsai-2-27B-PQ2_0.gguf
@@ -199,12 +211,6 @@ artifacts:
         path: Ternary-Bonsai-2-27B-mmproj-BF16.gguf
         size_bytes: 931145856
         sha256: e287342d92332fa3577ed1d42e921dac9370c08da58ba9337fa450f6cc76cfd7
-    compatibility:
-      engines: [prism-llama-cpp]
-      required_features:
-        - prism-activation-transform
-        - vision-projector
-    reservation_gib: 12
 ```
 
 All required files form one atomic artifact. Mica must download them into a
@@ -224,17 +230,20 @@ llama.cpp read GGUF, but only the Prism fork implements the activation
 transform required by these rotated ternary weights. A format match is
 necessary, not sufficient.
 
-## 4. Inference profiles
+## 4. Workload profiles
 
-An inference profile is the task-level composition and runtime policy. It
-selects exact model, artifact, and engine IDs, then defines context, batching,
+An inference profile is the workload-level composition and runtime policy. It
+selects model IDs, optionally pins artifact and engine IDs, then defines context, batching,
 KV cache, placement, memory admission, warmup, priority, and eviction.
 
 ```yaml
-schema: 4
+schema: 5
 id: mica-coder-bonsai-macos
 description: Coding profile for a 24-GiB Apple Silicon host.
-default_chat_model: ternary-bonsai-2-27b
+selection:
+  engine_policy: explicit-only
+  defaults:
+    - {operation: chat.generate, required_inputs: [text], model: ternary-bonsai-2-27b}
 memory:
   required_ram_gib: 16
   required_vram_gib: 0
@@ -264,7 +273,7 @@ models:
     startup: false
 ```
 
-The installed [coding profile](../config/tasks/mica-coder-bonsai-macos.yaml)
+The installed [coding profile](../config/workloads/mica-coder-bonsai-macos.yaml)
 also specifies per-model context, batching, KV cache, and eviction timers; the
 excerpt above shows only the selection and residency fields.
 `required_vram_gib` is zero because Apple uses one unified RAM pool. The initial

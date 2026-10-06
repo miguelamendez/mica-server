@@ -117,7 +117,7 @@ bool commercial_license_allowed(std::string license) {
     return static_cast<char>(std::tolower(value));
   });
   static const std::set<std::string> allowed = {
-      "apache-2.0", "mit", "bsd", "bsd-2-clause", "bsd-3-clause", "isc"};
+      "apache-2.0", "mit", "bsd", "bsd-2-clause", "bsd-3-clause", "isc", "openmdw-1.1"};
   return allowed.contains(license);
 }
 
@@ -311,7 +311,7 @@ std::filesystem::path find_mmproj(const std::filesystem::path& root) {
 }  // namespace
 
 std::string normalize_modality(const std::string& value) {
-  if (value == "tts" || value == "asr" || value == "text-to-text") return value;
+  if (value == "tts" || value == "asr" || value == "diar" || value == "text-to-text") return value;
   if (value == "img-text-to-text" || value == "image-text-to-text" ||
       value == "video-text-to-text" || value == "image-video-to-text") {
     return "img-text-to-text";
@@ -969,7 +969,8 @@ nlohmann::json registry_catalog(const Registry& registry,
                                 const std::optional<std::string>& capability,
                                 const std::optional<Backend>& backend,
                                 bool check_remote,
-                                const std::optional<std::string>& engine) {
+                                const std::optional<std::string>& engine,
+                                const std::optional<std::string>& modality) {
   json models = json::array();
   std::map<std::string, bool> remote_status;
   const auto modality_for = [](const std::string& value) {
@@ -988,7 +989,15 @@ nlohmann::json registry_catalog(const Registry& registry,
       if (backend && candidate_backend != *backend) continue;
       json quantizations = json::array();
       json artifact_variants = json::array();
-      for (const auto& [quantization, artifact] : artifacts) {
+      std::vector<std::pair<Quantization, Artifact>> engine_variants(artifacts.begin(), artifacts.end());
+      for (const auto& [engine_id, extra] : model.engine_artifacts) {
+        if (registry.engine(engine_id).backend != candidate_backend) continue;
+        for (const auto& [quantization, artifact] : extra) {
+          if (artifacts.contains(quantization) && artifacts.at(quantization).engine == engine_id) continue;
+          engine_variants.emplace_back(quantization, artifact);
+        }
+      }
+      for (const auto& [quantization, artifact] : engine_variants) {
         if (!artifact.supported || (engine && artifact.engine != *engine)) continue;
         const auto quantization_name = to_string(quantization);
         std::uint64_t download_bytes =
@@ -1054,11 +1063,43 @@ nlohmann::json registry_catalog(const Registry& registry,
     }
     if (variants.empty()) continue;
     json modalities = json::array();
-    if (model.capability == "vision") {
-      modalities.push_back("image-text-to-text");
-      modalities.push_back("video-text-to-text");
-    } else {
-      modalities.push_back(modality_for(model.capability));
+    const auto add_modality = [&](const std::string& value) {
+      if (std::find(modalities.begin(), modalities.end(), value) == modalities.end()) {
+        modalities.push_back(value);
+      }
+    };
+    for (const auto& interaction : model.supported_interactions) {
+      const auto has_input = [&](const std::string& value) {
+        return std::find(interaction.required_inputs.begin(),
+                         interaction.required_inputs.end(), value) !=
+                   interaction.required_inputs.end();
+      };
+      if (interaction.operation == "chat.generate" ||
+          interaction.operation == "text.generate") {
+        if (has_input("image")) add_modality("image-text-to-text");
+        else if (has_input("video")) add_modality("video-text-to-text");
+        else add_modality("text-to-text");
+      } else if (interaction.operation == "audio.transcribe") {
+        add_modality("asr");
+      } else if (interaction.operation == "audio.diarize") {
+        add_modality("diar");
+      } else if (interaction.operation == "audio.synthesize_speech") {
+        add_modality("tts");
+      }
+    }
+    if (modalities.empty()) add_modality(modality_for(model.capability));
+    if (modality) {
+      const auto contains = [&](const std::string& value) {
+        return std::find(modalities.begin(), modalities.end(), value) !=
+               modalities.end();
+      };
+      const bool matches = *modality == "img-text-to-text" ||
+                           *modality == "image-text-to-text" ?
+          contains("image-text-to-text") :
+          *modality == "image-video-to-text" ?
+          contains("image-text-to-text") && contains("video-text-to-text") :
+          contains(*modality);
+      if (!matches) continue;
     }
     std::string license;
     for (const auto& tag : model.tags) {
@@ -1067,6 +1108,13 @@ nlohmann::json registry_catalog(const Registry& registry,
           tag == "bsd-3-clause" || tag == "isc") {
         license = tag;
       }
+    }
+    json interactions = json::array();
+    for (const auto& interaction : model.supported_interactions) {
+      interactions.push_back({{"operation", interaction.operation},
+                              {"required_inputs", interaction.required_inputs},
+                              {"optional_inputs", interaction.optional_inputs},
+                              {"outputs", interaction.outputs}});
     }
     json item = {{"id", model.id},
                  {"capability", model.capability},
@@ -1077,6 +1125,8 @@ nlohmann::json registry_catalog(const Registry& registry,
                  {"thinking_budget_supported", model.thinking_budget_supported},
                  {"input_modalities", model.input_modalities},
                  {"output_modalities", model.output_modalities},
+                 {"abilities", model.abilities},
+                 {"supported_interactions", interactions},
                  {"tool_call_formats", model.tool_call_formats},
                  {"license", license.empty() ? "unknown" : license},
                  {"tags", model.tags},
@@ -1085,6 +1135,13 @@ nlohmann::json registry_catalog(const Registry& registry,
                  {"revisions", revisions},
                  {"quantizations", quantizations_by_backend},
                  {"variants", variants}};
+    item["references"] = json::array();
+    for (const auto& reference : model.references) {
+      json entry = {{"kind", reference.kind}, {"title", reference.title},
+                    {"url", reference.url}};
+      if (!reference.description.empty()) entry["description"] = reference.description;
+      item["references"].push_back(std::move(entry));
+    }
     if (model.gguf_context_tokens > 0) {
       item["supported_context_tokens"] = model.gguf_context_tokens;
     }

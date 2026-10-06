@@ -116,6 +116,10 @@ if(MICA_SERVER_BUILD_TESTS)
   add_executable(mica-server-tests tests/test_scheduler.cpp)
   target_link_libraries(mica-server-tests PRIVATE mica_server_core)
   add_test(NAME mica-server-tests COMMAND mica-server-tests)
+  add_test(NAME mica-server-mlx-worker-guards
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mlx_worker_guards.py)
+  add_test(NAME mica-server-memory-monitor
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_memory_monitor.py)
   add_test(
     NAME mica-server-schema3-gguf-profile
     COMMAND $<TARGET_FILE:mica-server> setup --profile gguf-interactive
@@ -205,7 +209,7 @@ if(MICA_SERVER_BUILD_TESTS)
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cuda.json
   )
   set_tests_properties(mica-server-placement-cpu-on-cuda-host PROPERTIES
-    PASS_REGULAR_EXPRESSION "resolved_device.*cpu.*reserved_ram_gib.*7.3.*reserved_vram_gib.*0.0"
+    PASS_REGULAR_EXPRESSION "resolved_device.*cpu.*reserved_ram_gib.*7.58.*reserved_vram_gib.*0.0"
   )
   add_test(
     NAME mica-server-placement-gpu-on-cuda-host
@@ -217,7 +221,7 @@ if(MICA_SERVER_BUILD_TESTS)
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cuda.json
   )
   set_tests_properties(mica-server-placement-gpu-on-cuda-host PROPERTIES
-    PASS_REGULAR_EXPRESSION "resolved_device.*cuda:0.*reserved_ram_gib.*1.5.*reserved_vram_gib.*7.3"
+    PASS_REGULAR_EXPRESSION "resolved_device.*cuda:0.*reserved_ram_gib.*1.5.*reserved_vram_gib.*7.58"
   )
   add_test(
     NAME mica-server-placement-mixed-on-cuda-host
@@ -229,7 +233,7 @@ if(MICA_SERVER_BUILD_TESTS)
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cuda.json
   )
   set_tests_properties(mica-server-placement-mixed-on-cuda-host PROPERTIES
-    PASS_REGULAR_EXPRESSION "resolved_device.*cuda:0.*resolved_device.*cpu.*reserved_ram_gib.*3.0.*reserved_vram_gib.*4.8"
+    PASS_REGULAR_EXPRESSION "resolved_device.*cuda:0.*resolved_device.*cpu.*reserved_ram_gib.*3.0.*reserved_vram_gib.*5.08"
   )
   add_test(
     NAME mica-server-placement-reject-gpu-on-cpu-host
@@ -265,7 +269,7 @@ if(MICA_SERVER_BUILD_TESTS)
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cpu.json
   )
   set_tests_properties(mica-server-bonsai-cpu-plan PROPERTIES
-    PASS_REGULAR_EXPRESSION "prism-llama-cpp.*ram_reservation_gib.*12.0.*resolved_device.*cpu.*quantizations.*pq2_0"
+    PASS_REGULAR_EXPRESSION "prism-llama-cpp.*ram_reservation_gib.*12.*resolved_device.*cpu.*quantizations.*pq2_0"
   )
   add_test(
     NAME mica-server-bonsai-prism-cpu-setup
@@ -322,7 +326,7 @@ if(MICA_SERVER_BUILD_TESTS)
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/mac-metal.json
   )
   set_tests_properties(mica-server-coder-macos-setup-plan PROPERTIES
-    PASS_REGULAR_EXPRESSION "mlx-lm mlx-vlm.*PrismML-Eng/llama.cpp.git.*GGML_METAL=ON.*--target llama-server --parallel 2"
+    PASS_REGULAR_EXPRESSION "mlx-lm>=0.31.3 mlx-vlm>=0.7.2.*PrismML-Eng/llama.cpp.git.*GGML_METAL=ON.*--target llama-server --parallel 2"
     FAIL_REGULAR_EXPRESSION "mlx-audio|audio.cpp|GGML_CUDA=ON"
   )
   foreach(MICA_HARDWARE_CASE IN ITEMS mac-metal linux-cuda linux-rocm linux-xpu)
@@ -712,15 +716,15 @@ if(MICA_SERVER_BUILD_TESTS)
     PASS_REGULAR_EXPRESSION "vram_budget_gib.*12\\.0"
   )
   add_test(
-    NAME mica-server-task-reject-insufficient-vram
+    NAME mica-server-workload-reject-insufficient-vram
     COMMAND $<TARGET_FILE:mica-server> plan
             --profile mica-assistant-gguf-gpu --ram-gib 20
             --machine-file ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/machine/linux-cuda.yaml
             --hardware-profile ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cuda.json
-            --root /tmp/mica-task-vram-reject
+            --root /tmp/mica-workload-vram-reject
             --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
   )
-  set_tests_properties(mica-server-task-reject-insufficient-vram PROPERTIES
+  set_tests_properties(mica-server-workload-reject-insufficient-vram PROPERTIES
     WILL_FAIL TRUE
   )
   add_test(
@@ -776,7 +780,11 @@ install(FILES schemas/profile-v3.schema.json
               schemas/machine-policy-v1.schema.json
               schemas/engine-v1.schema.json
               schemas/model-v1.schema.json
-              schemas/task-v4.schema.json
+              schemas/workload-v4.schema.json
+              schemas/vocabulary-v1.schema.json
+              schemas/engine-v2.schema.json
+              schemas/model-v2.schema.json
+              schemas/workload-v5.schema.json
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/schemas)
 install(FILES apps/mica_playground.py apps/mica-logo.svg apps/mica-readme-header.svg
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps)

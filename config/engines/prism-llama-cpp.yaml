@@ -1,4 +1,4 @@
-schema: 1
+schema: 2
 id: prism-llama-cpp
 status: candidate
 backend: gguf
@@ -7,7 +7,9 @@ launcher: llama-server
 device_target: gguf
 hardware: [cpu, metal, cuda, rocm, sycl, vulkan]
 artifact_formats: [gguf]
-features: [prism-activation-transform, vision-projector]
+compatibility_tags: [prism-activation-transform, vision-projector]
+endpoint_contracts:
+  - {id: chat, operation: chat.generate, transport: http, adapter_call: openai_chat, method: POST, path: /v1/chat/completions, required_inputs: [text], optional_inputs: [image], outputs: [text], streaming: true}
 source:
   url: https://github.com/PrismML-Eng/llama.cpp.git
   revision: 9a9394a895b96003ca842a6041cb28ac49a108f7

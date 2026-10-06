@@ -3,6 +3,7 @@
 #undef NDEBUG
 #endif
 #include <cassert>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <set>
@@ -33,7 +34,7 @@ int main() {
         "profiles/catalog.yaml");
     for (const auto& item : catalog.at("profiles")) {
       if (!item.value("available", true)) continue;
-      assert(item.at("schema") == 4);
+      assert(item.at("schema") == 5);
       auto working = registry;
       const auto profile = mica::profile_from_document(working, item);
       assert(profile.name == item.at("id").get<std::string>());
@@ -54,6 +55,28 @@ int main() {
   assert(spark.thinking_budget_supported);
   assert((spark.input_modalities == std::vector<std::string>{"text"}));
   assert((spark.output_modalities == std::vector<std::string>{"text"}));
+  assert(std::find(spark.abilities.begin(), spark.abilities.end(),
+                   "text_generation") != spark.abilities.end());
+  assert(!spark.supported_interactions.empty());
+  assert(spark.supported_interactions.front().operation == "chat.generate");
+  const auto& audio8 = registry.model("audio8-tts-06b");
+  assert(audio8.supported_interactions.front().operation ==
+         "audio.synthesize_speech");
+  assert(audio8.supported_interactions.front().optional_inputs ==
+         std::vector<std::string>{"audio"});
+  assert(registry.engine("mlx-audio").endpoint_contracts.size() == 2);
+  const auto& diar_model = registry.model("nemotron-3-diarization");
+  assert(diar_model.capability == "diar");
+  assert(diar_model.artifact_for(mica::Backend::mlx, mica::Quantization::q8,
+                               "mlx-audio-diarization").size_bytes == 106613900ULL);
+  assert(diar_model.artifact_for(mica::Backend::gguf, mica::parse_quantization("bf16"),
+                               "audio-cpp").size_bytes == 198720928ULL);
+  const auto& diar_contract = registry.engine("mlx-audio-diarization").endpoint_contracts.front();
+  assert(diar_contract.path == "/v1/audio/diarizations");
+  assert(diar_contract.adapter_call == "audio_diarization");
+  assert(!diar_contract.streaming);
+  assert(mica::select_profile_model(registry, registry.profile("diarization"),
+                                   "diar", {"audio"}) == diar_model.id);
   assert(spark.artifacts.at(mica::Backend::mlx).at(mica::Quantization::q4)
              .repository_pattern == "mlx/q4");
   assert(spark.artifacts.at(mica::Backend::mlx).at(mica::Quantization::q4)
@@ -73,6 +96,59 @@ int main() {
   assert(yaml_bonsai_artifact.files.at(1).role == "vision-projector");
   assert(yaml_bonsai_artifact.files.at(1).sha256 ==
          "e287342d92332fa3577ed1d42e921dac9370c08da58ba9337fa450f6cc76cfd7");
+  const auto& gsq = registry.model("qwen38-27b-gsq-rco");
+  assert(gsq.references.size() == 7);
+  assert(gsq.references.at(1).kind == "code");
+  assert(gsq.references.at(1).url == "https://github.com/IST-DASLab/GSQ");
+  assert(gsq.references.at(3).url == "https://github.com/IST-DASLab/RCO");
+  assert(gsq.references.at(5).kind == "reproducibility");
+  assert(!gsq.references.at(5).description.empty());
+  assert(spark.references.empty());
+  {
+    char temporary[] = "/tmp/mica-reference-tests-XXXXXX";
+    const auto created = mkdtemp(temporary);
+    assert(created != nullptr);
+    const auto directory = std::filesystem::path(created);
+    const auto copied_config = directory / "config";
+    std::filesystem::copy(config, copied_config,
+                          std::filesystem::copy_options::recursive);
+    const auto manifest = copied_config / "model-manifests/qwen38-27b-gsq-rco.yaml";
+    const auto original = mica::read_profile_file(manifest);
+    const auto invalid_references = std::vector<nlohmann::json>{
+        nlohmann::json::object(),
+        nlohmann::json::array({{{"kind", "unknown"}, {"title", "test"}, {"url", "https://example.com"}}}),
+        nlohmann::json::array({{{"kind", "code"}, {"title", ""}, {"url", "https://example.com"}}}),
+        nlohmann::json::array({{{"kind", "code"}, {"title", "test"}, {"url", "file:///tmp/code"}}}),
+        nlohmann::json::array({{{"kind", "code"}, {"title", "test"}, {"url", "https://"}}}),
+        nlohmann::json::array({{{"kind", "code"}, {"title", "test"}, {"url", "https://example.com/path with spaces"}}}),
+        nlohmann::json::array({{{"kind", "code"}, {"title", "test"}, {"url", "https://example.com"}, {"download", true}}}),
+        nlohmann::json::array({{{"kind", "code"}, {"url", "https://example.com"}}})};
+    for (const auto& references : invalid_references) {
+      auto document = original;
+      document["references"] = references;
+      // JSON is valid YAML syntax; this fixture remains a .yaml manifest.
+      { std::ofstream output(manifest); output << document.dump(2) << '\n'; }
+      bool rejected = false;
+      try { (void)mica::load_registry(copied_config); }
+      catch (const std::exception&) { rejected = true; }
+      assert(rejected);
+    }
+    std::filesystem::remove_all(directory);
+  }
+  const auto& gsq_artifact = gsq.artifact_for(
+      mica::Backend::gguf, mica::parse_quantization("iq3_xxs"), "llama-cpp");
+  assert(gsq_artifact.quantization_type == "IQ3_XXS");
+  assert(gsq_artifact.files.size() == 2);
+  assert(gsq_artifact.files.at(0).size_bytes == 10094357632ULL);
+  assert(gsq_artifact.files.at(1).role == "vision-projector");
+  assert(gsq_artifact.files.at(1).sha256 ==
+         "13cb7bebccbd04afc8f4090cb949ecf8937cdf7377c5799b1a0c594e7c0d3e16");
+  const auto& comparison = registry.profile("qwen38-gsq-bonsai-comparison");
+  assert(comparison.required_ram_gib == 16.0);
+  assert(comparison.maximum_resident_workers == 1);
+  assert(comparison.model_policies.size() == 2);
+  assert(comparison.policy_for(gsq.id)->max_total_tokens == 8192);
+  assert(comparison.policy_for("ternary-bonsai-2-27b")->max_total_tokens == 8192);
   const auto& coder = registry.profile("mica-coder-bonsai-macos");
   const auto& bonsai_thinking = registry.model("ternary-bonsai-2-27b");
   assert((bonsai_thinking.thinking_modes ==
@@ -81,7 +157,49 @@ int main() {
   assert((registry.model("minicpm-v46-thinking").thinking_modes ==
           std::vector<std::string>{"none", "on"}));
   assert(coder.description.find("coding") != std::string::npos);
+  assert(coder.schema == 5);
   assert(coder.default_chat_model == "ternary-bonsai-2-27b");
+  assert(coder.default_models.at("text") == "ternary-bonsai-2-27b");
+  assert(mica::select_profile_model(registry, coder, "chat", {"text"}) ==
+         "ternary-bonsai-2-27b");
+  assert(mica::select_profile_model(registry, coder, "chat", {"text", "image"}) ==
+         "minicpm-v46-thinking");
+  assert(mica::select_profile_model(registry, coder, "chat", {"text", "video"}) ==
+         "minicpm-v46-thinking");
+  assert(mica::select_profile_model(registry, coder, "chat", {"text", "image", "video"}) ==
+         "minicpm-v46-thinking");
+  {
+    auto incompatible = registry;
+    incompatible.engines.at("mlx-vlm").endpoint_contracts.front().optional_inputs.clear();
+    bool rejected = false;
+    try {
+      (void)mica::select_profile_model(incompatible, coder, "chat",
+                                       {"text", "image"}, "minicpm-v46-thinking");
+    } catch (const std::invalid_argument& error) {
+      rejected = std::string(error.what()).find("does not support") !=
+                 std::string::npos;
+    }
+    assert(rejected);
+  }
+  assert(mica::select_profile_model(registry, coder, "chat", {"text"},
+                                    "spark-x25-4b@mlx:q4") ==
+         "spark-x25-4b@mlx:q4");
+  {
+    auto ambiguous = coder;
+    ambiguous.default_chat_model.clear();
+    ambiguous.default_models.clear();
+    assert(mica::select_profile_model(registry, ambiguous, "chat", {"text"}) ==
+           "ternary-bonsai-2-27b");
+    bool rejected = false;
+    try {
+      (void)mica::select_profile_model(registry, coder, "asr", {"audio"},
+                                       "spark-x25-4b");
+    } catch (const std::invalid_argument& error) {
+      rejected = std::string(error.what()).find("does not support") !=
+                 std::string::npos;
+    }
+    assert(rejected);
+  }
   assert(coder.required_ram_gib == 16.0);
   assert(coder.maximum_resident_workers == 1);
   assert(coder.model_policies.size() == 4);
@@ -104,8 +222,47 @@ int main() {
       roundtrip_registry, mica::profile_to_document(coder));
   assert(coder_roundtrip.model_policies.size() == 4);
   assert(coder_roundtrip.default_chat_model == "ternary-bonsai-2-27b");
+  assert(coder_roundtrip.default_models == coder.default_models);
+  {
+    auto document = mica::profile_to_document(coder);
+    document["selection"]["defaults"].push_back({{"operation", "text.generate"},
+        {"required_inputs", {"text"}}, {"model", "spark-x25-4b"}});
+    auto working = registry;
+    const auto completion = mica::profile_from_document(working, document);
+    assert(completion.default_models.at("completion") == "spark-x25-4b");
+    assert(mica::select_profile_model(working, completion, "completion", {"text"}) ==
+           "spark-x25-4b");
+  }
+  {
+    auto missing_description = mica::profile_to_document(coder);
+    missing_description["description"] = "";
+    auto working = registry;
+    bool rejected = false;
+    try {
+      (void)mica::profile_from_document(working, missing_description);
+    } catch (const std::invalid_argument& error) {
+      rejected = std::string(error.what()).find("intended-use description") !=
+                 std::string::npos;
+    }
+    assert(rejected);
+  }
   assert(coder_roundtrip.policy_for("ternary-bonsai-2-27b")->quantization ==
          mica::Quantization("pq2_0"));
+  {
+    auto invalid = mica::profile_to_document(coder);
+    invalid["selection"]["defaults"].push_back(
+        {{"operation", "audio.transcribe"},
+         {"required_inputs", {"audio"}}, {"model", "spark-x25-4b"}});
+    auto working = registry;
+    bool rejected = false;
+    try {
+      (void)mica::profile_from_document(working, invalid);
+    } catch (const std::invalid_argument& error) {
+      rejected = std::string(error.what()).find("invalid profile default asr") !=
+                 std::string::npos;
+    }
+    assert(rejected);
+  }
   const auto& gguf_long = registry.profile("gguf-long");
   assert(gguf_long.backend == mica::Backend::gguf);
   assert(gguf_long.max_input_tokens == 16384);
@@ -113,7 +270,7 @@ int main() {
   assert(gguf_long.max_concurrent_requests == 1);
   assert(gguf_long.kv_cache_precision == "q4");
   const auto& interactive = registry.profile("interactive");
-  assert(interactive.schema == 4);
+  assert(interactive.schema == 5);
   assert(interactive.required_ram_gib == 8.0);
   assert(interactive.memory_safety_reserve_gib == 0.5);
   assert(interactive.model_policies.size() == 4);
@@ -132,7 +289,7 @@ int main() {
     try {
       (void)mica::profile_from_document(validation_registry, document);
     } catch (const std::invalid_argument& error) {
-      rejected = std::string(error.what()).find("schema-4 tasks") !=
+      rejected = std::string(error.what()).find("schema-4-or-newer workloads") !=
                  std::string::npos;
     }
     assert(rejected);
@@ -153,7 +310,7 @@ int main() {
     assert(rejected);
   }
   const auto& gguf_interactive = registry.profile("gguf-interactive");
-  assert(gguf_interactive.schema == 4);
+  assert(gguf_interactive.schema == 5);
   assert(gguf_interactive.backend == mica::Backend::gguf);
   assert(gguf_interactive.policy_for("spark-x25-4b")->engine == "llama-cpp");
   assert(gguf_interactive.policy_for("granite-speech-5")->engine == "audio-cpp");
@@ -253,7 +410,7 @@ int main() {
     auto document = mica::profile_to_document(interactive);
     const auto round_trip =
         mica::profile_from_document(validation_registry, document);
-    assert(round_trip.schema == 4);
+    assert(round_trip.schema == 5);
     assert(round_trip.name == interactive.name);
     document["misspelled_memory_policy"] = true;
     bool rejected = false;
@@ -294,7 +451,7 @@ int main() {
   {
     const auto ledger = mica::registry_catalog(registry);
     assert(ledger.at("schema") == 2);
-    assert(ledger.at("data").size() == 7);
+    assert(ledger.at("data").size() == 9);
     const auto hidden = std::find_if(
         ledger.at("data").begin(), ledger.at("data").end(), [](const auto& item) {
           return item.value("id", "") == "vllm-qwen3-06b-control";
@@ -306,7 +463,21 @@ int main() {
         });
     assert(spark_entry != ledger.at("data").end());
     assert(spark_entry->at("description").is_string());
+    assert(spark_entry->at("abilities").at(0) == "text_generation");
+    assert(spark_entry->at("supported_interactions").at(0).at("operation") ==
+           "chat.generate");
     assert(spark_entry->at("license") == "apache-2.0");
+    assert(spark_entry->at("references").empty());
+    const auto gsq_entry = std::find_if(
+        ledger.at("data").begin(), ledger.at("data").end(), [](const auto& item) {
+          return item.value("id", "") == "qwen38-27b-gsq-rco";
+        });
+    assert(gsq_entry != ledger.at("data").end());
+    assert(gsq_entry->at("references").size() == 7);
+    assert(gsq_entry->at("references").at(3).at("url") ==
+           "https://github.com/IST-DASLab/RCO");
+    assert(gsq_entry->at("references").at(5).at("description") ==
+           gsq.references.at(5).description);
     assert(spark_entry->at("variants").at("mlx").at(0).contains(
         "quantization_type"));
     assert(spark_entry->at("variants").at("mlx").at(0).at("size_bytes")
@@ -316,6 +487,9 @@ int main() {
           return item.value("id", "") == "ternary-bonsai-2-27b";
         });
     assert(bonsai_entry != ledger.at("data").end());
+    assert(std::find(bonsai_entry->at("modalities").begin(),
+                     bonsai_entry->at("modalities").end(),
+                     "video-text-to-text") == bonsai_entry->at("modalities").end());
     const auto& pq2_variant = bonsai_entry->at("variants").at("gguf").at(0);
     assert(pq2_variant.at("quantization") == "pq2_0");
     assert(pq2_variant.at("quantization_type") == "PQ2_0");
@@ -337,6 +511,13 @@ int main() {
       assert(variant.at("minimum_engine_commit") ==
              "373336672029b12e09f272bc027cc801345a3fd6");
     }
+  }
+  {
+    const auto video_only = mica::registry_catalog(
+        registry, std::nullopt, std::nullopt, false, std::nullopt,
+        std::string("video-text-to-text"));
+    assert(video_only.at("data").size() == 1);
+    assert(video_only.at("data").at(0).at("id") == "minicpm-v46-thinking");
   }
   {
     const auto audio_ledger = mica::registry_catalog(
@@ -396,6 +577,28 @@ int main() {
       mica::load_hardware_profile(hardware_fixtures / "linux-xpu.json");
   const auto metal_fixture =
       mica::load_hardware_profile(hardware_fixtures / "mac-metal.json");
+  {
+    auto copy = registry;
+    auto automatic = registry.profile("diarization");
+    const auto test_root = std::filesystem::temp_directory_path() /
+        ("mica-engine-selection-" + std::to_string(getpid()));
+    mica::resolve_profile_engines(copy, automatic, metal_fixture, test_root);
+    assert(automatic.model_policies.front().engine == "mlx-audio-diarization");
+    const auto binary = test_root / "runtimes/audio.cpp/build-mica/bin/audiocpp_server";
+    std::filesystem::create_directories(binary.parent_path());
+    std::ofstream(binary).close();
+    mica::resolve_profile_engines(copy, automatic, metal_fixture, test_root);
+    assert(automatic.model_policies.front().engine == "audio-cpp");
+    automatic.engine_policy = "manifest-order";
+    mica::resolve_profile_engines(copy, automatic, metal_fixture, test_root);
+    assert(automatic.model_policies.front().engine == "mlx-audio-diarization");
+    mica::resolve_profile_engines(copy, automatic, cuda_fixture, test_root);
+    assert(automatic.model_policies.front().engine == "audio-cpp");
+    const auto document = mica::profile_to_document(automatic);
+    assert(!document.at("models").front().contains("engine"));
+    assert(document.at("models").front().contains("artifact"));
+    std::filesystem::remove_all(test_root);
+  }
   {
     std::ifstream schema(config.parent_path() /
                          "schemas/machine-policy-v1.schema.json");
@@ -519,7 +722,7 @@ int main() {
         15.5, 0.0, cuda_fixture);
     assert(!plan.error);
     assert(plan.admitted.size() == 3);
-    assert(plan.reserved_ram_gib > 7.29 && plan.reserved_ram_gib < 7.31);
+    assert(plan.reserved_ram_gib > 7.58 && plan.reserved_ram_gib < 7.59);
     assert(plan.reserved_vram_gib == 0.0);
   }
   {
@@ -529,7 +732,7 @@ int main() {
     assert(!plan.error);
     assert(plan.admitted.size() == 3);
     assert(plan.reserved_ram_gib == 1.5);
-    assert(plan.reserved_vram_gib > 7.29 && plan.reserved_vram_gib < 7.31);
+    assert(plan.reserved_vram_gib > 7.58 && plan.reserved_vram_gib < 7.59);
   }
   {
     const auto plan = mica::plan_profile_startup_resources(
@@ -538,7 +741,7 @@ int main() {
     assert(!plan.error);
     assert(plan.admitted.size() == 3);
     assert(plan.reserved_ram_gib > 2.99 && plan.reserved_ram_gib < 3.01);
-    assert(plan.reserved_vram_gib > 4.79 && plan.reserved_vram_gib < 4.81);
+    assert(plan.reserved_vram_gib > 5.08 && plan.reserved_vram_gib < 5.09);
   }
   {
     const std::map<std::string, double> limits{{"cuda:0", 12.0},
@@ -572,7 +775,7 @@ int main() {
     assert(!plan.error);
     assert(plan.admitted.size() == 2);
     assert(plan.reserved_vram_gib > 6.0);
-    assert(plan.reserved_vram_by_device_gib.at("cuda:0") == 4.8);
+    assert(plan.reserved_vram_by_device_gib.at("cuda:0") > 5.08);
     assert(plan.reserved_vram_by_device_gib.at("cuda:1") > 0.0);
     auto constrained = per_gpu_limit;
     constrained["cuda:1"] = 1.0;
@@ -591,7 +794,7 @@ int main() {
     assert(cuda.device == "cuda:0");
     assert(!cuda.unified_memory);
     assert(cuda.ram_reservation_gib == 0.5);
-    assert(cuda.vram_reservation_gib == 4.8);
+    assert(cuda.vram_reservation_gib > 5.08 && cuda.vram_reservation_gib < 5.09);
     const auto rocm = mica::resolve_model_placement(policy, artifact,
                                                      rocm_fixture);
     assert(rocm.device == "hip:0");
@@ -617,7 +820,12 @@ int main() {
     assert(metal.device == "metal:0");
     assert(metal.unified_memory);
     assert(metal.vram_reservation_gib == 0.0);
-    assert(metal.ram_reservation_gib == 4.8);
+    assert(metal.ram_reservation_gib > 5.08 && metal.ram_reservation_gib < 5.09);
+    assert(metal.gpu_layers == 99);
+    auto batched = policy;
+    batched.max_concurrent_requests = 4;
+    assert(mica::resolve_model_placement(batched, artifact, metal_fixture)
+               .ram_reservation_gib > metal.ram_reservation_gib);
   }
 
   const auto metal_memory = mica::vllm_memory_utilization(
@@ -635,13 +843,13 @@ int main() {
     const auto cpu_placement = mica::resolve_model_placement(
         *bonsai_cpu.policy_for(bonsai.id), bonsai_artifact, cuda_fixture);
     assert(cpu_placement.device == "cpu");
-    assert(cpu_placement.ram_reservation_gib == 12.0);
+    assert(cpu_placement.ram_reservation_gib > 12.0);
     assert(cpu_placement.vram_reservation_gib == 0.0);
     const auto gpu_placement = mica::resolve_model_placement(
         *bonsai_gpu.policy_for(bonsai.id), bonsai_artifact, cuda_fixture);
     assert(gpu_placement.device == "cuda:0");
     assert(gpu_placement.ram_reservation_gib == 0.75);
-    assert(gpu_placement.vram_reservation_gib == 12.0);
+    assert(gpu_placement.vram_reservation_gib > 12.0);
   }
   {
     auto mismatched = registry;
@@ -650,6 +858,7 @@ int main() {
           return item.id == "ternary-bonsai-2-27b";
         });
     model->artifacts.at(mica::Backend::gguf).at(pq2).engine = "llama-cpp";
+    model->engine_artifacts.at("prism-llama-cpp").at(pq2).engine = "llama-cpp";
     bool rejected = false;
     try {
       (void)mica::profile_from_document(

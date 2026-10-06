@@ -1,4 +1,4 @@
-schema: 1
+schema: 2
 id: mlx-audio
 status: current
 backend: mlx
@@ -7,7 +7,10 @@ launcher: mlx-audio
 device_target: mlx
 hardware: [apple-silicon]
 artifact_formats: [mlx]
-features: [asr, tts, streaming]
+compatibility_tags: [asr, tts]
+endpoint_contracts:
+  - {id: transcribe, operation: audio.transcribe, transport: http, adapter_call: openai_audio_transcriptions, method: POST, path: /v1/audio/transcriptions, required_inputs: [audio], outputs: [text]}
+  - {id: speech, operation: audio.synthesize_speech, transport: http, adapter_call: openai_audio_speech, method: POST, path: /v1/audio/speech, required_inputs: [text], optional_inputs: [audio], outputs: [audio], streaming: true}
 install:
   environment_group: mlx
   python_packages: ["mlx-audio[all,server]>=0.5.1"]

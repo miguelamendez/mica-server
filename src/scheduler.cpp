@@ -84,25 +84,35 @@ ResolvedModelPlacement resolve_model_placement(
   const bool system_memory_only = resolved.device == "cpu" ||
                                   resolved.device == "tpu" ||
                                   resolved.unified_memory;
+  // File bytes are a conservative lower bound, not a measured peak. KV grows
+  // with context AND concurrent sequences; quantized caches include scales.
+  const double file_gib = static_cast<double>(artifact.size_bytes +
+      artifact.projector_size_bytes) / (1024.0 * 1024 * 1024);
+  const double cache_factor = policy.kv_cache_precision == "q4" ? 0.3125 :
+                              policy.kv_cache_precision == "q8" ? 0.5625 : 1.0;
+  const double kv_gib = static_cast<double>(artifact.kv_bytes_per_token_f16) *
+      policy.max_total_tokens * policy.max_concurrent_requests * cache_factor /
+      (1024.0 * 1024 * 1024);
+  const double footprint = std::max(artifact.reservation_gib, file_gib * 1.1 + 0.25) + kv_gib;
   if (system_memory_only) {
     // A discrete profile may declare only its small host-side overhead. If
     // that same logical placement resolves to unified memory, the complete
     // model must still be charged to RAM rather than just that overhead.
     resolved.ram_reservation_gib = policy.ram_reservation_gib >= 0
                                        ? std::max(policy.ram_reservation_gib,
-                                                  artifact.reservation_gib)
-                                       : artifact.reservation_gib;
+                                                  footprint)
+                                       : footprint;
   } else {
     resolved.ram_reservation_gib = policy.ram_reservation_gib >= 0
                                        ? policy.ram_reservation_gib
                                        : 0.5;
     resolved.vram_reservation_gib = policy.vram_reservation_gib >= 0
-                                        ? policy.vram_reservation_gib
-                                        : artifact.reservation_gib;
+                                        ? std::max(policy.vram_reservation_gib, footprint)
+                                        : footprint;
   }
   resolved.gpu_layers = policy.gpu_layers >= 0
                             ? policy.gpu_layers
-                            : system_memory_only ? 0 : 99;
+                            : resolved.device == "cpu" || resolved.device == "tpu" ? 0 : 99;
   return resolved;
 }
 
@@ -187,7 +197,7 @@ StartupPlan plan_profile_startup(const Registry& registry, const Profile& profil
       continue;
     }
     const auto& model = registry.model(policy->id);
-    const auto& artifact = model.artifacts.at(backend).at(quantization);
+    const auto& artifact = model.artifact_for(backend, quantization, policy->engine);
     if (plan.reserved_gib + artifact.reservation_gib <= max_ram_gib + 1e-9) {
       plan.admitted.push_back(policy->id);
       plan.reserved_gib += artifact.reservation_gib;
@@ -232,7 +242,7 @@ StartupPlan plan_profile_startup_resources(
       continue;
     }
     const auto& artifact = registry.model(policy->id)
-                               .artifacts.at(backend).at(quantization);
+                               .artifact_for(backend, quantization, policy->engine);
     const auto placement = resolve_model_placement(*policy, artifact, hardware);
     const auto ram = placement.ram_reservation_gib;
     const auto vram = placement.vram_reservation_gib;

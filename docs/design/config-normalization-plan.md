@@ -1,13 +1,13 @@
 # Configuration normalization plan
 
-Status: Machine, packaged engine/model manifests, and 23 task profiles are wired into YAML. Synthetic per-device VRAM accounting is implemented. Legacy diagnostic profiles, strict memory enforcement, and real-hardware certification remain open.
-Date: 2026-09-30
+Status: Machine policy, nine schema-2 engine manifests, ten schema-2 model manifests, and 25 schema-5 workload profiles are wired into YAML. Synthetic per-device VRAM accounting and automatic engine/artifact selection are implemented. Strict process-memory enforcement and Linux vLLM/multi-GPU certification remain open.
+Updated: 2026-10-05. The migration sequence below records the original normalization plan; current behavior is defined in [the configuration contract](configuration-contract.md) and [schema vocabulary](../schema-vocabulary.md).
 
 ## Goal and naming
 
 Mica resolves four conceptual layers in order: **machine → engine + model →
-task**. An engine is a runtime; a model is a logical capability with one or
-more concrete artifacts; a task is a set of model selections and operating
+workload**. An engine is a runtime; a model is a logical capability with one or
+more concrete artifacts; a workload is a set of model selections and operating
 policies. The remote catalog is a distribution index, not a fifth profile
 type. Server networking and authentication remain service configuration, not
 machine hardware policy.
@@ -18,7 +18,7 @@ machine hardware policy.
 | Machine policy | `~/.mica/config/machine.yaml` | User | Devices Mica may use; global RAM/VRAM-per-device, CPU-thread, build-memory and parallel-job ceilings. |
 | Engine | `config/engines/<id>.yaml` | Mica package | Source/revision, hardware features, typed install/build/launch adapters, supported artifact formats and runtime features. |
 | Model | `config/model-manifests/<id>.yaml` | Mica package or trusted registry | Identity, provenance, license, capabilities, optional training/limit metadata, and pinned artifact–engine choices. |
-| Task | `config/tasks/<id>.yaml` | Mica package or user | Model set, artifact/engine selection, placement, context, generation preset, batching, KV policy, warmup, priority, residency, eviction, and RAM/VRAM requirements. |
+| Workload | `config/workloads/<id>.yaml` | Mica package or user | Model collection, optional artifact/engine pins, placement, context, batching, KV policy, warmup, priority, residency, eviction, and RAM/VRAM requirements. |
 
 The first two files are **one machine layer with separate ownership**. A
 detector must not overwrite user limits during rediscovery. If a single
@@ -32,25 +32,25 @@ view; do not make a detector rewrite an editable policy file.
   YAML is checked into the repository.
 - Engine manifests (`config/engines/`): `audio-cpp.yaml`, `llama-cpp.yaml`,
   `mlx-audio.yaml`, `mlx-lm.yaml`, `mlx-vlm.yaml`, `prism-llama-cpp.yaml`,
-  `vllm.yaml`, `xing-llama-cpp.yaml`.
-- Model manifests (`config/model-manifests/`): eight YAML records, including
+  `vllm.yaml`, `xing-llama-cpp.yaml`, `mlx-audio-diarization.yaml`.
+- Model manifests (`config/model-manifests/`): ten YAML records, including
   Granite ASR, Audio8 TTS, Spark, MiniCPM, Bonsai, Ling, Xing, and the hidden
-  vLLM control. Production model records no longer come from Lua.
-- Built-in tasks (`config/tasks/`): 23 self-contained schema-4 YAML files.
-- Installed user task files remain authoritative when their ID matches a
-  packaged task. A preexisting schema-3 file can therefore shadow a new
-  schema-4 built-in; `profile list` flags it for explicit migration instead
+  vLLM control, Nemotron diarization, and the GSQ-RCO comparison candidate. Production model records no longer come from Lua.
+- Built-in workloads (`config/workloads/`): 25 self-contained schema-5 YAML files.
+- Installed user workload files remain authoritative when their ID matches a
+  packaged workload. A preexisting schema-3 file can therefore shadow a new
+  schema-5 built-in; `profile list` flags it for explicit migration instead
   of rewriting user data.
 - Published profile bundle: `profiles/catalog.yaml`, currently containing
   `mica-assistant-mlx`, `mica-assistant-gguf`,
   `mica-assistant-gguf-cpu`, `mica-assistant-gguf-gpu`,
   `mica-assistant-gguf-mixed`, `bonsai-pq2-vision-cpu`,
   `bonsai-pq2-vision-gpu`, `mica-coder-bonsai-macos`,
-  `mica-xing-q4-baseline-macos`, and `mica-assistant-gptq`.
+  `mica-xing-q4-baseline-macos`, `diarization`, and `mica-assistant-gptq` (an unavailable proposal, not an executable workload).
 - Test-only YAML: `tests/fixtures/profiles/custom-assistant.yaml`,
   `external-gguf.yaml`, and `unsafe-remote-code.yaml`.
-- Schemas: `schemas/machine-policy-v1.schema.json`, `engine-v1.schema.json`,
-  `model-v1.schema.json`, and `task-v4.schema.json`. The server still uses JSON
+- Schemas: `schemas/machine-policy-v1.schema.json`, `engine-v2.schema.json`,
+  `model-v2.schema.json`, `workload-v5.schema.json`, and the shared vocabulary. The server still uses JSON
   for port/authentication settings. `config/models.lua` contains deprecated
   acceptance/test profiles only; `config/profiles.lua` has been removed.
 
@@ -75,7 +75,7 @@ view; do not make a detector rewrite an editable policy file.
    `trained_output_tokens` separate. Unknown values remain absent; provenance
    accompanies claims. Training lengths are quality hints, not hard runtime
    limits or guarantees.
-4. **Task.** Select model IDs and artifacts, optionally pin an engine, and
+4. **Workload.** Select model IDs and artifacts, optionally pin an engine, and
    choose task-specific generation/sampling settings. When engine is `auto`,
    choose the first *compatible and certified artifact–engine pair* under a
    documented deterministic order, then save the exact resolution. The task
@@ -88,7 +88,7 @@ view; do not make a detector rewrite an editable policy file.
    warn when a chosen span exceeds a disclosed trained span. Validate that
    input plus reserved output fits the active context. For memory, the
    effective ceiling is the minimum of available physical capacity and
-   machine/CLI policy; task requirements are eligibility checks. Existing
+   machine/CLI policy; workload requirements are eligibility checks. Existing
    admission reservations are **not** an
    OS-enforced hard memory cap; report that limitation until enforcement is
    implemented and measured.
@@ -177,19 +177,19 @@ process memory or prove real concurrent multi-GPU execution.
 
 ## Local normalization verification
 
-The normalized registry loads all eight engine manifests, eight model
-manifests, and 23 schema-4 built-in task files. The installable published
+The normalized registry loads all nine engine manifests, ten model
+manifests, and 25 schema-5 built-in workload files. The installable published
 catalog entries parse against the same registry; blocked entries remain
-unavailable. The single-job macOS build and all 67 current CTest cases pass, including
+unavailable. The single-job macOS build and all 68 current CTest cases pass, including
 synthetic CPU, Metal, CUDA, ROCm, XPU, one-/two-GPU placement, machine-policy
 migration, startup admission, profile validation, local API authentication,
-and an offline live task-activation fixture.
+and an offline live workload-activation fixture.
 The API fixture now uses the pinned model revisions so it cannot accidentally
 start a model download when checking authentication.
 
 These are contract, planner, and local-control-plane tests. They do not certify
 real model inference, model-quality metadata, vLLM installation on non-Mac
 hardware, concurrent multi-GPU loading, or a hard observed-memory ceiling.
-No model weights were intentionally downloaded for this normalization work;
-an unintended API-test download attempt was stopped and its temporary process
-cleaned up before the fixture was corrected.
+The original normalization run did not intentionally download model weights.
+Subsequent Nemotron checks downloaded pinned Q8 artifacts and ran actual
+inference through Mica using both MLX and audio.cpp; see [the manifest audit](../validation/manifest-audit.md).

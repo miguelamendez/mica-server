@@ -16,8 +16,8 @@ and memory-aware load balancer for multiple inference engines. It makes a team
 of specialized models practical on consumer hardware without keeping every
 model resident at once.
 
-A task profile defines the models needed for a task, the exact artifact
-and engine for each one, context/KV-cache policy, memory reservations, warmup
+A workload profile defines a collection of models, optional artifact and
+engine pins, context/KV-cache policy, memory requirements, warmup
 priority, and eviction behavior. Mica combines it with a generated system
 profile, the engine registry, and the model/artifact registry. Switch from an
 assistant profile to a coding profile without reinstalling Mica or deleting
@@ -34,7 +34,7 @@ themes and branding, session history, and ZIP import/export.
 - Hardware-aware setup for Apple, NVIDIA, AMD, Intel, CPU, and TPU paths.
 - Deterministic RAM admission, warmup, lazy loading, idle eviction, and model
   swapping.
-- Profiles define which models run, which engine and quantization each uses,
+- Workloads define which models run, optionally pin engines and quantization,
   their memory/context limits, and when Mica loads or unloads them.
 - Q4/Q8 model variants with provenance, sizes, memory reservations, and model
   cards in a filterable registry.
@@ -69,7 +69,7 @@ different questions:
 | Machine facts and policy | What hardware exists, and what fraction may Mica use? Detected facts and user limits are separate files. |
 | Engine manifest | How can a concrete runtime be installed, built, verified, and launched on supported hardware? |
 | Model manifest and artifacts | What can this logical model do, and which immutable weight bundles and engines can run it? |
-| Task profile | Which models should this task use, with what context, batching, placement, priority, and residency? |
+| Workload profile | Which models should this task use, with what context, batching, placement, priority, and residency? |
 
 Artifacts are verified bundles rather than assumed single files. A vision GGUF
 artifact can include primary weights plus an `mmproj`; an artifact may also
@@ -80,7 +80,7 @@ required file passes its declared revision, size, and checksum checks. MLX
 directory artifacts currently pin a repository revision but do not have
 per-file checksums.
 
-The task profile is the root composition:
+The workload profile is the root composition:
 
 ```text
 hardware discovery ──► state/hardware.yaml (machine facts)
@@ -88,7 +88,7 @@ hardware discovery ──► state/hardware.yaml (machine facts)
 config/machine.yaml ────────┼──► global RAM/VRAM allocation
  (user limits)              │              │
                             ▼              ▼
-engine manifests ──────► task profile ◄── model + artifact manifests
+engine manifests ──────► workload profile ◄── model + artifact manifests
  (install/launch)      (requirements, selected engines/artifacts,
                         context, priority, residency, placement)
                             │
@@ -99,8 +99,8 @@ engine manifests ──────► task profile ◄── model + artifact m
                             ▼
                    resident engine workers
 
-Task A ── activate Task B: retain matching workers; drain and unload only
-incompatible workers; warm Task B's missing startup workers.
+Workload A ── activate Workload B: retain matching workers; drain and unload
+only incompatible workers; warm Workload B's missing startup workers.
 ```
 
 Engine manifests own typed installation recipes and hardware-specific options;
@@ -109,14 +109,14 @@ engine manifest never owns model weights, and a downloaded profile cannot
 inject arbitrary shell commands.
 
 The current alpha writes YAML machine facts and user policy, loads packaged
-YAML engine and model manifests, and accepts self-contained schema-4 YAML task
+YAML engine and model manifests, and accepts self-contained schema-5 YAML workload
 profiles. The
-[`mica-coder-bonsai-macos`](config/tasks/mica-coder-bonsai-macos.yaml)
+[`mica-coder-bonsai-macos`](config/workloads/mica-coder-bonsai-macos.yaml)
 profile demonstrates the complete chain. A small set of older Lua acceptance
 profiles remains for test reproduction; speculative-drafter launching and strict
-observed-memory enforcement remain open. See [Machine, engine, model, and task
+observed-memory enforcement remain open. See [Machine, engine, model, and workload
 profiles](docs/engines-and-profiles.md) for the contract and current status.
-Machine policy has a separate user-owned YAML file. Task RAM/VRAM values are
+Machine policy has a separate user-owned YAML file. Workload RAM/VRAM values are
 requirements checked against that global allocation, not another ceiling.
 The [four-layer contract](docs/design/configuration-contract.md) describes
 the resolver. Reservations are admission estimates, not strict OS memory
@@ -141,8 +141,9 @@ OpenAI client / Mica chat
   └─ vLLM: hardware-specific runtime (certification in progress)
 ```
 
-One profile may use several engines simultaneously, while each model entry pins
-one exact engine and compatible artifact. Engines, environments, models,
+One profile may use several engines simultaneously. Each model resolves to one
+compatible engine and artifact; explicit pins are optional for known models.
+Engines, environments, models,
 caches, state, logs, and secrets live under `~/.mica` by default. `MICA_HOME`
 changes that home, and `--root PATH` is the highest-priority override.
 
@@ -220,7 +221,7 @@ List local or GitHub-hosted profiles:
 ```
 
 Profiles can also be created, validated, installed, edited, or loaded directly
-from a local schema-4 YAML file. JSON profile files are intentionally rejected.
+from a local schema-5 YAML file. JSON profile files are intentionally rejected.
 See [Profiles and memory policies](docs/profiles.md).
 
 ## Model registry
@@ -243,6 +244,7 @@ quantization types, formats, artifact sizes, and memory reservations. See
 | [Getting started](docs/getting-started.md) | Releases, source builds, engines, chat, and `~/.mica` |
 | [Profiles](docs/profiles.md) | Model collections, memory policy, context, batching, and custom profiles |
 | [Profiling architecture](docs/engines-and-profiles.md) | System detection, engine manifests, multi-file artifacts, resolution, and inference profiles |
+| [Schema vocabulary](docs/schema-vocabulary.md) | Active modality, ability, operation, endpoint, and model-collection contracts; generation routes remain future work |
 | [API reference](docs/api.md) | Authentication, model discovery, chat, ASR, TTS, agent streaming, and sessions |
 | [Models](docs/models.md) | Registry, custom models, quantization, provenance, and Hugging Face publication |
 | [Development](docs/development.md) | Tests, benchmarks, release packaging, troubleshooting, and security |

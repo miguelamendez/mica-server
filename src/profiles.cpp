@@ -22,6 +22,7 @@
 
 #include "mica_server/catalog.hpp"
 #include "mica_server/command.hpp"
+#include "mica_server/hardware.hpp"
 
 namespace mica {
 namespace {
@@ -80,7 +81,7 @@ bool immutable_revision(const std::string& value) {
 bool commercial_license(const std::string& value) {
   static const std::set<std::string> allowed = {
       "apache-2.0", "mit", "bsd", "bsd-2-clause", "bsd-3-clause",
-      "isc", "cc0-1.0", "unlicense", "mpl-2.0"};
+      "isc", "cc0-1.0", "unlicense", "mpl-2.0", "openmdw-1.1"};
   auto normalized = value;
   std::transform(normalized.begin(), normalized.end(), normalized.begin(),
                  [](unsigned char character) {
@@ -116,6 +117,7 @@ void finalize_profile(Profile& profile) {
   profile.max_total_tokens = first.max_total_tokens;
   profile.max_concurrent_requests = first.max_concurrent_requests;
   profile.kv_cache_precision = first.kv_cache_precision;
+  profile.backend.reset();
   if (std::all_of(profile.model_policies.begin(), profile.model_policies.end(),
                   [&](const auto& item) { return item.backend == first.backend; })) {
     profile.backend = first.backend;
@@ -129,15 +131,15 @@ void validate_policy(const Registry& registry, const Profile& profile,
   if (backend == model.artifacts.end()) {
     throw std::invalid_argument("model has no selected backend: " + policy.id);
   }
-  const auto artifact = backend->second.find(policy.quantization);
-  if (artifact == backend->second.end() || !artifact->second.supported) {
+  const auto& selected_artifact = model.artifact_for(policy.backend, policy.quantization, policy.engine);
+  if (!selected_artifact.supported) {
     throw std::invalid_argument("model has no selected artifact: " + policy.id + "@" +
                                 to_string(policy.backend) + ":" +
                                 to_string(policy.quantization));
   }
-  if (artifact->second.engine != policy.engine) {
+  if (selected_artifact.engine != policy.engine) {
     throw std::invalid_argument("selected artifact requires engine " +
-                                artifact->second.engine + ", not " + policy.engine);
+                                selected_artifact.engine + ", not " + policy.engine);
   }
   if (policy.max_input_tokens < 1 || policy.max_output_tokens < 1 ||
       policy.max_total_tokens < policy.max_input_tokens + policy.max_output_tokens) {
@@ -153,6 +155,11 @@ void validate_policy(const Registry& registry, const Profile& profile,
   }
   if (policy.max_concurrent_requests < 1 || policy.max_concurrent_requests > 64) {
     throw std::invalid_argument("invalid concurrency for " + policy.id);
+  }
+  static const std::set<std::string> cache_precisions{
+      "q4", "q8", "auto", "runtime-managed", "not-applicable"};
+  if (!cache_precisions.contains(policy.kv_cache_precision)) {
+    throw std::invalid_argument("unsupported KV-cache precision for " + policy.id);
   }
   if (policy.priority < 0 || policy.priority > 1000 || policy.idle_seconds < 0) {
     throw std::invalid_argument("invalid residency policy for " + policy.id);
@@ -219,6 +226,23 @@ ModelDefinition external_model(const Registry& registry, const json& entry,
   }
   const auto modality = normalize_modality(entry.at("modality").get<std::string>());
   model.capability = modality_capability(modality);
+  if (model.capability == "asr") {
+    model.input_modalities = {"audio"};
+    model.output_modalities = {"text"};
+  } else if (model.capability == "tts") {
+    model.input_modalities = {"text", "audio"};
+    model.output_modalities = {"audio"};
+  } else if (model.capability == "vision") {
+    model.input_modalities = {"text", "image"};
+    const auto declared = entry.at("modality").get<std::string>();
+    if (declared.find("video") != std::string::npos) {
+      model.input_modalities.push_back("video");
+    }
+    model.output_modalities = {"text"};
+  } else {
+    model.input_modalities = {"text"};
+    model.output_modalities = {"text"};
+  }
   model.description = entry.value("description", std::string("External profile model"));
   model.tags = entry.value("tags", std::vector<std::string>{});
   model.tags.push_back(modality);
@@ -421,7 +445,7 @@ YAML::Node json_to_yaml(const json& value) {
     result = YAML::Node(YAML::NodeType::Map);
     static const std::vector<std::string> profile_field_order = {
         "schema", "id", "description", "default_chat_model", "available",
-        "mode", "memory", "models"};
+        "defaults", "selection", "mode", "memory", "models"};
     std::set<std::string> emitted;
     if (value.contains("schema") && value.contains("id") && value.contains("models")) {
       for (const auto& key : profile_field_order) {
@@ -530,7 +554,199 @@ void merge_external_model(Registry& registry, ModelDefinition model,
   artifacts[policy.quantization] = incoming;
 }
 
+bool has_modality(const std::vector<std::string>& modalities,
+                  const std::string& modality) {
+  return std::find(modalities.begin(), modalities.end(), modality) !=
+         modalities.end();
+}
+
+bool model_matches_route(const ModelDefinition& model, const std::string& route,
+                         const std::vector<std::string>& required_inputs) {
+  if (!model.supported_interactions.empty()) {
+    const std::string operation = route == "asr" ? "audio.transcribe" :
+                                  route == "tts" ? "audio.synthesize_speech" :
+                                  route == "diar" ? "audio.diarize" :
+                                  route == "completion" ? "text.generate" : "chat.generate";
+    for (const auto& interaction : model.supported_interactions) {
+      if (interaction.operation != operation) continue;
+      const auto contains = [](const std::vector<std::string>& values,
+                               const std::string& value) {
+        return std::find(values.begin(), values.end(), value) != values.end();
+      };
+      const bool required_present = std::all_of(
+          interaction.required_inputs.begin(), interaction.required_inputs.end(),
+          [&](const auto& modality) { return contains(required_inputs, modality); });
+      const bool request_allowed = std::all_of(
+          required_inputs.begin(), required_inputs.end(), [&](const auto& modality) {
+            return contains(interaction.required_inputs, modality) ||
+                   contains(interaction.optional_inputs, modality);
+          });
+      if (required_present && request_allowed) return true;
+    }
+    return false;
+  }
+  if (route == "asr") {
+    return model.capability == "asr" &&
+           has_modality(model.input_modalities, "audio") &&
+           has_modality(model.output_modalities, "text");
+  }
+  if (route == "tts") {
+    return model.capability == "tts" &&
+           has_modality(model.input_modalities, "text") &&
+           has_modality(model.output_modalities, "audio");
+  }
+  if (route != "chat" || !has_modality(model.output_modalities, "text")) {
+    return false;
+  }
+  for (const auto& modality : required_inputs) {
+    if (!has_modality(model.input_modalities, modality)) return false;
+  }
+  return true;
+}
+
+bool engine_matches_route(const EngineDefinition& engine, const std::string& route,
+                          const std::vector<std::string>& request_inputs) {
+  const std::string operation = route == "asr" ? "audio.transcribe" :
+                                route == "tts" ? "audio.synthesize_speech" :
+                                route == "diar" ? "audio.diarize" :
+                                route == "completion" ? "text.generate" : "chat.generate";
+  for (const auto& endpoint : engine.endpoint_contracts) {
+    if (endpoint.operation != operation) continue;
+    const auto contains = [](const std::vector<std::string>& values,
+                             const std::string& value) {
+      return std::find(values.begin(), values.end(), value) != values.end();
+    };
+    const bool required_present = std::all_of(
+        endpoint.required_inputs.begin(), endpoint.required_inputs.end(),
+        [&](const auto& modality) { return contains(request_inputs, modality); });
+    const bool request_allowed = std::all_of(
+        request_inputs.begin(), request_inputs.end(), [&](const auto& modality) {
+          return contains(endpoint.required_inputs, modality) ||
+                 contains(endpoint.optional_inputs, modality);
+        });
+    if (required_present && request_allowed) return true;
+  }
+  return false;
+}
+
 }  // namespace
+
+void resolve_profile_engines(Registry& registry, Profile& profile,
+                            const HardwareInfo& hardware,
+                            const std::filesystem::path& root) {
+  if (profile.schema < 3) return;
+  for (auto& policy : profile.model_policies) {
+    if (policy.engine_explicit && policy.artifact_explicit) continue;
+    const auto& model = registry.model(policy.id);
+    std::vector<std::string> candidates;
+    for (const auto& id : model.engine_order) {
+      if (policy.engine_explicit && id != policy.engine) continue;
+      const auto& engine = registry.engine(id);
+      if (engine.backend == Backend::mlx && !hardware.supports_mlx()) continue;
+      if (engine.backend == Backend::gguf && !hardware.supports_gguf()) continue;
+      if (engine.backend == Backend::vllm && !hardware.supports_vllm()) continue;
+      const auto& variants = model.engine_artifacts.at(id);
+      if (policy.artifact_explicit && !variants.contains(policy.quantization)) continue;
+      candidates.push_back(id);
+    }
+    if (candidates.empty()) throw std::invalid_argument("no compatible engine/artifact for " + policy.id);
+    const auto installed = [&](const std::string& id) {
+      const auto& engine = registry.engine(id);
+      if (engine.backend == Backend::gguf) {
+        return std::filesystem::exists(root / "runtimes" / engine.runtime_directory / engine.server_executable);
+      }
+      return std::filesystem::exists(root / "environments" /
+          engine.environment_group / "bin/python");
+    };
+    if (profile.engine_policy == "prefer-installed") {
+      std::stable_sort(candidates.begin(), candidates.end(), [&](const auto& a, const auto& b) {
+        return installed(a) > installed(b);
+      });
+    }
+    policy.engine = candidates.front();
+    const auto& engine = registry.engine(policy.engine);
+    policy.backend = engine.backend;
+    policy.device_target = engine.device_target;
+    if (!policy.artifact_explicit) {
+      const auto& variants = model.engine_artifacts.at(policy.engine);
+      policy.quantization = variants.contains(Quantization::q4) ? Quantization::q4 :
+          variants.contains(Quantization::q8) ? Quantization::q8 : variants.begin()->first;
+    }
+    validate_policy(registry, profile, policy);
+  }
+  finalize_profile(profile);
+}
+
+std::string select_profile_model(const Registry& registry, const Profile& profile,
+                                 const std::string& route,
+                                 const std::vector<std::string>& required_inputs,
+                                 const std::string& requested) {
+  const auto eligible = [&](const std::string& id) {
+    if (!model_matches_route(registry.model(id), route, required_inputs)) return false;
+    const auto* policy = profile.policy_for(id);
+    if (!policy) return profile.schema < 5;
+    return engine_matches_route(registry.engine(policy->engine), route,
+                                required_inputs);
+  };
+  const auto validate_choice = [&](const std::string& selector) {
+    const auto id = selector.substr(0, selector.rfind('@'));
+    if (std::find(profile.models.begin(), profile.models.end(), id) ==
+        profile.models.end()) {
+      throw std::invalid_argument("model is not in active profile: " + id);
+    }
+    if (!eligible(id)) {
+      throw std::invalid_argument("model does not support this request: " + id);
+    }
+    return selector;
+  };
+  if (!requested.empty()) return validate_choice(requested);
+
+  std::string default_key = route;
+  if (route == "chat") {
+    default_key = has_modality(required_inputs, "video") ? "video" :
+                  has_modality(required_inputs, "image") ? "image" : "text";
+  }
+  if (const auto found = profile.default_models.find(default_key);
+      found != profile.default_models.end()) {
+    return validate_choice(found->second);
+  }
+  if (default_key == "text" && !profile.default_chat_model.empty()) {
+    return validate_choice(profile.default_chat_model);
+  }
+
+  std::vector<std::string> candidates;
+  for (const auto& id : profile.models) {
+    if (eligible(id)) candidates.push_back(id);
+  }
+  // A text-only chat should prefer text models over multimodal models, but
+  // still reject a choice between multiple equally capable text models.
+  if (profile.schema < 5 && route == "chat" && default_key == "text") {
+    std::vector<std::string> text_candidates;
+    for (const auto& id : candidates) {
+      if (registry.model(id).capability == "text") text_candidates.push_back(id);
+    }
+    if (!text_candidates.empty()) candidates = std::move(text_candidates);
+  }
+  if (candidates.empty()) {
+    throw std::invalid_argument("active profile has no model for " + default_key);
+  }
+  if (candidates.size() > 1) {
+    if (profile.schema >= 5) {
+      std::sort(candidates.begin(), candidates.end(), [&](const auto& a, const auto& b) {
+        const auto* left = profile.policy_for(a);
+        const auto* right = profile.policy_for(b);
+        const int left_priority = left ? left->priority : 0;
+        const int right_priority = right ? right->priority : 0;
+        return left_priority == right_priority ? a < b : left_priority > right_priority;
+      });
+      return candidates.front();
+    }
+    throw std::invalid_argument("multiple models support " + default_key +
+                                "; specify model or set profile defaults." +
+                                default_key);
+  }
+  return candidates.front();
+}
 
 json profile_to_document(const Profile& profile) {
   json models = json::array();
@@ -555,14 +771,13 @@ json profile_to_document(const Profile& profile) {
                  {"batching", {{"max_concurrent_requests",
                                  policy.max_concurrent_requests}}},
                  {"kv_cache", {{"precision", policy.kv_cache_precision}}}};
-    item["engine"] = policy.engine;
-    item["artifact"] = {{"id", to_string(policy.quantization)}};
+    if (policy.engine_explicit) item["engine"] = policy.engine;
+    if (policy.artifact_explicit) item["artifact"] = {{"id", to_string(policy.quantization)}};
     models.push_back(std::move(item));
   }
-  return {{"schema", 4},
+  json document = {{"schema", profile.schema >= 5 ? 5 : 4},
           {"id", profile.name},
           {"description", profile.description},
-          {"default_chat_model", profile.default_chat_model},
           {"mode", profile.mode},
           {"catalog_visible", profile.catalog_visible},
           {"memory", {{"required_ram_gib", profile.required_ram_gib},
@@ -570,6 +785,32 @@ json profile_to_document(const Profile& profile) {
                       {"safety_reserve_gib", profile.memory_safety_reserve_gib},
                       {"maximum_resident_workers", profile.maximum_resident_workers}}},
           {"models", models}};
+  if (profile.schema >= 5) {
+    json defaults = json::array();
+    for (const auto& [category, id] : profile.default_models) {
+      const std::string operation = category == "asr" ? "audio.transcribe" :
+                                    category == "tts" ? "audio.synthesize_speech" :
+                                    category == "diar" ? "audio.diarize" :
+                                    category == "completion" ? "text.generate" : "chat.generate";
+      const std::vector<std::string> inputs = category == "asr" || category == "diar" ?
+          std::vector<std::string>{"audio"} : category == "image" ?
+          std::vector<std::string>{"text", "image"} : category == "video" ?
+          std::vector<std::string>{"text", "video"} :
+          std::vector<std::string>{"text"};
+      defaults.push_back({{"operation", operation}, {"required_inputs", inputs},
+                          {"model", id}});
+    }
+    if (defaults.empty() && !profile.default_chat_model.empty()) {
+      defaults.push_back({{"operation", "chat.generate"},
+                          {"required_inputs", {"text"}},
+                          {"model", profile.default_chat_model}});
+    }
+    document["selection"] = {{"engine_policy", profile.engine_policy}, {"defaults", defaults}};
+  } else {
+    document["default_chat_model"] = profile.default_chat_model;
+    if (!profile.default_models.empty()) document["defaults"] = profile.default_models;
+  }
+  return document;
 }
 
 std::string profile_yaml(const json& document) {
@@ -585,20 +826,85 @@ std::string profile_yaml(const json& document) {
 
 Profile profile_from_document(Registry& registry, const json& document) {
   if (!document.is_object() ||
-      (document.value("schema", 0) != 3 && document.value("schema", 0) != 4)) {
-    throw std::invalid_argument("profile file must use schema 3 or 4");
+      (document.value("schema", 0) != 3 && document.value("schema", 0) != 4 &&
+       document.value("schema", 0) != 5)) {
+    throw std::invalid_argument("profile file must use schema 3, 4, or 5");
   }
   reject_unknown_fields(document,
-                        {"schema", "id", "description", "available", "mode",
-                         "default_chat_model", "catalog_visible", "memory", "models"},
-                        "profile");
+        {"schema", "id", "description", "available", "mode",
+         "default_chat_model", "defaults", "selection", "catalog_visible",
+         "memory", "models"},
+        "profile");
   Registry working = registry;
   Profile profile;
   profile.schema = document.at("schema").get<int>();
   profile.name = document.at("id").get<std::string>();
   profile.description = document.value("description", std::string());
+  if (profile.schema >= 5 && profile.description.empty()) {
+    throw std::invalid_argument("schema-5 workload profile needs an intended-use description");
+  }
   profile.catalog_visible = document.value("catalog_visible", true);
   profile.default_chat_model = document.value("default_chat_model", std::string());
+  if (profile.schema >= 5 &&
+      (document.contains("default_chat_model") || document.contains("defaults"))) {
+    throw std::invalid_argument("schema-5 workload selection belongs under selection.defaults");
+  }
+  if (document.contains("selection")) {
+    const auto& selection = document.at("selection");
+    reject_unknown_fields(selection, {"engine_policy", "defaults"}, "profile selection");
+    const auto policy = selection.value("engine_policy", std::string("prefer-installed"));
+    if (policy != "explicit-only" && policy != "prefer-installed" && policy != "manifest-order") {
+      throw std::invalid_argument("unknown engine selection policy");
+    }
+    profile.engine_policy = policy;
+    for (const auto& entry : selection.value("defaults", json::array())) {
+      reject_unknown_fields(entry, {"operation", "required_inputs", "model"},
+                            "profile selection default");
+      const auto operation = entry.at("operation").get<std::string>();
+      const auto inputs = entry.at("required_inputs").get<std::vector<std::string>>();
+      std::string category;
+      if (operation == "audio.transcribe" && inputs == std::vector<std::string>{"audio"}) {
+        category = "asr";
+      } else if (operation == "audio.diarize" && inputs == std::vector<std::string>{"audio"}) {
+        category = "diar";
+      } else if (operation == "text.generate" && inputs == std::vector<std::string>{"text"}) {
+        category = "completion";
+      } else if (operation == "audio.synthesize_speech" &&
+                 inputs == std::vector<std::string>{"text"}) {
+        category = "tts";
+      } else if (operation == "chat.generate") {
+        const std::set<std::string> input_set(inputs.begin(), inputs.end());
+        if (input_set == std::set<std::string>{"text"}) category = "text";
+        if (input_set == std::set<std::string>{"text", "image"}) category = "image";
+        if (input_set == std::set<std::string>{"text", "video"}) category = "video";
+      }
+      if (category.empty() || profile.default_models.contains(category)) {
+        throw std::invalid_argument("unsupported or duplicate profile selection default");
+      }
+      profile.default_models[category] = entry.at("model").get<std::string>();
+    }
+  }
+  if (profile.schema >= 5 && profile.default_models.contains("text")) {
+    // Keep the existing public API and playground default in sync with the
+    // operation-based selection without restoring a legacy YAML field.
+    profile.default_chat_model = profile.default_models.at("text");
+  }
+  if (document.contains("defaults")) {
+    const auto& defaults = document.at("defaults");
+    reject_unknown_fields(defaults, {"text", "image", "video", "asr", "tts"},
+                          "profile defaults");
+    for (auto item = defaults.begin(); item != defaults.end(); ++item) {
+      if (!item.value().is_string()) {
+        throw std::invalid_argument("profile default must be a model id: " + item.key());
+      }
+      profile.default_models[item.key()] = item.value().get<std::string>();
+    }
+  }
+  if (profile.default_models.contains("text") &&
+      !profile.default_chat_model.empty() &&
+      profile.default_models.at("text") != profile.default_chat_model) {
+    throw std::invalid_argument("defaults.text conflicts with default_chat_model");
+  }
   if (!safe_id(profile.name)) throw std::invalid_argument("profile id is invalid");
   profile.mode = document.value("mode", std::string("interactive"));
   const auto memory = document.value("memory", json::object());
@@ -610,13 +916,13 @@ Profile profile_from_document(Registry& registry, const json& document) {
   if (profile.schema >= 4 &&
       (memory.contains("maximum_ram_gib") || memory.contains("maximum_vram_gib"))) {
     throw std::invalid_argument(
-        "schema-4 task memory declares requirements, not maximum usage");
+        "schema-4 workload memory declares requirements, not maximum usage");
   }
   if (profile.schema >= 4 &&
       (!memory.contains("required_ram_gib") ||
        !memory.contains("required_vram_gib"))) {
     throw std::invalid_argument(
-        "schema-4 task memory requires RAM and VRAM requirements");
+        "schema-4 workload memory requires RAM and VRAM requirements");
   }
   profile.required_ram_gib = memory.value("required_ram_gib", 0.0);
   profile.required_vram_gib = memory.value("required_vram_gib", 0.0);
@@ -648,7 +954,7 @@ Profile profile_from_document(Registry& registry, const json& document) {
     }
     policy.execution = entry.value("execution", std::string());
     if (profile.schema >= 4 && !policy.execution.empty()) {
-      throw std::invalid_argument("schema-4 tasks must select engine and artifact explicitly");
+      throw std::invalid_argument("schema-4-or-newer workloads cannot use execution templates");
     }
     const auto existing = std::find_if(
         working.models.begin(), working.models.end(),
@@ -669,28 +975,30 @@ Profile profile_from_document(Registry& registry, const json& document) {
         throw std::invalid_argument(
             "known model profile cannot redefine catalog metadata: " + policy.id);
       }
-      if (!entry.contains("engine") || !entry.contains("artifact") ||
-          !entry.at("artifact").is_object()) {
+      policy.engine_explicit = entry.contains("engine");
+      policy.artifact_explicit = entry.contains("artifact");
+      if (profile.engine_policy == "explicit-only" &&
+          (!policy.engine_explicit || !policy.artifact_explicit)) {
         throw std::invalid_argument(
             "known model requires an execution or explicit engine and artifact: " +
             policy.id);
       }
-      policy.engine = entry.at("engine").get<std::string>();
+      if (existing->engine_order.empty()) throw std::invalid_argument("model has no engines: " + policy.id);
+      policy.engine = entry.value("engine", existing->engine_order.front());
       const auto& engine = working.engine(policy.engine);
       if (engine.status != "current" && engine.status != "candidate") {
         throw std::invalid_argument("profile engine is not runnable: " + policy.engine);
       }
       policy.backend = engine.backend;
       policy.device_target = engine.device_target;
-      const auto& selected = entry.at("artifact");
+      const auto selected = entry.value("artifact", json{{"id", "q4"}});
       reject_unknown_fields(selected, {"id", "format"}, "known model artifact");
       policy.quantization = parse_quantization(selected.at("id").get<std::string>());
-      const auto by_backend = existing->artifacts.find(policy.backend);
-      if (by_backend == existing->artifacts.end() ||
-          !by_backend->second.contains(policy.quantization)) {
-        throw std::invalid_argument("unknown artifact variant for " + policy.id);
+      if (!policy.artifact_explicit) {
+        const auto& variants = existing->engine_artifacts.at(policy.engine);
+        if (!variants.contains(policy.quantization)) policy.quantization = variants.begin()->first;
       }
-      const auto& artifact = by_backend->second.at(policy.quantization);
+      const auto& artifact = existing->artifact_for(policy.backend, policy.quantization, policy.engine);
       if (artifact.engine != policy.engine ||
           (selected.contains("format") &&
            selected.at("format").get<std::string>() != artifact.format)) {
@@ -753,9 +1061,19 @@ Profile profile_from_document(Registry& registry, const json& document) {
       policy.ram_reservation_gib = placement.value("ram_reservation_gib", -1.0);
       policy.vram_reservation_gib = placement.value("vram_reservation_gib", -1.0);
     }
-    validate_policy(working, profile, policy);
+    if (policy.engine_explicit && policy.artifact_explicit) validate_policy(working, profile, policy);
     profile.models.push_back(policy.id);
     profile.model_policies.push_back(std::move(policy));
+  }
+  if (std::any_of(profile.model_policies.begin(), profile.model_policies.end(),
+      [](const auto& p) { return !p.engine_explicit || !p.artifact_explicit; })) {
+    const auto hardware = registry.resolution_hardware ? *registry.resolution_hardware : detect_hardware();
+    auto root = registry.runtime_root;
+    if (root.empty()) {
+      if (const auto* home = std::getenv("MICA_HOME")) root = home;
+      else if (const auto* home = std::getenv("HOME")) root = std::string(home) + "/.mica";
+    }
+    resolve_profile_engines(working, profile, hardware, root);
   }
   finalize_profile(profile);
   if (!profile.default_chat_model.empty()) {
@@ -767,6 +1085,19 @@ Profile profile_from_document(Registry& registry, const json& document) {
     const auto& default_model = working.model(profile.default_chat_model);
     if (default_model.capability != "text" && default_model.capability != "vision") {
       throw std::invalid_argument("default_chat_model must generate text");
+    }
+  }
+  for (const auto& [category, id] : profile.default_models) {
+    const auto inputs = category == "asr" || category == "diar" ? std::vector<std::string>{"audio"} :
+                        category == "image" ? std::vector<std::string>{"text", "image"} :
+                        category == "video" ? std::vector<std::string>{"text", "video"} :
+                        std::vector<std::string>{"text"};
+    const auto route = category == "asr" || category == "tts" || category == "diar" || category == "completion" ? category : "chat";
+    try {
+      (void)select_profile_model(working, profile, route, inputs, id);
+    } catch (const std::invalid_argument& error) {
+      throw std::invalid_argument("invalid profile default " + category + ": " +
+                                  error.what());
     }
   }
   registry.models = std::move(working.models);
@@ -846,10 +1177,13 @@ std::filesystem::path install_profile_from_catalog(Registry& registry,
     throw std::runtime_error("remote profile is not installable: " + id +
                              ": " + found->value("reason", "not available"));
   }
-  const auto profile = profile_from_document(registry, *found);
+  auto document = *found;
+  document.erase("reason");
+  document.erase("status");
+  const auto profile = profile_from_document(registry, document);
   const auto destination = root / "config/profiles" /
                            (profile.name + ".yaml");
-  write_yaml_atomic(destination, *found);
+  write_yaml_atomic(destination, document);
   return destination;
 }
 

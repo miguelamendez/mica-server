@@ -15,7 +15,7 @@ This guide covers release installation, source builds, engine setup, the
 | `mica-assistant-gguf` | macOS, Linux, WSL2 | `llama.cpp`, `audio.cpp` | No |
 | `mica-assistant-gptq` | Future CUDA/ROCm/XPU target | vLLM | Blocked pending four-modality certification |
 
-`auto` selects MLX on Apple Silicon and GGUF elsewhere. A schema-4 profile
+`auto` selects MLX on Apple Silicon and GGUF elsewhere. A schema-5 profile
 selects the concrete engine and artifact for every model; CLI backend flags do
 not silently override it.
 
@@ -110,7 +110,7 @@ limits:
   build: {ram_gib: 16, parallel_jobs: 1}
 ```
 
-The task profile and CLI may narrow these ceilings but cannot enable a
+The workload profile and CLI may narrow these ceilings but cannot enable a
 machine-disallowed device. Apple Metal uses unified RAM, so it has no separate
 dedicated-memory allowance. Mica currently uses reservation-based admission;
 these limits are not an OS-enforced hard RSS cap. The CPU-thread setting is
@@ -197,7 +197,7 @@ explicit `--root PATH` has highest priority.
 ├── cache/                       uv, download, and Hugging Face caches
 ├── config/
 │   ├── custom-models.json
-│   └── profiles/                installed schema-4 YAML profiles
+│   └── profiles/                installed schema-5 YAML profiles
 ├── environments/               tools, MLX, and vLLM as selected
 ├── logs/                        engine worker logs
 ├── models/<backend>/            retained quantized artifacts

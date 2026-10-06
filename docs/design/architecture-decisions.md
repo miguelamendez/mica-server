@@ -451,12 +451,13 @@ Mica keeps five concepts separate:
 - **inference profile** selects a model, exactly one engine, one compatible
   artifact, and certified execution and residency limits.
 
-An execution profile pins exactly one engine. Fallback between engines is not
-allowed inside a certified profile because latency, memory, output quality,
-batch behavior, and dependencies differ. Instead, an execution set resolves a
-hardware/use-case preference to one concrete profile during setup. The chosen
-profile is persisted, and setup installs only the transitive engine and artifact
-dependencies it names. A music-only Apple installation therefore need not
+Update (2026-10-05): each model resolves to exactly one engine at setup.
+Known models may omit pins: `prefer-installed` selects a compatible installed
+engine before manifest order, `manifest-order` skips installed preference,
+and `explicit-only` requires both engine and artifact. There is no silent
+mid-request fallback because latency, memory, quality, and dependencies differ.
+The concrete selection is persisted and setup installs only its dependencies.
+A music-only Apple installation therefore need not
 install CUDA, TensorRT, DiffRhythm, vLLM, or llama.cpp.
 
 Engine selection is per model. A residency profile may contain several engines

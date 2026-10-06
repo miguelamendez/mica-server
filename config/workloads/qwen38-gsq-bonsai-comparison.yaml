@@ -1,0 +1,36 @@
+schema: 5
+id: qwen38-gsq-bonsai-comparison
+description: Single-worker Apple Silicon comparison of Qwen3.8 GSQ-RCO IQ3_XXS and cached Bonsai PQ2_0, using identical context and Q8 KV-cache limits; not a production coding default.
+selection:
+  engine_policy: explicit-only
+  defaults:
+    - {operation: chat.generate, required_inputs: [text], model: qwen38-27b-gsq-rco}
+    - {operation: chat.generate, required_inputs: [text, image], model: qwen38-27b-gsq-rco}
+memory:
+  required_ram_gib: 16
+  required_vram_gib: 0
+  safety_reserve_gib: 0.5
+  maximum_resident_workers: 1
+models:
+  - id: qwen38-27b-gsq-rco
+    engine: llama-cpp
+    artifact: {id: iq3_xxs}
+    context: {max_input_tokens: 6144, max_output_tokens: 2048, max_total_tokens: 8192}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: q8}
+    placement: {mode: fixed, device: "metal:0", gpu_layers: 99}
+    residency: on-demand
+    priority: 100
+    startup: false
+    idle_seconds: 600
+  - id: ternary-bonsai-2-27b
+    engine: prism-llama-cpp
+    artifact: {id: pq2_0}
+    context: {max_input_tokens: 6144, max_output_tokens: 2048, max_total_tokens: 8192}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: q8}
+    placement: {mode: fixed, device: "metal:0", gpu_layers: 99}
+    residency: on-demand
+    priority: 90
+    startup: false
+    idle_seconds: 600

@@ -1,0 +1,12 @@
+schema: 5
+id: nemotron-mlx
+description: Offline Nemotron diarization endpoint regression on MLX.
+memory: {required_ram_gib: 2, required_vram_gib: 0, safety_reserve_gib: 0.25}
+models:
+  - id: nemotron-3-diarization
+    engine: mlx-audio-diarization
+    artifact: {id: q8}
+    context: {max_input_tokens: 1, max_output_tokens: 1, max_total_tokens: 2}
+    kv_cache: {precision: not-applicable}
+    startup: true
+    residency: warm

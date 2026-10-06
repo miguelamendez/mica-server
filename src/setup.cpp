@@ -1,4 +1,5 @@
 #include "mica_server/setup.hpp"
+#include "mica_server/profiles.hpp"
 
 #include <algorithm>
 #include <array>
@@ -99,8 +100,7 @@ void validate_engine_hardware(const Registry& registry,
                               const HardwareInfo& hardware) {
   const auto& engine = registry.engine(policy.engine);
   const auto& artifact = registry.model(policy.id)
-                             .artifacts.at(policy.backend)
-                             .at(policy.quantization);
+                             .artifact_for(policy.backend, policy.quantization, policy.engine);
   const auto placement = resolve_model_placement(policy, artifact, hardware);
   if (policy.placement_mode == "fixed" && policy.device != "cpu" &&
       placement.device == "cpu") {
@@ -154,10 +154,11 @@ void install_mlx_environment(const Registry& registry, const ResolvedSetup& setu
     if (setup.options.refresh) command.emplace_back("--clear");
     execute_or_print(command, setup.options.dry_run);
   }
-  if (install_packages) {
+  {
     std::vector<std::string> command = {
         "uv", "pip", "install", "--python", (environment / "bin/python").string(),
-        "--upgrade", "huggingface_hub[hf_xet]"};
+        "huggingface_hub[hf_xet]"};
+    if (setup.options.refresh) command.emplace_back("--upgrade");
     const auto& profile = registry.profile(setup.options.profile);
     std::set<std::string> packages;
     for (const auto* engine : selected_engines(registry, profile, Backend::mlx)) {
@@ -338,6 +339,28 @@ void install_native_gguf_runtimes(const Registry& registry, const ResolvedSetup&
     if (!engine->quantizer_executable.empty()) {
       ready = ready && std::filesystem::exists(source / engine->quantizer_executable);
     }
+    std::set<std::string> installed_audio_families;
+    bool reconcile_audio_families = false;
+    if (engine->installer == "cmake-audio") {
+      std::ifstream cache(build / "CMakeCache.txt");
+      std::string line;
+      while (std::getline(cache, line)) {
+        if (!line.starts_with("AUDIOCPP_MODELS:STRING=")) continue;
+        auto value = line.substr(std::string("AUDIOCPP_MODELS:STRING=").size());
+        std::replace(value.begin(), value.end(), ';', ',');
+        std::istringstream families(value);
+        std::string family;
+        while (std::getline(families, family, ',')) {
+          if (!family.empty()) installed_audio_families.insert(family);
+        }
+      }
+      for (const auto& policy : profile.model_policies) {
+        if (policy.engine != engine->id) continue;
+        const auto& family = registry.model(policy.id).gguf_family;
+        if (!installed_audio_families.contains(family)) reconcile_audio_families = true;
+      }
+      if (reconcile_audio_families) ready = false;
+    }
     if (!setup.options.refresh && !setup.options.dry_run && ready) {
       std::cout << engine->id
                 << " runtime already exists; use --refresh to rebuild.\n";
@@ -363,7 +386,8 @@ void install_native_gguf_runtimes(const Registry& registry, const ResolvedSetup&
       throw std::runtime_error("unsupported native engine installer: " +
                                engine->installer);
     }
-    std::vector<std::string> audio_families;
+    std::vector<std::string> audio_families(installed_audio_families.begin(),
+                                           installed_audio_families.end());
     if (profile.schema < 3) {
       audio_families = {"granite5asr", "audio8_tts"};
     } else {
@@ -383,7 +407,7 @@ void install_native_gguf_runtimes(const Registry& registry, const ResolvedSetup&
       audio_model_list << audio_families[i];
     }
     update_source_tree(source, engine->source_url, engine->revision,
-                       setup.options.refresh, setup.options.dry_run);
+                       setup.options.refresh || reconcile_audio_families, setup.options.dry_run);
     std::vector<std::string> audio_configure = {
         "cmake", "-S", source.string(), "-B", build.string()};
     append_cmake_definitions(audio_configure, *engine,
@@ -608,7 +632,8 @@ json validate_setup(const Registry& registry, const ResolvedSetup& setup) {
       for (const auto* engine : selected_engines(registry, profile, backend)) {
         if (engine->id == "mlx-lm") imports += "import mlx_lm, mlx_vlm; ";
         if (engine->id == "mlx-vlm") imports += "import mlx_vlm; ";
-        if (engine->id == "mlx-audio") imports += "import mlx_audio; ";
+        if (engine->launcher == "mlx-audio") imports += "import mlx_audio; ";
+        if (engine->launcher == "mlx-diarization") imports += "from mlx_audio.vad.models.nemotron_diarization import Model; ";
       }
       imports += "print(mx.default_device())";
       acceptance["backends"]["mlx"] = validate_command(
@@ -664,8 +689,7 @@ void validate_artifact_engine_revisions(const Registry& registry,
   if (profile.schema < 3) return;
   for (const auto& policy : profile.model_policies) {
     const auto& artifact = registry.model(policy.id)
-                               .artifacts.at(policy.backend)
-                               .at(policy.quantization);
+                               .artifact_for(policy.backend, policy.quantization, policy.engine);
     if (artifact.minimum_engine_commit.empty()) continue;
     const auto& engine = registry.engine(policy.engine);
     const auto source = setup.options.root / "runtimes" / engine.runtime_directory;
@@ -837,10 +861,12 @@ void write_runtime_state(const Registry& registry, const ResolvedSetup& setup) {
 
 }  // namespace
 
-ResolvedSetup resolve_setup(const Registry& registry, SetupOptions options) {
+ResolvedSetup resolve_setup(Registry& registry, SetupOptions options) {
   ResolvedSetup resolved;
   if (options.root.empty()) options.root = default_application_home();
   resolved.hardware = resolve_hardware_profile(options);
+  registry.resolution_hardware = resolved.hardware;
+  registry.runtime_root = options.root.string();
   resolved.machine_policy_file = options.machine_policy_file.empty()
       ? options.root / "config/machine.yaml" : options.machine_policy_file;
   if (!options.machine_policy_file.empty() &&
@@ -861,11 +887,12 @@ ResolvedSetup resolve_setup(const Registry& registry, SetupOptions options) {
                           ? "mica-assistant-mlx"
                           : "mica-assistant-gguf";
   }
-  const auto& profile = registry.profile(options.profile);
+  auto& profile = registry.profiles.at(options.profile);
+  resolve_profile_engines(registry, profile, resolved.hardware, options.root);
   if (profile.schema >= 3) {
     if (options.quantizations_explicit) {
       throw std::runtime_error(
-          "task profiles select quantization per model; omit --quant");
+          "workload profiles select quantization per model; omit --quant");
     }
     options.quantizations.clear();
     for (const auto& policy : profile.model_policies) {
@@ -880,8 +907,7 @@ ResolvedSetup resolve_setup(const Registry& registry, SetupOptions options) {
       validate_placement(policy, resolved.hardware);
       validate_engine_hardware(registry, policy, resolved.hardware);
       const auto& artifact = registry.model(policy.id)
-                                 .artifacts.at(policy.backend)
-                                 .at(policy.quantization);
+                                 .artifact_for(policy.backend, policy.quantization, policy.engine);
       const auto placement = resolve_model_placement(
           policy, artifact, resolved.hardware);
       const auto device = machine_device_for_placement(
@@ -912,7 +938,7 @@ ResolvedSetup resolve_setup(const Registry& registry, SetupOptions options) {
     required.erase(std::unique(required.begin(), required.end()), required.end());
     if (required != options.backends) {
       throw std::runtime_error(
-          "task profile backends are fixed by its model execution policies");
+          "workload profile backends are fixed by its model execution policies");
     }
   }
   for (const auto backend : options.backends) {
@@ -935,8 +961,7 @@ ResolvedSetup resolve_setup(const Registry& registry, SetupOptions options) {
       profile.model_policies.begin(), profile.model_policies.end(),
       [&](const auto& policy) {
         const auto& artifact = registry.model(policy.id)
-                                   .artifacts.at(policy.backend)
-                                   .at(policy.quantization);
+                                   .artifact_for(policy.backend, policy.quantization, policy.engine);
         const auto placement =
             resolve_model_placement(policy, artifact, resolved.hardware);
         return placement.device != "cpu" && placement.device != "tpu" &&
@@ -998,10 +1023,10 @@ ResolvedSetup resolve_setup(const Registry& registry, SetupOptions options) {
   }
   if (options.max_vram_gib < 0) throw std::runtime_error("VRAM budget cannot be negative");
   if (options.max_ram_gib + 1e-9 < profile.required_ram_gib) {
-    throw std::runtime_error("global RAM allocation is below task profile requirement");
+    throw std::runtime_error("global RAM allocation is below workload profile requirement");
   }
   if (options.max_vram_gib + 1e-9 < profile.required_vram_gib) {
-    throw std::runtime_error("global VRAM allocation is below task profile requirement");
+    throw std::runtime_error("global VRAM allocation is below workload profile requirement");
   }
   if (options.quantizations.empty()) options.quantizations.push_back(Quantization::q4);
   std::sort(options.quantizations.begin(), options.quantizations.end());
@@ -1029,7 +1054,7 @@ ResolvedSetup resolve_setup(const Registry& registry, SetupOptions options) {
     std::size_t pinned_count = 0;
     for (const auto& policy : profile.model_policies) {
       const auto& artifact = registry.model(policy.id)
-                                 .artifacts.at(policy.backend).at(policy.quantization);
+                                 .artifact_for(policy.backend, policy.quantization, policy.engine);
       const auto placement = resolve_model_placement(
           policy, artifact, resolved.hardware);
       Footprint item;
@@ -1165,6 +1190,15 @@ void execute_setup(const Registry& registry, const ResolvedSetup& setup) {
       setup.backends.begin(), setup.backends.end(),
       [](const auto backend) { return backend != Backend::gguf; });
   if (needs_python_tools) install_download_environment(setup);
+  if (!setup.options.dry_run && std::find(setup.backends.begin(), setup.backends.end(), Backend::mlx) != setup.backends.end()) {
+    const auto adapters = setup.options.root / "runtimes/mica-adapters";
+    std::filesystem::create_directories(adapters);
+    for (const auto* script : {"mlx_worker.py", "mlx_diarization_server.py"}) {
+      const auto source = setup.options.config_directory.parent_path() / "scripts" / script;
+      if (!std::filesystem::exists(source)) throw std::runtime_error("missing backend adapter: " + source.string());
+      std::filesystem::copy_file(source, adapters / script, std::filesystem::copy_options::overwrite_existing);
+    }
+  }
   for (const auto backend : setup.backends) {
     if (backend == Backend::mlx) install_mlx_environment(registry, setup);
     else if (backend == Backend::gguf) install_native_gguf_runtimes(registry, setup);

@@ -34,9 +34,11 @@
 #include <unistd.h>
 
 #include "mica_server/scheduler.hpp"
+#include "mica_server/hardware.hpp"
 #include "mica_server/base64.hpp"
 #include "mica_server/command.hpp"
 #include "mica_server/catalog.hpp"
+#include "mica_server/profiles.hpp"
 
 namespace mica {
 namespace {
@@ -879,18 +881,23 @@ std::string audio_backend(const Worker& worker) {
 }
 
 void write_audio_config(const Worker& worker,
-                        const std::filesystem::path& path) {
+                        const std::filesystem::path& path, const RuntimeState& state) {
   const bool asr = worker.model->capability == "asr";
+  const bool diar = worker.model->capability == "diar";
   json config = {
       {"host", "127.0.0.1"},
       {"port", worker.port},
       {"backend", audio_backend(worker)},
+      // worker_environment restricts visibility to the selected physical GPU;
+      // it becomes device zero inside this worker (also CPU/Metal's default).
+      {"device", 0},
+      {"threads", state.cpu_threads > 0 ? state.cpu_threads : 1},
       {"lazy_load", false},
       {"max_loaded_models", 1},
       {"models", json::array({{{"id", worker.model->id},
-                                {"family", asr ? "granite5asr" : "audio8_tts"},
+                                {"family", worker.model->gguf_family},
                                 {"path", worker.artifact_path.string()},
-                                {"task", asr ? "asr" : "tts"},
+                                {"task", diar ? "diar" : asr ? "asr" : "tts"},
                                 {"mode", "offline"}}})},
   };
   std::ofstream file(path, std::ios::trunc);
@@ -917,18 +924,42 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
                                                  : profile.kv_cache_precision;
   if (worker.backend == Backend::mlx) {
     const auto python = (root / "environments/mlx/bin/python").string();
-    if (worker.model->capability == "text") {
-      const auto server = worker.model->mlx_converter == "mlx_vlm.convert"
-                              ? "mlx_vlm.server"
-                              : "mlx_lm.server";
-      return {python, "-m", server, "--model", worker.artifact_path.string(),
-              "--host", "127.0.0.1", "--port", port};
+    if (worker.engine->launcher == "mlx-diarization") {
+      return {python, (root / "runtimes/mica-adapters/mlx_diarization_server.py").string(),
+              "--model", worker.artifact_path.string(), "--port", port,
+              "--memory-gib", std::to_string(worker.ram_reservation_gib)};
     }
-    if (worker.model->capability == "vision") {
-      return {python, "-m", "mlx_vlm.server", "--model", worker.artifact_path.string(),
-              "--host", "127.0.0.1", "--port", port};
+    if (worker.model->capability == "text" || worker.model->capability == "vision") {
+      const bool vlm = worker.engine->launcher == "mlx-vlm";
+      if (!vlm && (kv_cache_precision == "q4" || kv_cache_precision == "q8")) {
+        throw std::runtime_error("mlx-lm server does not implement quantized KV; use mlx-vlm or kv_cache: auto");
+      }
+      std::vector<std::string> command = {python,
+          (root / "runtimes/mica-adapters/mlx_worker.py").string(),
+          "--module", vlm ? "mlx_vlm.server" : "mlx_lm.server",
+          "--input-limit", std::to_string(model_policy ? model_policy->max_input_tokens : profile.max_input_tokens),
+          "--output-limit", std::to_string(model_policy ? model_policy->max_output_tokens : profile.max_output_tokens),
+          "--context-limit", std::to_string(max_total_tokens),
+          "--memory-gib", std::to_string(worker.ram_reservation_gib), "--",
+          "--model", worker.artifact_path.string(), "--host", "127.0.0.1", "--port", port,
+          "--max-tokens", std::to_string(model_policy ? model_policy->max_output_tokens : profile.max_output_tokens)};
+      if (vlm) {
+        command.insert(command.end(), {"--max-kv-size", std::to_string(max_total_tokens),
+            "--max-num-seqs", std::to_string(max_concurrent_requests), "--vision-cache-size", "1"});
+        if (kv_cache_precision == "q4" || kv_cache_precision == "q8") {
+          command.insert(command.end(), {"--kv-bits", kv_cache_precision == "q4" ? "4" : "8",
+              "--kv-group-size", "64", "--kv-quant-scheme", "uniform", "--quantized-kv-start", "0"});
+        }
+      } else {
+        command.insert(command.end(), {"--decode-concurrency", std::to_string(max_concurrent_requests),
+            "--prompt-concurrency", std::to_string(max_concurrent_requests), "--prompt-cache-size", "1"});
+      }
+      return command;
     }
-    return {python, "-m", "mlx_audio.server", "--host", "127.0.0.1", "--port", port};
+    return {python, (root / "runtimes/mica-adapters/mlx_worker.py").string(),
+            "--module", "mlx_audio.server", "--input-limit", "1", "--output-limit", "1",
+            "--context-limit", "2", "--memory-gib", std::to_string(worker.ram_reservation_gib),
+            "--", "--host", "127.0.0.1", "--port", port};
   }
   if (worker.backend == Backend::vllm) {
     std::vector<std::string> command = {
@@ -937,6 +968,11 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
         "--host", "127.0.0.1", "--port", port};
     if (worker.device == "cpu") {
       command.insert(command.end(), {"--device", "cpu"});
+      if (worker.artifact.kv_bytes_per_token_f16 > 0) {
+        const auto cache_bytes = worker.artifact.kv_bytes_per_token_f16 *
+            static_cast<std::uint64_t>(max_total_tokens) * max_concurrent_requests;
+        command.insert(command.end(), {"--kv-cache-memory-bytes", std::to_string(cache_bytes)});
+      }
     }
     const auto worker_vllm_device = parse_vllm_device(device_runtime(worker.device));
     double vllm_ram_limit = std::max(0.0, state.max_ram_gib -
@@ -950,7 +986,8 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
                               ? 0.0 : std::min(vllm_vram_limit, found->second);
     }
     if (const auto utilization = vllm_memory_utilization(
-            worker_vllm_device, vllm_ram_limit, vllm_vram_limit,
+            worker_vllm_device, std::min(vllm_ram_limit, worker.ram_reservation_gib),
+            std::min(vllm_vram_limit, worker.vram_reservation_gib),
             worker_accelerator_memory(worker, state))) {
       std::ostringstream value;
       value << std::fixed << std::setprecision(3) << *utilization;
@@ -1009,6 +1046,27 @@ struct ResolvedModelRequest {
   Quantization quantization;
 };
 
+const EngineDefinition::EndpointContract& worker_contract(const Worker& worker,
+                                                         const std::string& operation) {
+  for (const auto& endpoint : worker.engine->endpoint_contracts) {
+    if (endpoint.operation == operation) return endpoint;
+  }
+  throw std::invalid_argument("engine has no endpoint for " + operation);
+}
+
+std::filesystem::path model_cache_directory(const std::filesystem::path& root,
+                                            const ModelDefinition& model,
+                                            Backend backend, const std::string& engine) {
+  auto directory = root / "models" / to_string(backend) / model.id;
+  int engines = 0;
+  const auto format = model.artifacts.at(backend).begin()->second.format;
+  for (const auto& [id, variants] : model.engine_artifacts) {
+    if (!variants.empty() && variants.begin()->second.format == format) ++engines;
+  }
+  if (engines > 1) directory /= engine;
+  return directory;
+}
+
 class WorkerManager {
  public:
   WorkerManager(const Registry& registry, const RuntimeState& state,
@@ -1041,7 +1099,7 @@ class WorkerManager {
       if (profile.schema >= 3) {
         for (const auto& policy : profile.model_policies) {
           const auto& model = registry_.model(policy.id);
-          const auto artifact = model.artifacts.at(policy.backend).at(policy.quantization);
+          const auto artifact = model.artifact_for(policy.backend, policy.quantization, policy.engine);
           Worker candidate;
           candidate.model = &model;
           candidate.engine = &registry_.engine(policy.engine);
@@ -1049,9 +1107,8 @@ class WorkerManager {
           candidate.backend = policy.backend;
           candidate.quantization = policy.quantization;
           candidate.artifact = artifact;
-          candidate.artifact_path = root_ / "models" /
-                                    to_string(policy.backend) / model.id /
-                                    artifact.pattern;
+          candidate.artifact_path = model_cache_directory(root_, model, policy.backend,
+                                                          policy.engine) / artifact.pattern;
           ensure_artifact(candidate);
         }
         std::vector<const ProfileModel*> ordered;
@@ -1065,7 +1122,7 @@ class WorkerManager {
         for (const auto* policy : ordered) {
           if (!policy->startup) continue;
           const auto& model = registry_.model(policy->id);
-          const auto& artifact = model.artifacts.at(policy->backend).at(policy->quantization);
+          const auto& artifact = model.artifact_for(policy->backend, policy->quantization, policy->engine);
           Worker candidate;
           candidate.model = &model;
           candidate.engine = &registry_.engine(policy->engine);
@@ -1160,25 +1217,22 @@ class WorkerManager {
 
   bool ready() const { return ready_.load(); }
 
-  std::string preferred_model(const std::string& capability) const {
-    std::lock_guard lock(mutex_);
-    const auto& profile = registry_.profile(state_.profile);
-    if (capability == "text" && !profile.default_chat_model.empty()) {
-      return profile.default_chat_model;
-    }
-    for (const auto& id : profile.models) {
-      const auto& model = registry_.model(id);
-      if (model.capability == capability) return id;
-    }
-    if (capability == "text") {
-      for (const auto& id : profile.models) {
-        if (registry_.model(id).capability == "vision") return id;
-      }
-    }
-    return {};
-  }
-
   ResolvedModelRequest resolve_request(const std::string& requested) const;
+
+  std::string select_request_model(const std::string& route,
+                                   const std::vector<std::string>& required_inputs,
+                                   const std::string& requested) const {
+    std::lock_guard lock(mutex_);
+    const auto selected = select_profile_model(
+        registry_, registry_.profile(state_.profile), route, required_inputs,
+        requested);
+    try {
+      (void)resolve_request_locked(selected);
+    } catch (const std::exception& error) {
+      throw std::invalid_argument(error.what());
+    }
+    return selected;
+  }
 
   std::string readiness_error() const {
     std::lock_guard lock(error_mutex_);
@@ -1212,6 +1266,9 @@ class WorkerManager {
     }
     const auto key = worker_key(id, backend, quantization);
     if (auto found = workers_.find(key); found != workers_.end()) {
+      const auto limit = found->second->profile_policy ?
+          found->second->profile_policy->max_concurrent_requests : 1;
+      if (found->second->in_flight >= limit) throw std::runtime_error("model_concurrency_limit_exceeded");
       ++found->second->in_flight;
       return found->second;
     }
@@ -1225,7 +1282,8 @@ class WorkerManager {
                            profile_policy->quantization != quantization)) {
       throw std::runtime_error("model variant is not selected by the active profile: " + id);
     }
-    const auto artifact = model.artifacts.at(backend).at(quantization);
+    const auto artifact = model.artifact_for(backend, quantization,
+        profile_policy ? profile_policy->engine : std::string());
     if (!artifact.supported) throw std::runtime_error(artifact.reason);
     auto worker = std::make_shared<Worker>();
     worker->model = &model;
@@ -1238,8 +1296,7 @@ class WorkerManager {
     assign_worker_resources(*worker, state_);
     make_room(worker->ram_reservation_gib, worker->vram_reservation_gib,
               worker->memory_device);
-    worker->artifact_path = root_ / "models" / to_string(backend) / model.id /
-                            artifact.pattern;
+    worker->artifact_path = model_cache_directory(root_, model, backend, worker->engine->id) / artifact.pattern;
     worker->port = allocate_port();
     worker->in_flight = 1;
     ensure_artifact(*worker);
@@ -1248,7 +1305,7 @@ class WorkerManager {
       write_audio_config(*worker,
                          root_ / "run/workers" /
                              (model.id + "-" + to_string(backend) + "-" +
-                              to_string(quantization) + ".json"));
+                              to_string(quantization) + ".json"), state_);
     }
     worker->pid = spawn_worker(worker_command(*worker, state_, profile, root_),
                                root_ / "logs" /
@@ -1292,7 +1349,7 @@ class WorkerManager {
     }
     const auto& target = registry_.profile(target_id);
     if (target.schema < 4) {
-      throw std::invalid_argument("live switching requires a schema-4 task profile");
+      throw std::invalid_argument("live switching requires a schema-4 workload profile");
     }
     if (target_id == state_.profile) {
       return {{"profile", target_id}, {"unchanged", true},
@@ -1303,7 +1360,7 @@ class WorkerManager {
     }
     if (target.required_ram_gib > state_.max_ram_gib + 1e-9 ||
         target.required_vram_gib > state_.max_vram_gib + 1e-9) {
-      throw std::runtime_error("global memory allocation is below target task requirements");
+      throw std::runtime_error("global memory allocation is below target workload requirements");
     }
     std::vector<Backend> next_backends;
     for (const auto& policy : target.model_policies) {
@@ -1344,7 +1401,7 @@ class WorkerManager {
     std::size_t pinned_count = 0;
     for (const auto& policy : target.model_policies) {
       const auto& artifact = registry_.model(policy.id)
-                                 .artifacts.at(policy.backend).at(policy.quantization);
+                                 .artifact_for(policy.backend, policy.quantization, policy.engine);
       const auto placement = resolve_model_placement(policy, artifact, hardware);
       Footprint item;
       item.ram = placement.ram_reservation_gib;
@@ -1557,6 +1614,13 @@ class WorkerManager {
     const auto& profile = registry_.profile(state_.profile);
     for (const auto& id : profile.models) {
       const auto& definition = registry_.model(id);
+      json interactions = json::array();
+      for (const auto& interaction : definition.supported_interactions) {
+        interactions.push_back({{"operation", interaction.operation},
+                                {"required_inputs", interaction.required_inputs},
+                                {"optional_inputs", interaction.optional_inputs},
+                                {"outputs", interaction.outputs}});
+      }
       for (const auto backend : active_backends_) {
         const auto selected_quantizations = quantizations_for(id, backend);
         for (const auto quantization : selected_quantizations) {
@@ -1578,6 +1642,10 @@ class WorkerManager {
           json item = {{"id", public_id}, {"object", "model"}, {"owned_by", "local"},
                           {"capability", definition.capability},
                           {"description", definition.description}, {"tags", definition.tags},
+                          {"input_modalities", definition.input_modalities},
+                          {"output_modalities", definition.output_modalities},
+                          {"abilities", definition.abilities},
+                          {"supported_interactions", interactions},
                           {"thinking_modes", artifact.engine == "prism-llama-cpp" ||
                               (backend == Backend::mlx &&
                                (definition.capability == "vision" ||
@@ -1622,7 +1690,8 @@ class WorkerManager {
     }
     return {{"object", "list"}, {"data", data},
             {"profile", profile.name},
-            {"default_chat_model", profile.default_chat_model}};
+            {"default_chat_model", profile.default_chat_model},
+            {"defaults", profile.default_models}};
   }
 
   json admin_json() const {
@@ -1712,6 +1781,16 @@ class WorkerManager {
     return id + "@" + to_string(backend) + ":" + to_string(quantization);
   }
 
+  std::string download_key(const Worker& worker) const {
+    auto key = worker_key(worker.model->id, worker.backend, worker.quantization);
+    const auto directory = model_cache_directory(root_, *worker.model, worker.backend,
+                                                 worker.engine->id);
+    if (directory != root_ / "models" / to_string(worker.backend) / worker.model->id) {
+      key += "#" + worker.engine->id;
+    }
+    return key;
+  }
+
   void ensure_artifact(const Worker& worker) const {
     const auto base = worker.artifact_path.parent_path();
     const auto marker = base / (".mica-complete-" + to_string(worker.quantization));
@@ -1727,10 +1806,6 @@ class WorkerManager {
       if (file.role == "mtp-drafter" || file.role == "dflash-drafter") {
         throw std::runtime_error("engine " + worker.engine->id +
             " has no validated speculative-drafter launch adapter for " + file.role);
-      }
-      if (worker.backend != Backend::gguf && file.role != "model") {
-        throw std::runtime_error("multi-source artifact download is not yet supported "
-                                 "for this engine: " + worker.engine->id);
       }
     }
 
@@ -1767,7 +1842,11 @@ class WorkerManager {
                   (marked_revision.empty() && primary_revision == "main"));
     }
     if (complete) return;
-    if (worker.backend == Backend::gguf) {
+    const bool individual_files = !worker.artifact.files.empty() && std::all_of(
+        worker.artifact.files.begin(), worker.artifact.files.end(), [](const auto& file) {
+          return !std::filesystem::path(file.repository_path).extension().empty();
+        });
+    if (worker.backend == Backend::gguf || individual_files) {
       const auto download_file = [&](const std::string& repository,
                                      const std::string& file_revision,
                                      const std::string& remote,
@@ -1910,9 +1989,10 @@ class WorkerManager {
     const auto path = root_ / "state/runtime.json";
     std::ifstream input(path);
     auto state = json::parse(input);
-    const auto key = worker_key(worker.model->id, worker.backend, worker.quantization);
+    const auto key = download_key(worker);
     state["downloads"][key] = {
         {"model", worker.model->id}, {"backend", to_string(worker.backend)},
+        {"engine", worker.engine->id},
         {"quantization", to_string(worker.quantization)}, {"repository", repository},
         {"artifact", worker.artifact.pattern},
         {"sha256", worker.artifact.sha256},
@@ -1945,7 +2025,7 @@ class WorkerManager {
     const auto path = root_ / "state/runtime.json";
     std::ifstream input(path);
     auto state = json::parse(input);
-    const auto key = worker_key(worker.model->id, worker.backend, worker.quantization);
+    const auto key = download_key(worker);
     state["downloads"][key]["smoke_validated"] = true;
     const auto temporary = path.string() + ".tmp";
     std::ofstream output(temporary, std::ios::trunc);
@@ -1983,16 +2063,17 @@ class WorkerManager {
                                          ? worker.artifact_path.string()
                                          : worker.model->id;
     httplib::Result response;
-    if (worker.model->capability == "asr") {
+    if (worker.model->capability == "asr" || worker.model->capability == "diar") {
       const auto fixture = asr_fixture();
       httplib::UploadFormDataItems items = {
           {"model", worker_model, "", "text/plain"},
           {"file", read_binary(fixture), "warmup.wav", "audio/wav"}};
-      response = client.Post("/v1/audio/transcriptions", items);
+      response = client.Post(worker_contract(worker, worker.model->capability == "diar" ?
+          "audio.diarize" : "audio.transcribe").path, items);
     } else if (worker.model->capability == "tts") {
       const json body = {{"model", worker_model}, {"input", "Warmup."},
                          {"response_format", "wav"}};
-      response = client.Post("/v1/audio/speech", body.dump(), "application/json");
+      response = client.Post(worker_contract(worker, "audio.synthesize_speech").path, body.dump(), "application/json");
     } else {
       json content = "Reply with exactly MICA_OK_31415.";
       if (worker.model->capability == "vision") {
@@ -2007,10 +2088,12 @@ class WorkerManager {
                          // private reasoning trace before producing public text.
                          // Keep the smoke bounded while requiring a real answer.
                          {"max_tokens", 256}, {"temperature", 0}, {"stream", false}};
-      response = client.Post("/v1/chat/completions", body.dump(), "application/json");
+      response = client.Post(worker_contract(worker, "chat.generate").path, body.dump(), "application/json");
     }
     if (!response || response->status < 200 || response->status >= 300) {
-      throw std::runtime_error("real inference warm-up failed: " + worker.model->id);
+      throw std::runtime_error("real inference warm-up failed: " + worker.model->id +
+          (response ? " HTTP " + std::to_string(response->status) + " " + response->body :
+                      " (worker connection failed)"));
     }
     validate_inference(worker, response->body);
     record_smoke_validation(worker);
@@ -2063,6 +2146,13 @@ class WorkerManager {
   }
 
   static void validate_inference(const Worker& worker, const std::string& body) {
+    if (worker.model->capability == "diar") {
+      const auto parsed = json::parse(body);
+      if (!parsed.contains("speaker_turns") || !parsed["speaker_turns"].is_array() || parsed["speaker_turns"].empty()) {
+        throw std::runtime_error("diarization smoke produced no speaker turns");
+      }
+      return;
+    }
     if (worker.model->capability == "tts") {
       if (body.size() <= 44 || body.compare(0, 4, "RIFF") != 0 ||
           body.compare(8, 4, "WAVE") != 0) {
@@ -2346,11 +2436,21 @@ std::string worker_model_name(const Worker& worker) {
 }
 
 std::string rewrite_json_model(const std::string& body, const Worker& worker,
-                               const RuntimeState&) {
+                               const RuntimeState&, std::string operation = {}) {
   auto parsed = json::parse(body);
+  if (operation.empty()) operation = worker.model->capability == "tts" ? "audio.synthesize_speech" : "chat.generate";
+  const auto& endpoint = worker_contract(worker, operation);
+  if (parsed.value("stream", false) && !endpoint.streaming) {
+    throw std::invalid_argument("selected engine endpoint does not support streaming");
+  }
+  if (parsed.contains("tools") && !parsed["tools"].empty() &&
+      (!endpoint.supports_tools || std::find(worker.model->abilities.begin(), worker.model->abilities.end(),
+          "tool_calling") == worker.model->abilities.end())) {
+    throw std::invalid_argument("selected model/engine does not support tool calling");
+  }
   const bool mlx_vlm_worker = worker.backend == Backend::mlx &&
       (worker.model->capability == "vision" ||
-       worker.model->mlx_converter == "mlx_vlm.convert");
+       worker.engine->launcher == "mlx-vlm");
   const bool thinking_worker = worker.engine->id == "prism-llama-cpp" ||
       mlx_vlm_worker;
   if (parsed.contains("reasoning_effort")) {
@@ -2389,12 +2489,37 @@ std::string rewrite_json_model(const std::string& body, const Worker& worker,
     parsed[mlx_vlm_worker ? "thinking_budget" : "reasoning_budget_tokens"] = tokens;
   }
   if (worker.profile_policy) {
+    if (!parsed.contains("max_tokens") && !parsed.contains("max_completion_tokens")) {
+      parsed["max_tokens"] = worker.profile_policy->max_output_tokens;
+    }
     for (const auto* field : {"max_tokens", "max_completion_tokens"}) {
-      if (parsed.contains(field) && parsed[field].is_number_integer() &&
-          parsed[field].get<int>() > worker.profile_policy->max_output_tokens) {
+      if (parsed.contains(field) && (!parsed[field].is_number_integer() ||
+          parsed[field].get<int>() < 1 ||
+          parsed[field].get<int>() > worker.profile_policy->max_output_tokens)) {
         throw std::invalid_argument(std::string(field) +
                                     " exceeds the active model profile limit");
       }
+    }
+  }
+  // Native llama.cpp exposes its own tokenizer and chat-template renderer.
+  // Count the rendered text rather than approximating tokens from characters.
+  if (worker.profile_policy && worker.engine->launcher == "llama-server" &&
+      parsed.contains("messages")) {
+    httplib::Client tokenizer("127.0.0.1", worker.port);
+    tokenizer.set_read_timeout(30, 0);
+    const auto rendered = tokenizer.Post("/apply-template", parsed.dump(), "application/json");
+    if (!rendered || rendered->status != 200) {
+      throw std::runtime_error("engine cannot validate the rendered input token budget");
+    }
+    const auto prompt = json::parse(rendered->body).at("prompt").get<std::string>();
+    const auto tokens = tokenizer.Post("/tokenize", json({{"content", prompt},
+        {"add_special", true}}).dump(), "application/json");
+    if (!tokens || tokens->status != 200) {
+      throw std::runtime_error("engine tokenizer budget validation failed");
+    }
+    const auto count = json::parse(tokens->body).at("tokens").size();
+    if (count > static_cast<std::size_t>(worker.profile_policy->max_input_tokens)) {
+      throw std::invalid_argument("rendered input exceeds the model profile token limit");
     }
   }
   parsed["model"] = worker_model_name(worker);
@@ -2435,6 +2560,33 @@ std::string legacy_completion_request_to_chat(const std::string& body) {
   parsed.erase("prompt");
   parsed["messages"] = json::array({{{"role", "user"}, {"content", prompt}}});
   return parsed.dump();
+}
+
+std::vector<std::string> request_input_modalities(const std::string& path,
+                                                   const json& body) {
+  if (path == "/v1/audio/transcriptions" || path == "/v1/audio/diarizations") return {"audio"};
+  if (path == "/v1/audio/speech") return body.contains("ref_audio") ?
+      std::vector<std::string>{"text", "audio"} : std::vector<std::string>{"text"};
+  std::vector<std::string> inputs = {"text"};
+  if (!body.is_object() || !body.contains("messages") ||
+      !body.at("messages").is_array()) return inputs;
+  bool image = false;
+  bool video = false;
+  for (const auto& message : body.at("messages")) {
+    if (!message.is_object() || !message.contains("content") ||
+        !message.at("content").is_array()) continue;
+    for (const auto& item : message.at("content")) {
+      if (!item.is_object()) continue;
+      const auto type = item.value("type", std::string());
+      image = image || type == "image_url" || type == "input_image" ||
+              item.contains("image_url");
+      video = video || type == "video_url" || type == "input_video" ||
+              item.contains("video_url") || item.contains("input_video");
+    }
+  }
+  if (image) inputs.push_back("image");
+  if (video) inputs.push_back("video");
+  return inputs;
 }
 
 ResolvedModelRequest resolve_model_request(
@@ -2566,8 +2718,27 @@ json load_session(const std::filesystem::path& path, const std::string& id) {
 
 }  // namespace
 
-int run_server(const Registry& registry, const ServerOptions& options) {
+int run_server(const Registry& source_registry, const ServerOptions& options) {
+  auto registry = source_registry;
   const auto state = load_runtime_state(options.root);
+  const auto hardware = detect_hardware();
+  registry.runtime_root = options.root.string();
+  registry.resolution_hardware = hardware;
+  for (auto& [id, profile] : registry.profiles) {
+    if (id == state.profile) {
+      // Reuse the concrete setup selection until setup is run again. Installing
+      // an unrelated engine must not silently change a running task's engine.
+      for (auto& policy : profile.model_policies) {
+        const auto configured = state.configured_policies.find(policy.id);
+        if (configured != state.configured_policies.end() && !policy.engine_explicit) {
+          policy.engine = configured->second.at("engine").get<std::string>();
+          policy.backend = registry.engine(policy.engine).backend;
+          policy.engine_explicit = true;
+        }
+      }
+    }
+    resolve_profile_engines(registry, profile, hardware, options.root);
+  }
   const auto& selected_profile = registry.profile(state.profile);
   validate_runtime_profile(state, selected_profile);
   std::vector<Backend> active_backends;
@@ -2581,7 +2752,7 @@ int run_server(const Registry& registry, const ServerOptions& options) {
     if (options.active_backend &&
         (active_backends.size() != 1 || active_backends.front() != *options.active_backend)) {
       throw std::runtime_error(
-          "--backend cannot override a task profile's model execution policies");
+          "--backend cannot override a workload profile's model execution policies");
     }
   } else if (!options.active_backend) {
     if (state.installed_backends.size() != 1) {
@@ -2654,11 +2825,12 @@ int run_server(const Registry& registry, const ServerOptions& options) {
     if (!require_auth(request, response)) return;
     try {
       std::optional<std::string> capability;
+      std::optional<std::string> modality_filter;
       std::optional<Backend> backend;
       std::optional<std::string> engine;
       if (request.has_param("modality")) {
-        capability = modality_capability(
-            normalize_modality(request.get_param_value("modality")));
+        modality_filter = request.get_param_value("modality");
+        (void)normalize_modality(*modality_filter);
       } else if (request.has_param("capability")) {
         capability = request.get_param_value("capability");
       }
@@ -2669,7 +2841,7 @@ int run_server(const Registry& registry, const ServerOptions& options) {
         engine = request.get_param_value("engine");
       }
       response.set_content(registry_catalog(registry, capability, backend, false,
-                                            engine).dump(),
+                                            engine, modality_filter).dump(),
                            "application/json");
     } catch (const std::exception& error) {
       json_error(response, 400, "invalid_catalog_filter", error.what());
@@ -2716,7 +2888,8 @@ int run_server(const Registry& registry, const ServerOptions& options) {
     httplib::Result result;
     try {
       const auto body = rewrite_json_model(public_body.dump(), *worker, state);
-      result = client.Post(path, body, "application/json");
+      result = client.Post(worker_contract(*worker, path == "/v1/completions" ?
+          "text.generate" : "chat.generate").path, body, "application/json");
     } catch (...) {
       manager->release(worker);
       throw;
@@ -2740,7 +2913,7 @@ int run_server(const Registry& registry, const ServerOptions& options) {
     const httplib::UploadFormDataItems items = {
         {"model", worker_model_name(*worker), "", "text/plain"},
         {"file", read_file_binary(audio_path), audio_path.filename().string(), content_type}};
-    auto result = client.Post("/v1/audio/transcriptions", items);
+    auto result = client.Post(worker_contract(*worker, "audio.transcribe").path, items);
     manager->release(worker);
     if (!result || result->status < 200 || result->status >= 300) {
       throw std::runtime_error("ASR worker failed" +
@@ -2772,7 +2945,8 @@ int run_server(const Registry& registry, const ServerOptions& options) {
       }
     }
     const auto body = rewrite_json_model(public_body.dump(), *worker, state);
-    auto result = client.Post("/v1/audio/speech", body, "application/json");
+    auto result = client.Post(worker_contract(*worker, "audio.synthesize_speech").path,
+                              body, "application/json");
     manager->release(worker);
     if (!result || result->status < 200 || result->status >= 300) {
       throw std::runtime_error("TTS worker failed" +
@@ -2794,7 +2968,7 @@ int run_server(const Registry& registry, const ServerOptions& options) {
     try {
       const auto body = rewrite_json_model(public_body.dump(), *worker, state);
       result = client.Post(
-          "/v1/chat/completions", httplib::Headers{}, body, "application/json",
+          worker_contract(*worker, "chat.generate").path, httplib::Headers{}, body, "application/json",
           [&](const char* data, std::size_t size) {
             pending.append(data, size);
             for (;;) {
@@ -2830,12 +3004,18 @@ int run_server(const Registry& registry, const ServerOptions& options) {
     return answer;
   };
 
-  auto invoke_asr_stream = [manager, state, active_backends](
+  auto invoke_asr_stream = [manager, state, active_backends, invoke_asr](
                                const std::string& public_model,
                                const std::filesystem::path& audio_path,
                                const std::string& content_type,
                                const std::function<void(const std::string&)>& on_delta) {
     auto worker = manager->acquire_requested(public_model);
+    if (!worker_contract(*worker, "audio.transcribe").streaming) {
+      manager->release(worker);
+      const auto transcript = invoke_asr(public_model, audio_path, content_type);
+      on_delta(transcript);
+      return transcript;
+    }
     httplib::Client client("127.0.0.1", worker->port);
     client.set_read_timeout(3600, 0);
     const auto boundary = "----mica-" + std::to_string(monotonic_ns());
@@ -2849,7 +3029,7 @@ int run_server(const Registry& registry, const ServerOptions& options) {
     httplib::Result result;
     try {
       result = client.Post(
-          "/v1/audio/transcriptions", httplib::Headers{}, body,
+          worker_contract(*worker, "audio.transcribe").path, httplib::Headers{}, body,
           "multipart/form-data; boundary=" + boundary,
           [&](const char* data, std::size_t size) {
             pending.append(data, size);
@@ -2914,7 +3094,7 @@ int run_server(const Registry& registry, const ServerOptions& options) {
         const auto body = rewrite_json_model(public_body.dump(), *worker, state);
         std::string pending;
         auto result = client.Post(
-            "/v1/audio/speech", httplib::Headers{}, body, "application/json",
+            worker_contract(*worker, "audio.synthesize_speech").path, httplib::Headers{}, body, "application/json",
             [&](const char* data, std::size_t size) {
               pending.append(data, size);
               for (;;) {
@@ -3349,7 +3529,8 @@ int run_server(const Registry& registry, const ServerOptions& options) {
       std::string transcription;
       if (voice_path) {
         transition("asr_transcribing");
-        const auto asr_model = field("asr_model", manager->preferred_model("asr"));
+        const auto asr_model = manager->select_request_model(
+            "asr", {"audio"}, field("asr_model"));
         if (emit) {
           transcription = invoke_asr_stream(
               asr_model, *voice_path, voice_content_type,
@@ -3430,8 +3611,17 @@ int run_server(const Registry& registry, const ServerOptions& options) {
       }
       messages.push_back({{"role", "user"}, {"content", user_content.str()}});
 
-      const auto llm_model = field("llm_model", manager->preferred_model("text"));
-      const auto vlm_model = field("vlm_model", manager->preferred_model("vision"));
+      const auto llm_model = manager->select_request_model(
+          "chat", {"text"}, field("llm_model"));
+      std::string vlm_model;
+      if (!turn["attachments"].empty()) {
+        std::vector<std::string> vlm_inputs = {"text"};
+        if (manifest["images"].get<int>() > 0 ||
+            manifest["documents"].get<int>() > 0) vlm_inputs.push_back("image");
+        if (manifest["videos"].get<int>() > 0) vlm_inputs.push_back("video");
+        vlm_model = manager->select_request_model(
+            "chat", vlm_inputs, field("vlm_model"));
+      }
       const auto tool_schema = vlm_tool_schema(registry.vlm_tool);
       bool tool_was_called = turn["attachments"].empty();
       std::string answer;
@@ -3592,14 +3782,15 @@ int run_server(const Registry& registry, const ServerOptions& options) {
       std::string audio_path;
       if (voice_path) {
         transition("tts_generating");
-        const auto default_tts = manager->preferred_model("tts");
+        const auto tts_model = manager->select_request_model(
+            "tts", {"text"}, field("tts_model"));
         if (emit) {
           std::size_t sequence = 0;
           std::vector<std::string> audio_chunks;
           const auto audio_directory = session_directory / "audio";
           std::filesystem::create_directories(audio_directory);
           invoke_tts_stream(
-              field("tts_model", default_tts), answer, tts_reference_path,
+              tts_model, answer, tts_reference_path,
               tts_reference_text,
               [&](const std::string& wav) {
                 audio_chunks.push_back(wav);
@@ -3615,7 +3806,7 @@ int run_server(const Registry& registry, const ServerOptions& options) {
           audio_path = output.string();
           emit("audio_end", {{"chunks", sequence}, {"final_audio", true}});
         } else {
-          audio = invoke_tts(field("tts_model", default_tts), answer,
+          audio = invoke_tts(tts_model, answer,
                              tts_reference_path, tts_reference_text);
           const auto output = session_directory /
                               ("assistant-" + std::to_string(session["turns"].size()) + ".wav");
@@ -3754,19 +3945,62 @@ int run_server(const Registry& registry, const ServerOptions& options) {
       return;
     }
     try {
-      std::string model_id;
+      std::string requested_model;
+      json public_request;
       if (request.is_multipart_form_data()) {
         const auto form = request.form;
-        if (form.has_field("model")) model_id = form.get_field("model");
+        if (form.has_field("model")) requested_model = form.get_field("model");
       } else {
-        model_id = json::parse(request.body).at("model").get<std::string>();
+        try {
+          public_request = json::parse(request.body);
+        } catch (const json::parse_error&) {
+          throw std::invalid_argument("request body must be valid JSON");
+        }
+        if (!public_request.is_object()) {
+          throw std::invalid_argument("request body must be a JSON object");
+        }
+        if (public_request.contains("model")) {
+          if (!public_request.at("model").is_string()) {
+            throw std::invalid_argument("model must be a string");
+          }
+          requested_model = public_request.at("model").get<std::string>();
+        }
       }
+      const std::string route = request.path == "/v1/audio/transcriptions" ? "asr" :
+                         request.path == "/v1/audio/diarizations" ? "diar" :
+                         request.path == "/v1/completions" ? "completion" :
+                         request.path == "/v1/audio/speech" ? "tts" : "chat";
+      if (route == "diar") {
+        if (!request.is_multipart_form_data() || !request.form.has_file("file")) {
+          throw std::invalid_argument("diarization requires multipart file audio");
+        }
+        const auto& content = request.form.get_file("file").content;
+        const auto wav = parse_pcm_wav(content);
+        if (wav.sample_rate != 16000 || wav.channels != 1 || wav.format != 1 ||
+            wav.bits_per_sample != 16) {
+          throw std::invalid_argument("diarization requires 16 kHz mono PCM16 WAV");
+        }
+        if (wav.data_size > 16000ULL * 2 * 60) {
+          throw std::invalid_argument("offline diarization is limited to 60 seconds");
+        }
+      }
+      const auto model_id = manager->select_request_model(
+          route, request_input_modalities(request.path, public_request),
+          requested_model);
       auto worker = manager->acquire_requested(model_id);
       // Keep the lease until a streamed response has finished (or has been
       // abandoned), and release it on every non-streaming error path too.
       auto lease = std::shared_ptr<void>(nullptr, [manager, worker](void*) {
         manager->release(worker);
       });
+      const auto operation = route == "asr" ? "audio.transcribe" :
+          route == "diar" ? "audio.diarize" : route == "tts" ? "audio.synthesize_speech" :
+          route == "completion" ? "text.generate" : "chat.generate";
+      const auto endpoint = worker_contract(*worker, operation);
+      const auto worker_path = endpoint.path;
+      const bool wants_stream = request.is_multipart_form_data() ?
+          (request.form.has_field("stream") && request.form.get_field("stream") == "true") : public_request.value("stream", false);
+      if (wants_stream && !endpoint.streaming) throw std::invalid_argument("endpoint does not support streaming");
       httplib::Headers headers;
       for (const auto& [name, value] : request.headers) {
         if (name != "Authorization" && name != "Host" && name != "Content-Length" &&
@@ -3781,14 +4015,14 @@ int run_server(const Registry& registry, const ServerOptions& options) {
         const auto public_body = legacy_completion
                                      ? legacy_completion_request_to_chat(request.body)
                                      : request.body;
-        const auto body = rewrite_json_model(public_body, *worker, state);
+        const auto body = rewrite_json_model(public_body, *worker, state, operation);
         const auto port = worker->port;
         const auto started = std::make_shared<bool>(false);
         response.set_header("Cache-Control", "no-cache");
         response.set_header("X-Accel-Buffering", "no");
         response.set_chunked_content_provider(
             "text/event-stream",
-            [body, headers, port, model_id, legacy_completion, started,
+            [body, headers, port, model_id, legacy_completion, started, worker_path,
              lease](std::size_t, httplib::DataSink& sink) {
               if (*started) {
                 sink.done();
@@ -3833,7 +4067,7 @@ int run_server(const Registry& registry, const ServerOptions& options) {
               };
               try {
                 const auto result = client.Post(
-                    "/v1/chat/completions", headers, body, "application/json",
+                    worker_path, headers, body, "application/json",
                     [&](const char* data, std::size_t size) {
                       pending.append(data, size);
                       for (;;) {
@@ -3880,16 +4114,18 @@ int run_server(const Registry& registry, const ServerOptions& options) {
                                : field.content,
                            "", "text/plain"});
         }
+        if (!request.form.has_field("model")) {
+          items.push_back({"model", worker_model_name(*worker), "", "text/plain"});
+        }
         for (const auto& [name, file] : request.form.files) {
           items.push_back({name, file.content, file.filename, file.content_type});
         }
-        result = client.Post(request.path, headers, items);
+        result = client.Post(worker_path, headers, items);
       } else {
         const auto public_body = legacy_completion
                                      ? legacy_completion_request_to_chat(request.body)
                                      : request.body;
-        const auto body = rewrite_json_model(public_body, *worker, state);
-        const auto worker_path = legacy_completion ? "/v1/chat/completions" : request.path;
+        const auto body = rewrite_json_model(public_body, *worker, state, operation);
         result = client.Post(worker_path, headers, body,
                              request.get_header_value("Content-Type"));
       }
@@ -3900,6 +4136,21 @@ int run_server(const Registry& registry, const ServerOptions& options) {
       }
       copy_worker_response(*result, response, model_id,
                            request.path == "/v1/completions");
+      if (route == "diar" && result->status >= 200 && result->status < 300) {
+        auto payload = json::parse(result->body);
+        json turns = json::array();
+        const double rate = payload.value("sample_rate", 16000.0);
+        if (rate <= 0) throw std::runtime_error("invalid engine audio sample rate");
+        for (const auto& turn : payload.value("speaker_turns", json::array())) {
+          json value = {{"start", turn.contains("start_sample") ? turn.at("start_sample").get<double>() / rate : turn.at("start").get<double>()},
+                        {"end", turn.contains("end_sample") ? turn.at("end_sample").get<double>() / rate : turn.at("end").get<double>()},
+                        {"speaker_id", turn.at("speaker_id")}};
+          if (turn.contains("confidence")) value["confidence"] = turn["confidence"];
+          turns.push_back(std::move(value));
+        }
+        response.set_content(json{{"model", model_id}, {"speaker_turns", turns},
+                                  {"timestamp_unit", "seconds"}}.dump(), "application/json");
+      }
     } catch (const std::invalid_argument& error) {
       json_error(response, 400, "invalid_request", error.what());
     } catch (const std::exception& error) {
@@ -3910,6 +4161,7 @@ int run_server(const Registry& registry, const ServerOptions& options) {
   server.Post("/v1/chat/completions", proxy);
   server.Post("/v1/completions", proxy);
   server.Post("/v1/audio/transcriptions", proxy);
+  server.Post("/v1/audio/diarizations", proxy);
   server.Post("/v1/audio/speech", proxy);
 
   active_http_server.store(&server);

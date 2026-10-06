@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a conversion command and stop its process tree above an RSS limit."""
+"""Run a command with RSS admission monitoring and optional macOS pressure stop."""
 
 from __future__ import annotations
 
@@ -39,6 +39,18 @@ def tree_rss_kib(root_pid: int) -> int:
     return sum(table.get(pid, (0, 0))[1] for pid in descendants)
 
 
+def macos_memory_pressure() -> int:
+    """Read system pressure: 1 normal, 2 warning, 4 critical (not byte usage)."""
+    result = subprocess.run(
+        ["sysctl", "-n", "kern.memorystatus_vm_pressure_level"],
+        check=True, capture_output=True, text=True, timeout=3,
+    )
+    value = int(result.stdout.strip())
+    if value not in (1, 2, 4):
+        raise ValueError(f"unknown macOS memory pressure level: {value}")
+    return value
+
+
 def terminate_group(process: subprocess.Popen[bytes]) -> None:
     if process.poll() is not None:
         return
@@ -54,11 +66,22 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit-gib", type=float, required=True)
     parser.add_argument("--poll-seconds", type=float, default=0.25)
+    parser.add_argument(
+        "--macos-pressure-limit", type=int, choices=(2, 4),
+        help="Additionally stop at system memory warning (2) or critical (4); includes pressure from GPU/unified memory",
+    )
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     command = args.command[1:] if args.command[:1] == ["--"] else args.command
     if args.limit_gib <= 0 or args.poll_seconds <= 0 or not command:
         parser.error("a positive limit, poll interval, and command are required")
+    if args.macos_pressure_limit and sys.platform != "darwin":
+        parser.error("--macos-pressure-limit requires macOS")
+    if args.macos_pressure_limit:
+        pressure = macos_memory_pressure()
+        if pressure >= args.macos_pressure_limit:
+            print(f"macOS memory pressure already at {pressure}; refusing to launch", file=sys.stderr)
+            return 75
 
     limit_kib = int(args.limit_gib * 1024 * 1024)
     child = subprocess.Popen(command, start_new_session=True)
@@ -73,9 +96,20 @@ def main() -> int:
 
     exceeded = False
     monitor_failures = 0
+    next_pressure_check = 0.0
     while child.poll() is None:
         try:
             rss_kib = tree_rss_kib(child.pid)
+            peak_kib = max(peak_kib, rss_kib)
+            if args.macos_pressure_limit and time.monotonic() >= next_pressure_check:
+                pressure = macos_memory_pressure()
+                next_pressure_check = time.monotonic() + 1.0
+                if pressure >= args.macos_pressure_limit:
+                    exceeded = True
+                    print(f"macOS memory pressure reached {pressure}; terminating process tree",
+                          file=sys.stderr, flush=True)
+                    terminate_group(child)
+                    break
             monitor_failures = 0
         except (OSError, subprocess.SubprocessError, ValueError) as error:
             monitor_failures += 1
@@ -90,7 +124,6 @@ def main() -> int:
                 return 76
             time.sleep(args.poll_seconds)
             continue
-        peak_kib = max(peak_kib, rss_kib)
         if rss_kib > limit_kib:
             exceeded = True
             print(

@@ -1,4 +1,4 @@
-schema: 1
+schema: 2
 id: mlx-vlm
 status: current
 backend: mlx
@@ -7,7 +7,9 @@ launcher: mlx-vlm
 device_target: mlx
 hardware: [apple-silicon]
 artifact_formats: [mlx]
-features: [vision-projector, image-understanding, video-understanding]
+compatibility_tags: [vision-projector, image-understanding]
+endpoint_contracts:
+  - {id: chat, operation: chat.generate, transport: http, adapter_call: openai_chat, method: POST, path: /v1/chat/completions, required_inputs: [text], optional_inputs: [image, video], outputs: [text], streaming: true}
 install:
   environment_group: mlx
-  python_packages: [mlx-vlm]
+  python_packages: ["mlx-vlm>=0.7.2"]

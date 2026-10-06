@@ -1,0 +1,397 @@
+{
+  "schema": 1,
+  "created_unix_seconds": 1791244142.1168242,
+  "model": "ternary-bonsai-2-27b",
+  "backend": "gguf",
+  "quantization": "pq2_0",
+  "base_url": "http://127.0.0.1:9298",
+  "max_output_tokens": 256,
+  "thinking_disabled": true,
+  "prompt_cache_disabled": true,
+  "warmup": {
+    "wall_seconds": 18.831162207992747,
+    "finish_reason": "stop",
+    "usage": {
+      "completion_tokens": 4,
+      "prompt_tokens": 28,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "total_tokens": 32
+    },
+    "timings": {
+      "cache_n": 0,
+      "predicted_ms": 296.149,
+      "predicted_n": 4,
+      "predicted_per_second": 10.13003589409385,
+      "predicted_per_token_ms": 98.71633333333334,
+      "prompt_ms": 1071.623,
+      "prompt_n": 28,
+      "prompt_per_second": 26.128591864862923,
+      "prompt_per_token_ms": 38.27225
+    },
+    "reasoning": "",
+    "output": "323"
+  },
+  "peak_rss_gib": null,
+  "hardware": null,
+  "cases": [
+    {
+      "task": "reasoning",
+      "target_context_tokens": 512,
+      "concurrency": 1,
+      "runs": 1,
+      "request_payload": {
+        "model": "ternary-bonsai-2-27b",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Context:\nThe first milestone is alpha. The final milestone is omega. The open risks are memory, latency, and quality. record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record \n\nTask:\nUse the context only as scratch material. A farmer has 17 sheep; all but 9 run away. Explain briefly how many remain."
+          }
+        ],
+        "temperature": 0,
+        "seed": 42,
+        "max_tokens": 256,
+        "stream": false,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "cache_prompt": false
+      },
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 11.486295209033415,
+        "latency_seconds": {
+          "min": 11.479242665984202,
+          "median": 11.479242665984202,
+          "p95": 11.479242665984202,
+          "max": 11.479242665984202
+        },
+        "actual_prompt_tokens": {
+          "min": 487,
+          "max": 487,
+          "mean": 487.0
+        },
+        "completion_tokens": 16,
+        "aggregate_completion_tokens_per_second": 1.3929643726566225,
+        "mean_backend_decode_tokens_per_second": 10.261125111846264,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 11.479242665984202,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 16,
+            "prompt_tokens": 487,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 503
+          },
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 1461.828,
+            "predicted_n": 16,
+            "predicted_per_second": 10.261125111846264,
+            "predicted_per_token_ms": 97.4552,
+            "prompt_ms": 9980.205,
+            "prompt_n": 487,
+            "prompt_per_second": 48.79659285555758,
+            "prompt_per_token_ms": 20.4932340862423
+          },
+          "reasoning": "",
+          "output": "If all but 9 sheep run away, then **9 sheep remain**."
+        }
+      ]
+    },
+    {
+      "task": "coding",
+      "target_context_tokens": 512,
+      "concurrency": 1,
+      "runs": 1,
+      "request_payload": {
+        "model": "ternary-bonsai-2-27b",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Context:\nThe first milestone is alpha. The final milestone is omega. The open risks are memory, latency, and quality. record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record \n\nTask:\nWrite a Python function is_palindrome(s) that ignores case and non-alphanumeric characters. Return one fenced code block."
+          }
+        ],
+        "temperature": 0,
+        "seed": 42,
+        "max_tokens": 256,
+        "stream": false,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "cache_prompt": false
+      },
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 22.11937745800242,
+        "latency_seconds": {
+          "min": 22.119057542004157,
+          "median": 22.119057542004157,
+          "p95": 22.119057542004157,
+          "max": 22.119057542004157
+        },
+        "actual_prompt_tokens": {
+          "min": 482,
+          "max": 482,
+          "mean": 482.0
+        },
+        "completion_tokens": 125,
+        "aggregate_completion_tokens_per_second": 5.651153620274115,
+        "mean_backend_decode_tokens_per_second": 9.97796720000779,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 22.119057542004157,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 125,
+            "prompt_tokens": 482,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 607
+          },
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 12427.381,
+            "predicted_n": 125,
+            "predicted_per_second": 9.97796720000779,
+            "predicted_per_token_ms": 100.22081451612902,
+            "prompt_ms": 9685.602,
+            "prompt_n": 482,
+            "prompt_per_second": 49.764588716323466,
+            "prompt_per_token_ms": 20.094609958506226
+          },
+          "reasoning": "",
+          "output": "```python\ndef is_palindrome(s: str) -> bool:\n    \"\"\"\n    Check if a string is a palindrome, ignoring case and non-alphanumeric characters.\n    \n    Args:\n        s: The input string to check.\n        \n    Returns:\n        True if the string is a palindrome, False otherwise.\n    \"\"\"\n    # Filter to keep only alphanumeric characters and convert to lowercase\n    cleaned = [char.lower() for char in s if char.isalnum()]\n    \n    # Check if the cleaned list is a palindrome\n    return cleaned == cleaned[::-1]\n```"
+        }
+      ]
+    },
+    {
+      "task": "knowledge",
+      "target_context_tokens": 512,
+      "concurrency": 1,
+      "runs": 1,
+      "request_payload": {
+        "model": "ternary-bonsai-2-27b",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Context:\nThe first milestone is alpha. The final milestone is omega. The open risks are memory, latency, and quality. record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record \n\nTask:\nIn exactly four sentences, explain why Earth's seasons are caused primarily by axial tilt rather than distance from the Sun."
+          }
+        ],
+        "temperature": 0,
+        "seed": 42,
+        "max_tokens": 256,
+        "stream": false,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "cache_prompt": false
+      },
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 25.225849958020262,
+        "latency_seconds": {
+          "min": 25.225586832966655,
+          "median": 25.225586832966655,
+          "p95": 25.225586832966655,
+          "max": 25.225586832966655
+        },
+        "actual_prompt_tokens": {
+          "min": 481,
+          "max": 481,
+          "mean": 481.0
+        },
+        "completion_tokens": 142,
+        "aggregate_completion_tokens_per_second": 5.629146301762283,
+        "mean_backend_decode_tokens_per_second": 9.406332342933263,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 25.225586832966655,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 142,
+            "prompt_tokens": 481,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 623
+          },
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 14989.902,
+            "predicted_n": 142,
+            "predicted_per_second": 9.406332342933263,
+            "predicted_per_token_ms": 106.31136170212766,
+            "prompt_ms": 10230.462,
+            "prompt_n": 481,
+            "prompt_per_second": 47.01644950149856,
+            "prompt_per_token_ms": 21.269151767151765
+          },
+          "reasoning": "",
+          "output": "Earth's seasons are primarily caused by its 23.5-degree axial tilt, which causes different hemispheres to receive varying angles of sunlight throughout the year. When a hemisphere is tilted toward the Sun, it experiences longer days and more direct sunlight, resulting in summer, while the opposite hemisphere tilts away, leading to shorter days and less intense light, or winter. Although Earth's orbit is slightly elliptical, the difference in distance from the Sun is too small to account for the significant temperature changes observed in the seasons. In fact, Earth is actually closest to the Sun in January, which coincides with winter in the Northern Hemisphere, proving that distance is not the primary driver of seasonal change."
+        }
+      ]
+    },
+    {
+      "task": "summary",
+      "target_context_tokens": 512,
+      "concurrency": 1,
+      "runs": 1,
+      "request_payload": {
+        "model": "ternary-bonsai-2-27b",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Context:\nThe first milestone is alpha. The final milestone is omega. The open risks are memory, latency, and quality. record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record \n\nTask:\nSummarize the supplied synthetic project log in five concise bullets, preserving the first milestone, final milestone, and all risks."
+          }
+        ],
+        "temperature": 0,
+        "seed": 42,
+        "max_tokens": 256,
+        "stream": false,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "cache_prompt": false
+      },
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 20.54782358399825,
+        "latency_seconds": {
+          "min": 20.547348291962408,
+          "median": 20.547348291962408,
+          "p95": 20.547348291962408,
+          "max": 20.547348291962408
+        },
+        "actual_prompt_tokens": {
+          "min": 483,
+          "max": 483,
+          "mean": 483.0
+        },
+        "completion_tokens": 95,
+        "aggregate_completion_tokens_per_second": 4.623360698598846,
+        "mean_backend_decode_tokens_per_second": 9.65349895177379,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 20.547348291962408,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 95,
+            "prompt_tokens": 483,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 578
+          },
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 9737.402,
+            "predicted_n": 95,
+            "predicted_per_second": 9.65349895177379,
+            "predicted_per_token_ms": 103.5893829787234,
+            "prompt_ms": 10802.725,
+            "prompt_n": 483,
+            "prompt_per_second": 44.71094098942628,
+            "prompt_per_token_ms": 22.36589026915114
+          },
+          "reasoning": "",
+          "output": "*   The project's first milestone is designated as **alpha**.\n*   The final milestone for the project is designated as **omega**.\n*   The primary open risks identified are **memory**, **latency**, and **quality**.\n*   The log contains a repetitive sequence of \"record\" entries, indicating continuous data logging or status updates.\n*   The project status is currently in progress, moving from the initial alpha phase toward the final omega phase."
+        }
+      ]
+    },
+    {
+      "task": "image",
+      "target_context_tokens": 0,
+      "concurrency": 1,
+      "runs": 1,
+      "request_payload": {
+        "model": "ternary-bonsai-2-27b",
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "image_url",
+                "image_url": {
+                  "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoAAAAHgCAIAAAC6s0uzAAAACXBIWXMAAAABAAAAAQBPJcTWAAAQAElEQVR4nO3dCbhUdf34cZQlUVxQA1Fwz31BRSy0H2VPCC6hAq5Y4oIk5pppUmqKgqaISylkiSUUiIiaQpoooea+m6GUKLYoCiqCS1z4ff93nv/p/OZyL3PnzvBBeb2enp45xztnvgyXeZ/vzJlzVqupqWkGAKxYLaIHAACrIgEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABwgLcvHnUI7Mi1NREjwBg5WYGDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAPP5t2jRoueff/7VV1997733PvjggzXXXHODDTZo3759165d27ZtGz06YBUVFuCamqhHpl4XXXTRkiVLilZ27NjxhBNOaMpmP/7448suu2zp0qX5leuss86ZZ565zJ9/8803b7zxxmyxTZs23//+98t43FmzZo0fP/6222577rnn6vuZbbbZ5tBDDx00aFCnTp3KeIhlmjJlymOPPZZfc8YZZ6y77rqV2n6JXnrppWeffXbevHlpn2OttdbadNNNd9lll6233rriD5T2b376058W/n6r8Se97rrr3nnnncLtk046qUOHDk3fZlPGXPT72SjnnXdeq1atyrsvnz9mwPxXCnBRJpMWLVr069evKa+qd911V9py0cr0MtpAgC+++OJsccMNN2xsgJ966qlLLrnkjjvuWO5PvvLKK8OHD0/7B0cdddSIESPSYzXqgZbpe9/73muvvZZfs/7665966qlN33Ip0rN3zTXXjBkz5t133637X1OGv/3tb5988snt27ev1CMOGzbs0ksvLdweMGBAZQOc/iCnnXZatnjQQQdVJMBNGfMDDzyQ//1slLPPPluAyQgwy7F48eJUsvSqXfYWfve731VwPA1LM5tzzz33Zz/7WaPulXY7xo4dO3Xq1NGjRx988MFNGcD06dOL6pvccMMNKybA1157bXqJ/89//lPfD7zxxhtDhw698sorL7jggrRbs9pqqzXxER999NG0B9PEjdTn73//ezWetyaO+dlnn63gYFiVCTDLN2HChLIDvGDBgrvvvruy46nP3/72t549e6ZX7fLunqaMffr0SbE88cQTyx7DTTfdVHflzJkzU5i7d+9e9maXK+1D9O/fv8R9nY8++ijtpqQh3XbbbV/4whfKftA02+7Xr1/djy0qIm02/YkWLlxY2c02fczPPPNMBcfDqkyAWb777rvv/fffL++txcmTJzcwIaug559//pvf/Gb2YWFemudtt912u+6664YbbrjOOut8+OGHb7311pNPPpmCXfeHBw0atPrqqx9//PFljCHtbUycOHGZ/yl1vaoBHjhwYGPfaZgyZcqRRx45adKk8h7x7bffTrs7//znP8u7+3JdfPHFRR+lN11Fxpx+0yo1HlZxAsyytWjRYkmtZk17FzqrwhprrPHxxx9Xcog5//73v9MLa9367rTTToMHDz788MOXufcwe/bs1MWRI0cW7SKku+yxxx6dO3du7DAmTJiQJpfZ4vrrrz9v3rzC7dS5uXPnfvGLX2zsNkuR9nJ+9atfFa1Mf4PdunXbZZdd0j7HBx988NJLLz300ENFf9L01/rLX/6yjL2NOXPm9OjR45VXXmnSuOuX0jt06NDKbrMiY04bmT9/frbYpUuXXr16lX73li1bNuXR+ZwRYJYt9XLPPfd84IEHCovjx48vI8DppSrNngu3999//7InWw2rqak59NBD06Q2v7J169ZXXnllmhc28DHn5ptvPnz48BNPPLFfv375I6VTpY444ohUrObNmzdqJPkKbrrppilsF1xwQWEx7cSMGTPm7LPPbtQGS5G2fMoppxStTGuGDBnSrl27/Mr01zFs2LARI0bkD7U7//zzjz322Eb9Sf/whz/0798/27eouIULF6btV/ad7UqNuegD4LTN733ve03cJqssAaZeKUtZgFNH33vvvfXWW69RW5g4cWLN///CWdpalQJ87bXXFr1X2aFDh9///vclTmG32mqrBx98MM2NnnjiiWzlq6++mqaGqd+lDyPd5dFHH80W99tvv/TqnAU4GTVqVDUCfOutt/7rX//Kr7npppuWubfUtm3byy+/PE3ujzrqqGzlv//976lTpx5wwAGlPFYq94UXXljxuWmRU089tewP8uuq7JiLvtK22267VWSzrJoEmHodcsghJ598cuF26ugdd9zxne98p1Fb+O1vf1u4sdZaa6UgVXh8td5+++185JrVfm84TXd23HHH0jeyzjrrpH2F9GKanyFddNFFaWpY+pdGUrDzi7169Uoz7L333vvhhx8urHnttdfuvffeVPrSB1aKojef005Dw+9VHH744emvcvz48dma6dOnlxLgtINy+umn53cyqmHy5MljxozJFrfccsumxLjiYy46AmuXXXap1JZZBQkw9WrXrt3//M///OlPfyosTpgwoVEBTmnM7nvQQQetscYalR9i7fT3ww8/zK+58cYbG1Xfgo4dO15yySXf/e53szVpWjllypTevXuXcvclS5b85je/yRbTDkfPnj3TjfSMZQFuVnsoVmUD/Mknn8yYMSNbbN68edHuyDIddthh+QDPmTOn4Z9//fXXf/jDH+bvUrD99ttvvPHG999/f2OG3JA0Hc+f9eWII47o0KHDVVddVcamqjTm/FvQW2yxRdp1K2870EyAaVjfvn2ziDb2Xej02pd91tivX79qDO/TTz8dPXp0fs03vvGNsh/r+OOPv/zyy/Pf4h03blyJAZ46dWqKR7aY7lX4ek8azCmnnJLGWVh/1113pR/baKONyhthXfPnz0+P9fjjj7/xxhtpsXv37qVsvOhYsNVXX72BH04D3nbbbeseyp4qnvZ1Bg8e3PhR1yvtr2SHOG2yySY///nPyzvlRZXGvGDBgtmzZ2eL3n+miQSYhvTp0yc7E0JNTc3kyZOPPfbYEu+bHf+85pprNupI0dLdc889RUc+n3vuuWVvLU0f0/RryJAhzWpPv/XVr3415bzE+xa9D5ymboUbaYaUnsPsrfg0UU4B+NGPflT2IIuk3BYmeXPnzn3iiSfSzLuUexV9/2qrrbZq4IfTJLuoZG3bth05cmT//v0bP96GXHPNNX/84x+zxd/85jdln1SrSmP2ATCVJcA0JL2+d+vW7ZFHHiksptf6EgM8Z86c7IO3Aw88ME0H02tixYc3ZcqU/OJmm2227777NmWDxx13XPoj77PPPo06Z/K8efPS1DZbTPHOf+CdtpkFOElT9vPOO6/hSWcZ0qR2//33L/GHi05lXHi3vBSFb0gPHTq0IufszHvxxRd/8IMfZIvpdqW+Nl3BMRd9ACzANJEAsxz9+vXLAnz//feX+C50/rO3ww47rEpjmzp1an7xoIMOauIG27VrV/oUP3PLLbcsXrw4W0zT6BYt/vsvK+0T5I8k+sc//nH33Xc3fajlSVPwM888M/+xdNeuXdM+Vin37d279/Dhw7fZZpuKjyrtnB199NHZnLVz585ln2y5SGXHXPQdpN133z27/cILL6Q8v/XWWy1btkz7cGkHbo899mj6mT75fBNglqNPnz5nnHFG4XZNTc2kSZPSlG6598rmfK1bt67S+89z5859880382u+/vWvV+OBlqvo/eeTTjqp6AdOPvnk/PUkbrjhhhUf4LSLcOedd15yySX5iqS/nV/84hcN37FVq1YDBw5MvwPVSG/Beeedl2bA2cONGzcuvwdThiqNOf/UpX219u3bL1y48Lpadc+utcEGG6T8DxkyZPPNN6/gGPg8EWCWY5NNNtlrr72yL9pOmDBhuQGeNWtW9lJ1wAEHVOn457qnNOrSpUs1HqhhTz/9dJr9ZIv777//pptuWvQz6Rn70Y9+lJ0ILE3c33jjjbo/VnGjRo1677333n333cJpsIoOF19zzTUnT5680047NbyRDh06XH/99dUb5LRp00aOHJktjhgxYtttt23iNqsx5rT3mZ7GbDFN0++5554BAwYs8+ynzWpPLZ72zH7961+fdtppw4YNa+xJXVgVCDDL17dv3yzA999///z58xu+jn3+pMTpvlUa1cyZM/OLKScdO3as0mM1IP+l1Wa1k926P7Puuuv2798//8lrmndW6l3WBqRp96JFi5b5n7p37z569OhqXB64UdLvUv5by7169cp/E2yl8vLLL+cP7Eo7XqW8jbF48eIrr7zyySefnDhx4vrrr1/NAfLZI8AsX79+/bJTOC1ZsmTSpEkNnz04e/85zX1LPMVSGYqud7vZZptV6YEa8Mknn4wdOzZbTJPa+g5oOuWUU/IBTrcvvPDCqs6K3n///frqu912251++ulbbLFF9R69RCeddFJ2Gq8NN9yw7hmtdN9T5gAAEABJREFUVx5FR2DVN/FdpunTp6dfjBkzZjTl2lN8/ggwy9epU6cuXbqkvfjC4oQJExoI8AsvvPDXv/61cDtNaNLEtEqjWrBgQX6x4Ul5ldxxxx3vvfdetphyUt9xNzvvvHP+ePK333779ttvr97bA81qj/aq7z+lv6BDDjlk8803v+KKK9KN6o2hYTfffPNtt92WLab6Fp28eqVS32WAW7Vq1b179/Rv5Itf/OLChQvnzJnz8MMP183zU089dcIJJ+TP1gICTEnSJDgL8LRp0+bNm1ff+2n5r9xU6fwbBUXTu9atW1fvseqTn7G1aNGi4TcG0iQ4C3Cz2g9oqxrg5V50b/bs2WkAZ5111uWXX169YTTw6PnLGAwcOLB6b5ZURN3LAG+xxRZDhw7t3bt33d+9KVOmXHDBBSm6+ZXjxo077rjjog4VZCUkwJQkvVKfc845hduFd6HzpwzMS/Pjwo00MzjwwAOrN6SiK7utmKsO56UpZnatp2a1T1HDVxvs06dP+/bts6s2pf2YWbNmVe9T2E022STNL7t06dKhQ4dmtWfWTDOztMeQP9lFcuWVV6633nrnnXdelYaxTOlX6Oijj07zxcLil770pREjRqzIAZSha9euc+fO/ctf/lJYHDRoUBpzfW8p9+rVq0ePHmeeeeZ1112XXz9kyJD8ThirOAGmJJtvvnnnzp2zd+FuvfXWZQb4iSeeyE7lmF6DSjwxU3natGmTX6zv887qufnmm/OLyzz8Ki9NkdM8L3/s1ejRo6s3+9y+VrbYsWPHw2ulydkxxxyTv6htmqt961vfWu7h0BWUJo7ZeVqaN28+duzYkDcwGmV4rQULFjz++ONp32u5V+dMf66rr7563rx5aeKbrXzsscdmzpzZ9MO8+XwQYErVr1+/LMD1vQudf/+5euffKCg6T2HRMVkrwE033ZTdTtP9+2o1fJeiixanLaQer+ADc9KO0QMPPLDPPvtk30pK89HU4PzHsVWV9tLyeyE/+clP9thjjxXz0E239tprl36C0iQ1+M4778x/AewPf/iDAFMgwJSqb9++hfMkN6t9yU6v1yeeeGLRz6SZceFGy5Ytq/2R3pZbbplfnDNnztKlS1fYuYceeuih/GXyPv300zK+VpR2YiZOnHj00UdXdGjLt/POO19xxRWDBg3K1tx1110NfK5fQYsWLTrqqKPS709hce+9927K6btXfukpPeKII/IHwKffnOz86qziBJhSbb311umFOzvpRGptUYBnzJiRHfjTs2fPNFeo9njyi4sXL3799ddX2FmHiq7+W7ZRo0at+AA3qz1fZpr1ZjPympqaP//5zyvgMKjUnmzHpU2bNrfccsvn/nyN++67bz7ARe+CsCoTYBqhX79+WYAfeOCBd955J3+C+xV2/HPBVltttcYaa2Snl2pW+wFb0wP85ptvpj9Uw2fvWrhwYZq5NvGBCh5++OG//OUvO+ywQ0W2VrqUvR49euS/FfPiiy9WO8Cp8fn37XfaaaflfvG36JCl0aNHF44pK0gD3nPPPSs7yIorOj/M3Llzo0bCykaAaYSU1fPPP79wu3As9MCBA7PF7EPEli1broBzHTdv3vwrX/lK2g/I1kyfPv3www9v4mbT1DBts2vXrl/72te+/vWvd+vWrW6Mx48fX8FjvtIk+Oqrr67U1kpXtLMyb968aj9i0eTv0VqN2kLRdZzSrtLKH+Ci35+KXwiLzy4BphG22Wab7bff/uWXXy4s3nrrrVmAp02blp18IE2t1llnnRUwnhTIfIBvv/32n/3sZ015SzPNpx988MHFixc/UuvSSy+97LLL8tdRKMhP45JjjjmmUTPvp59++u67784Wb7755uHDhzflMOC09/PSSy899thjRx99dOnbWbp0admPSOmKTspR8Ss58tklwDROmgRfdNFFhdv5d6Hz7z9X9fwSeQcffHA2I29We3qpqVOnNuXiS2mXouj7xOkhin5m1qxZ+fdF11xzzeuvv75R+ZwzZ04+wAsWLEjPXinXmKpr9OjRt9xySyr6Rx991Kz2u7+l//HTMPKL7du3L2MAq4j0JKe/92yxf//+pX+Bu+gUWiFnLGflJMA0ToprFuA0hZo8efIJJ5yQpoxp9llY2aJFi969e6+Ywey4447548KSYcOGNSXARaeDSNP9uq+zRR9bpkI3dvLaqVOn7t27T58+PVszatSo8gL88ssv5y/uO2nSpNL/+Pfee29+URgakJ7ktK+TLbZq1ar0U5f8/ve/zy/uvffelRwZn2UCTOOk5m277bbZlYgmTpyYAnzfffe9//77hTXf/OY3i76hW1XHH3/86aefni2mF8rf/e53RxxxRBmbGjNmzPPPP59fM2DAgKKfSfscv/71r/NryjuGOW05H+Ann3zymWee2W233Rq7nc6dO+cXx40bl3ZBSnmTc+zYsdlVEApWwCkS0w7Nj3/840bdJe0lZFfialb7CX3+IKy99tqrYoNrUNrPyy+m34ESAzxjxoyi48j23XffSo6MzzIBptHSJPiSSy4p3J42bVpKb3b6yWYr5PjnvBNPPHHo0KH5j9lOPvnkPfbY40tf+lKjtjN79uzTTjstv2a99dbLf1O2YOrUqflubbDBBmmHo/Gj/n/P4eDBg7NzMTarnQTfcMMNjd1Omu+uvvrq2ddqP/7447PPPrvoI+q65syZU/TB9pe//OWGz6NZEWnX7cILL2zUXT788MN8gAcOHBhy1o4DDjggf+bqV199NU2IswMg6jN//vyiNza6devmLBxkBJhGS4nNAlxTU3P77bffeeedhcXmzZuvsPefC9ZYY41zzjknu1pis9rL8KXJ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GAACCDAABBBgAAggwAAQQIABIIAAA0AAAQaAAAIMAAEEGAACCDAABBBgAAggwAAQQIABIIAAA0AAAQaAAAIMAAEEGAACCDAABBBgAAggwAAQQIABIIAAA0AAAQaAAAIMAAEEGAACCDAABBBgAAggwAAQQIABIIAAA0AAAQaAAAIMAAEEGAACCDAABBBgAAggwAAQQIABIIAAA0AAAQaAAAIMAAEEGJAqXrQAAAF6SURBVAACCDAABBBgAAggwAAQQIABIIAAA0AAAQaAAAIMAAEEGAACCDAABBBgAAggwAAQQIABIIAAA0AAAQaAAAIMAAEEGAACCDAABBBgAAggwAAQQIABIIAAA0AAAQaAAAIMAAEEGAACCDAABBBgAAggwAAQQIABIIAAAzRbraYmegiscgQYAAIIMAAEEGAACCDAABBAgAEggAADQAABBoAAAgwAAQQYAAIIMAAEEGAACCDAABBAgAEggAADQAABBoAAAgwAAQQYAAIIMAAEEGAACCDAABBAgAEggAADQAABBoAAAgwAAQQYAAIIMAAEEGAACCDAABBAgAEggAADQAABBoAAAgwAAQQYAAIIMAAEEGAACCDAABBAgAEggAADQAABBoAAAgwAAQQYAAIIMAAEEGAACCDAABBAgAEggAADQAABBoAAAgwAAQQYAAIIMAAEEGAACCDAABBAgAEggAADQAABBoAAAgwAAQQYAAIIMAAEEGAACPC/CYi0p4TDf3sAAAAASUVORK5CYII="
+                }
+              },
+              {
+                "type": "text",
+                "text": "Read all large text and describe the colored regions."
+              }
+            ]
+          }
+        ],
+        "temperature": 0,
+        "seed": 42,
+        "max_tokens": 256,
+        "stream": false,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "cache_prompt": false
+      },
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 15.402644207992125,
+        "latency_seconds": {
+          "min": 15.402188125008252,
+          "median": 15.402188125008252,
+          "p95": 15.402188125008252,
+          "max": 15.402188125008252
+        },
+        "actual_prompt_tokens": {
+          "min": 324,
+          "max": 324,
+          "mean": 324.0
+        },
+        "completion_tokens": 57,
+        "aggregate_completion_tokens_per_second": 3.7006632906851045,
+        "mean_backend_decode_tokens_per_second": 8.857594865631867,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 15.402188125008252,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 57,
+            "prompt_tokens": 324,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 381
+          },
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 6322.258,
+            "predicted_n": 57,
+            "predicted_per_second": 8.857594865631867,
+            "predicted_per_token_ms": 112.89746428571428,
+            "prompt_ms": 9001.344,
+            "prompt_n": 324,
+            "prompt_per_second": 35.99462480269614,
+            "prompt_per_token_ms": 27.781925925925922
+          },
+          "reasoning": "",
+          "output": "The large text in the image reads **MICA 31415**.\n\nThere are two colored regions:\n1.  A **blue** square located in the upper-left area.\n2.  A **red** square located in the lower-right area."
+        }
+      ]
+    }
+  ],
+  "complete": true
+}

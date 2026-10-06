@@ -51,9 +51,9 @@ Usage:
 Setup options:
   --backends auto|mlx|gguf|vllm|LIST
                             Install one or more runtime stacks (default: auto)
-  --profile NAME            Task profile (default: hardware-selected auto)
-  --profile-file PATH       Validate, install, and select a schema-4 YAML task
-  --quant q4|q8|q4,q8       Legacy profiles only; schema-4 tasks pin variants
+  --profile NAME            Workload profile (default: hardware-selected auto)
+  --profile-file PATH       Validate, install, and select a schema-5 YAML workload
+  --quant q4|q8|q4,q8       Legacy profiles only; workloads select per-model variants
   --ram-gib N               Hard model RAM admission budget (default 8)
   --vram-gib auto|N         Discrete-GPU budget; omitted/auto detects, zero disables
   --vllm-device VALUE       auto|cpu|cuda|metal|rocm|xpu|tpu
@@ -66,7 +66,7 @@ Setup options:
   --dry-run                 Print actions without changing the machine
 
 Serve options:
-  --backend mlx|gguf|vllm   Legacy-profile backend selection; schema 4 pins engines
+  --backend mlx|gguf|vllm   Legacy-profile backend selection; workloads resolve engines
   --server-config PATH      Server JSON (default ~/.mica/config/server.json)
   --api-key TOKEN           Override API token (prefer a file; arguments are visible)
   --api-key-file PATH       Override the configured API-token file
@@ -116,7 +116,7 @@ std::filesystem::path default_config() {
   for (const auto& candidate : candidates) {
     if (std::filesystem::is_directory(candidate / "engines") &&
         std::filesystem::is_directory(candidate / "model-manifests") &&
-        std::filesystem::is_directory(candidate / "tasks")) {
+        std::filesystem::is_directory(candidate / "workloads")) {
       return candidate.lexically_normal();
     }
   }
@@ -283,6 +283,7 @@ json local_profile_list(const mica::Registry& registry,
     profiles.push_back({{"id", id},
                         {"description", profile.description},
                         {"default_chat_model", profile.default_chat_model},
+                        {"defaults", profile.default_models},
                         {"schema", profile.schema},
                         {"migration_recommended", installed && profile.schema < 4},
                         {"mode", profile.mode},
@@ -387,6 +388,7 @@ int main(int argc, char** argv) {
         return 0;
       }
       auto registry = mica::load_registry(config_directory);
+      registry.runtime_root = root.string();
       mica::merge_custom_models(registry, root);
       mica::merge_installed_profiles(registry, root);
       if (action == "list") {
@@ -402,7 +404,7 @@ int main(int argc, char** argv) {
           if (profile.schema < 3) continue;
           const auto destination = output / (name + ".yaml");
           if (std::filesystem::exists(destination)) {
-            throw std::runtime_error("refusing to overwrite existing task: " +
+            throw std::runtime_error("refusing to overwrite existing workload: " +
                                      destination.string());
           }
           auto document = mica::profile_to_document(profile);
@@ -538,12 +540,13 @@ int main(int argc, char** argv) {
       std::filesystem::path config_directory = default_config();
       std::filesystem::path root = default_root();
       std::optional<std::string> capability;
+      std::optional<std::string> modality_filter;
       std::optional<mica::Backend> backend;
       std::optional<std::string> engine;
       for (std::size_t i = 3; i < args.size(); ++i) {
         if (args[i] == "--modality") {
-          capability = mica::modality_capability(
-              mica::normalize_modality(value_after(args, i)));
+          modality_filter = value_after(args, i);
+          (void)mica::normalize_modality(*modality_filter);
         } else if (args[i] == "--capability") {
           capability = value_after(args, i);
         } else if (args[i] == "--backend") {
@@ -563,13 +566,14 @@ int main(int argc, char** argv) {
       mica::merge_installed_profiles(registry, root);
       std::cout << std::setw(2)
                 << mica::registry_catalog(registry, capability, backend,
-                                          args[2] == "ping", engine)
+                                          args[2] == "ping", engine, modality_filter)
                 << '\n';
       return 0;
     }
     if (args[1] == "plan" || args[1] == "setup") {
       auto options = parse_setup(args);
       auto registry = mica::load_registry(options.config_directory);
+      registry.runtime_root = options.root.string();
       mica::merge_custom_models(registry, options.root);
       mica::merge_installed_profiles(registry, options.root);
       if (!options.profile_file.empty()) {
@@ -611,8 +615,7 @@ int main(int argc, char** argv) {
       const auto& selected_profile = registry.profile(resolved.options.profile);
       for (const auto& policy : selected_profile.model_policies) {
         const auto& model = registry.model(policy.id);
-        const auto& artifact = model.artifacts.at(policy.backend)
-                                   .at(policy.quantization);
+        const auto& artifact = model.artifact_for(policy.backend, policy.quantization, policy.engine);
         const auto placement = mica::resolve_model_placement(
             policy, artifact, resolved.hardware);
         model_placements.push_back({

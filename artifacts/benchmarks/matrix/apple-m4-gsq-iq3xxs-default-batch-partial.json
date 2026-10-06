@@ -1,0 +1,436 @@
+{
+  "schema": 1,
+  "created_unix_seconds": 1791243396.59422,
+  "model": "qwen38-27b-gsq-rco",
+  "backend": "gguf",
+  "quantization": "iq3_xxs",
+  "base_url": "http://127.0.0.1:9298",
+  "max_output_tokens": 384,
+  "thinking_disabled": true,
+  "prompt_cache_disabled": true,
+  "warmup": {
+    "wall_seconds": 1.7192702500033192,
+    "finish_reason": "stop",
+    "usage": {
+      "completion_tokens": 4,
+      "prompt_tokens": 28,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "total_tokens": 32
+    },
+    "timings": {
+      "cache_n": 0,
+      "predicted_ms": 439.736,
+      "predicted_n": 4,
+      "predicted_per_second": 6.822275183291794,
+      "predicted_per_token_ms": 146.57866666666666,
+      "prompt_ms": 1205.228,
+      "prompt_n": 28,
+      "prompt_per_second": 23.232118736039983,
+      "prompt_per_token_ms": 43.04385714285714
+    },
+    "reasoning": "",
+    "output": "323"
+  },
+  "peak_rss_gib": null,
+  "hardware": {
+    "accelerators": [
+      {
+        "apis": [
+          "metal"
+        ],
+        "architecture": "",
+        "driver": "",
+        "id": "0",
+        "memory_gib": 24.0,
+        "name": "Apple M4 GPU",
+        "runtime": "metal",
+        "type": "gpu",
+        "unified_memory": true,
+        "vendor": "apple"
+      }
+    ],
+    "backend_targets": {
+      "audio": {
+        "device": "metal"
+      },
+      "gguf": {
+        "device": "metal"
+      },
+      "mlx": {
+        "device": "metal"
+      },
+      "vllm": {
+        "device": "metal"
+      }
+    },
+    "cpu": {
+      "logical_cores": 10,
+      "model": "Apple M4",
+      "physical_cores": 10,
+      "vendor": "apple"
+    },
+    "memory": {
+      "system_ram_gib": 24.0,
+      "unified_memory_gib": 24.0
+    },
+    "schema": 1,
+    "system": {
+      "apple_silicon": true,
+      "arch": "arm64",
+      "os": "macos",
+      "version": "26.5.1",
+      "wsl": false
+    },
+    "toolchains": {}
+  },
+  "complete": false,
+  "cases": [
+    {
+      "task": "reasoning",
+      "target_context_tokens": 512,
+      "concurrency": 1,
+      "runs": 1,
+      "request_payload": {
+        "model": "qwen38-27b-gsq-rco",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Context:\nThe first milestone is alpha. The final milestone is omega. The open risks are memory, latency, and quality. record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record \n\nTask:\nUse the context only as scratch material. A farmer has 17 sheep; all but 9 run away. Explain briefly how many remain."
+          }
+        ],
+        "temperature": 0,
+        "seed": 42,
+        "max_tokens": 384,
+        "stream": false,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "cache_prompt": false
+      },
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 16.393933542014565,
+        "latency_seconds": {
+          "min": 16.390123958000913,
+          "median": 16.390123958000913,
+          "p95": 16.390123958000913,
+          "max": 16.390123958000913
+        },
+        "actual_prompt_tokens": {
+          "min": 487,
+          "max": 487,
+          "mean": 487.0
+        },
+        "completion_tokens": 27,
+        "aggregate_completion_tokens_per_second": 1.6469506803113532,
+        "mean_backend_decode_tokens_per_second": 6.445781310506673,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 16.390123958000913,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 27,
+            "prompt_tokens": 487,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 514
+          },
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 4033.646,
+            "predicted_n": 27,
+            "predicted_per_second": 6.445781310506673,
+            "predicted_per_token_ms": 155.14023076923078,
+            "prompt_ms": 12323.203,
+            "prompt_n": 487,
+            "prompt_per_second": 39.51894649467351,
+            "prompt_per_token_ms": 25.304318275154003
+          },
+          "reasoning": "",
+          "output": "If all but 9 sheep run away, that means 9 sheep did not run away. Therefore, **9 sheep remain**."
+        }
+      ]
+    },
+    {
+      "task": "reasoning",
+      "target_context_tokens": 2048,
+      "concurrency": 1,
+      "runs": 1,
+      "request_payload": {
+        "model": "qwen38-27b-gsq-rco",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Context:\nThe first milestone is alpha. The final milestone is omega. The open risks are memory, latency, and quality. record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record \n\nTask:\nUse the context only as scratch material. A farmer has 17 sheep; all but 9 run away. Explain briefly how many remain."
+          }
+        ],
+        "temperature": 0,
+        "seed": 42,
+        "max_tokens": 384,
+        "stream": false,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "cache_prompt": false
+      },
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 62.08469120803056,
+        "latency_seconds": {
+          "min": 62.0834042080096,
+          "median": 62.0834042080096,
+          "p95": 62.0834042080096,
+          "max": 62.0834042080096
+        },
+        "actual_prompt_tokens": {
+          "min": 2023,
+          "max": 2023,
+          "mean": 2023.0
+        },
+        "completion_tokens": 71,
+        "aggregate_completion_tokens_per_second": 1.1435991484937313,
+        "mean_backend_decode_tokens_per_second": 5.269263108609298,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 62.0834042080096,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 71,
+            "prompt_tokens": 2023,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 2094
+          },
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 13284.59,
+            "predicted_n": 71,
+            "predicted_per_second": 5.269263108609298,
+            "predicted_per_token_ms": 189.77985714285714,
+            "prompt_ms": 48778.555,
+            "prompt_n": 2023,
+            "prompt_per_second": 41.4731432696192,
+            "prompt_per_token_ms": 24.111989619377162
+          },
+          "reasoning": "",
+          "output": "8 sheep remain.\n\n**Explanation:**\nThe phrase \"all but 9\" means that 9 sheep did **not** run away. Therefore, the number of sheep remaining is 9.\n\n*(Note: The total number of sheep (17) is irrelevant to the final count because the statement explicitly defines the number that stayed.)*"
+        }
+      ]
+    },
+    {
+      "task": "reasoning",
+      "target_context_tokens": 4096,
+      "concurrency": 1,
+      "runs": 1,
+      "request_payload": {
+        "model": "qwen38-27b-gsq-rco",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Context:\nThe first milestone is alpha. The final milestone is omega. The open risks are memory, latency, and quality. record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record \n\nTask:\nUse the context only as scratch material. A farmer has 17 sheep; all but 9 run away. Explain briefly how many remain."
+          }
+        ],
+        "temperature": 0,
+        "seed": 42,
+        "max_tokens": 384,
+        "stream": false,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "cache_prompt": false
+      },
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 120.69075583299855,
+        "latency_seconds": {
+          "min": 120.68779200001154,
+          "median": 120.68779200001154,
+          "p95": 120.68779200001154,
+          "max": 120.68779200001154
+        },
+        "actual_prompt_tokens": {
+          "min": 4071,
+          "max": 4071,
+          "mean": 4071.0
+        },
+        "completion_tokens": 60,
+        "aggregate_completion_tokens_per_second": 0.49713832336109337,
+        "mean_backend_decode_tokens_per_second": 5.057657726699436,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 120.68779200001154,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 60,
+            "prompt_tokens": 4071,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 4131
+          },
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 11665.479,
+            "predicted_n": 60,
+            "predicted_per_second": 5.057657726699436,
+            "predicted_per_token_ms": 197.71998305084745,
+            "prompt_ms": 108958.078,
+            "prompt_n": 4071,
+            "prompt_per_second": 37.362993866319854,
+            "prompt_per_token_ms": 26.764450503561775
+          },
+          "reasoning": "",
+          "output": "8 sheep remain.\n\n**Explanation:**\nThe phrase \"all but 9\" means that 9 sheep did **not** run away. Therefore, the number of sheep remaining is 9.\n\n*(Note: The context provided regarding milestones and risks is irrelevant to this math problem.)*"
+        }
+      ]
+    },
+    {
+      "task": "coding",
+      "target_context_tokens": 512,
+      "concurrency": 1,
+      "runs": 1,
+      "request_payload": {
+        "model": "qwen38-27b-gsq-rco",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Context:\nThe first milestone is alpha. The final milestone is omega. The open risks are memory, latency, and quality. record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record \n\nTask:\nWrite a Python function is_palindrome(s) that ignores case and non-alphanumeric characters. Return one fenced code block."
+          }
+        ],
+        "temperature": 0,
+        "seed": 42,
+        "max_tokens": 384,
+        "stream": false,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "cache_prompt": false
+      },
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 21.65937174996361,
+        "latency_seconds": {
+          "min": 21.657558458973654,
+          "median": 21.657558458973654,
+          "p95": 21.657558458973654,
+          "max": 21.657558458973654
+        },
+        "actual_prompt_tokens": {
+          "min": 482,
+          "max": 482,
+          "mean": 482.0
+        },
+        "completion_tokens": 44,
+        "aggregate_completion_tokens_per_second": 2.031453197624438,
+        "mean_backend_decode_tokens_per_second": 5.167453741975575,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 21.657558458973654,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 44,
+            "prompt_tokens": 482,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 526
+          },
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 8321.313,
+            "predicted_n": 44,
+            "predicted_per_second": 5.167453741975575,
+            "predicted_per_token_ms": 193.51890697674418,
+            "prompt_ms": 13061.433,
+            "prompt_n": 482,
+            "prompt_per_second": 36.90253588561072,
+            "prompt_per_token_ms": 27.098408713692947
+          },
+          "reasoning": "",
+          "output": "```python\ndef is_palindrome(s: str) -> bool:\n    cleaned = ''.join(ch.lower() for ch in s if ch.isalnum())\n    return cleaned == cleaned[::-1]\n```"
+        }
+      ]
+    },
+    {
+      "task": "coding",
+      "target_context_tokens": 2048,
+      "concurrency": 1,
+      "runs": 1,
+      "request_payload": {
+        "model": "qwen38-27b-gsq-rco",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Context:\nThe first milestone is alpha. The final milestone is omega. The open risks are memory, latency, and quality. record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record \n\nTask:\nWrite a Python function is_palindrome(s) that ignores case and non-alphanumeric characters. Return one fenced code block."
+          }
+        ],
+        "temperature": 0,
+        "seed": 42,
+        "max_tokens": 384,
+        "stream": false,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "cache_prompt": false
+      },
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 62.11971250001807,
+        "latency_seconds": {
+          "min": 62.116604209004436,
+          "median": 62.116604209004436,
+          "p95": 62.116604209004436,
+          "max": 62.116604209004436
+        },
+        "actual_prompt_tokens": {
+          "min": 2018,
+          "max": 2018,
+          "mean": 2018.0
+        },
+        "completion_tokens": 44,
+        "aggregate_completion_tokens_per_second": 0.7083097816975119,
+        "mean_backend_decode_tokens_per_second": 5.166658375982296,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 62.116604209004436,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 44,
+            "prompt_tokens": 2018,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 2062
+          },
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 8322.594,
+            "predicted_n": 44,
+            "predicted_per_second": 5.166658375982296,
+            "predicted_per_token_ms": 193.54869767441858,
+            "prompt_ms": 53750.072,
+            "prompt_n": 2018,
+            "prompt_per_second": 37.544135754832105,
+            "prompt_per_token_ms": 26.63531813676908
+          },
+          "reasoning": "",
+          "output": "```python\ndef is_palindrome(s: str) -> bool:\n    cleaned = ''.join(ch.lower() for ch in s if ch.isalnum())\n    return cleaned == cleaned[::-1]\n```"
+        }
+      ]
+    }
+  ]
+}

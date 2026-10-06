@@ -1,0 +1,160 @@
+{
+  "schema": 1,
+  "created_unix_seconds": 1791243685.5997162,
+  "model": "qwen38-27b-gsq-rco",
+  "backend": "gguf",
+  "quantization": "iq3_xxs",
+  "base_url": "http://127.0.0.1:9298",
+  "max_output_tokens": 384,
+  "thinking_disabled": true,
+  "prompt_cache_disabled": true,
+  "warmup": {
+    "wall_seconds": 1.6045740830013528,
+    "finish_reason": "stop",
+    "usage": {
+      "completion_tokens": 4,
+      "prompt_tokens": 28,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "total_tokens": 32
+    },
+    "timings": {
+      "cache_n": 0,
+      "predicted_ms": 407.569,
+      "predicted_n": 4,
+      "predicted_per_second": 7.360716835676904,
+      "predicted_per_token_ms": 135.85633333333334,
+      "prompt_ms": 1124.67,
+      "prompt_n": 28,
+      "prompt_per_second": 24.896191771808617,
+      "prompt_per_token_ms": 40.166785714285716
+    },
+    "reasoning": "",
+    "output": "323"
+  },
+  "peak_rss_gib": null,
+  "hardware": {
+    "accelerators": [
+      {
+        "apis": [
+          "metal"
+        ],
+        "architecture": "",
+        "driver": "",
+        "id": "0",
+        "memory_gib": 24.0,
+        "name": "Apple M4 GPU",
+        "runtime": "metal",
+        "type": "gpu",
+        "unified_memory": true,
+        "vendor": "apple"
+      }
+    ],
+    "backend_targets": {
+      "audio": {
+        "device": "metal"
+      },
+      "gguf": {
+        "device": "metal"
+      },
+      "mlx": {
+        "device": "metal"
+      },
+      "vllm": {
+        "device": "metal"
+      }
+    },
+    "cpu": {
+      "logical_cores": 10,
+      "model": "Apple M4",
+      "physical_cores": 10,
+      "vendor": "apple"
+    },
+    "memory": {
+      "system_ram_gib": 24.0,
+      "unified_memory_gib": 24.0
+    },
+    "schema": 1,
+    "system": {
+      "apple_silicon": true,
+      "arch": "arm64",
+      "os": "macos",
+      "version": "26.5.1",
+      "wsl": false
+    },
+    "toolchains": {}
+  },
+  "complete": false,
+  "cases": [
+    {
+      "task": "reasoning",
+      "target_context_tokens": 512,
+      "concurrency": 1,
+      "runs": 1,
+      "request_payload": {
+        "model": "qwen38-27b-gsq-rco",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Context:\nThe first milestone is alpha. The final milestone is omega. The open risks are memory, latency, and quality. record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record record \n\nTask:\nUse the context only as scratch material. A farmer has 17 sheep; all but 9 run away. Explain briefly how many remain."
+          }
+        ],
+        "temperature": 0,
+        "seed": 42,
+        "max_tokens": 384,
+        "stream": false,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "cache_prompt": false
+      },
+      "summary": {
+        "request_count": 1,
+        "batch_wall_seconds": 13.445220957975835,
+        "latency_seconds": {
+          "min": 13.432273625046946,
+          "median": 13.432273625046946,
+          "p95": 13.432273625046946,
+          "max": 13.432273625046946
+        },
+        "actual_prompt_tokens": {
+          "min": 487,
+          "max": 487,
+          "mean": 487.0
+        },
+        "completion_tokens": 27,
+        "aggregate_completion_tokens_per_second": 2.00814847776699,
+        "mean_backend_decode_tokens_per_second": 7.330379942050527,
+        "all_stopped_normally": true
+      },
+      "requests": [
+        {
+          "wall_seconds": 13.432273625046946,
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 27,
+            "prompt_tokens": 487,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 514
+          },
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 3546.883,
+            "predicted_n": 27,
+            "predicted_per_second": 7.330379942050527,
+            "predicted_per_token_ms": 136.41857692307693,
+            "prompt_ms": 9737.6,
+            "prompt_n": 487,
+            "prompt_per_second": 50.01232336510023,
+            "prompt_per_token_ms": 19.995071868583164
+          },
+          "reasoning": "",
+          "output": "If all but 9 sheep run away, that means 9 sheep did not run away. Therefore, **9 sheep remain**."
+        }
+      ]
+    }
+  ]
+}

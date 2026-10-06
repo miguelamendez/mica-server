@@ -43,7 +43,7 @@ struct ResolvedSetup {
   std::map<Backend, std::map<Quantization, StartupPlan>> startups;
 };
 
-ResolvedSetup resolve_setup(const Registry& registry, SetupOptions options);
+ResolvedSetup resolve_setup(Registry& registry, SetupOptions options);
 void execute_setup(const Registry& registry, const ResolvedSetup& setup);
 std::string generate_api_key();
 

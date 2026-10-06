@@ -1,10 +1,10 @@
 # Mica configuration contract
 
-Status: Machine policy, packaged engine/model YAML, built-in schema-4 task YAML, and synthetic per-device reservation accounting are implemented. Legacy diagnostic profiles, strict memory enforcement, and real-hardware certification remain open.
-Date: 2026-09-30
+Status: Machine policy, schema-2 engine/model manifests, schema-5 workload YAML, automatic engine/artifact selection, and synthetic per-device reservation accounting are implemented. Strict process-memory enforcement and Linux vLLM/multi-GPU certification remain open.
+Updated: 2026-10-05
 
 This contract defines **four layers**, not four interchangeable meanings of
-"profile": machine, engine, model, and task. The catalog is an index of task
+"profile": machine, engine, model, and workload. The catalog is an index of workload
 definitions. Server network settings and credentials are a separate service
 configuration.
 
@@ -14,9 +14,9 @@ configuration.
 | --- | --- | --- | --- |
 | Detected machine facts | `~/.mica/state/hardware.yaml` | Detector only | `schema: 1` |
 | Machine policy | `~/.mica/config/machine.yaml` | User/setup defaults only | `schema: 1` |
-| Engine manifest | `config/engines/<id>.yaml` | Mica package/trusted registry | Existing `schema: 1` until an incompatible change requires v2 |
-| Model manifest | `config/model-manifests/<id>.yaml` | Mica package/trusted registry | `schema: 1` |
-| Task profile | `config/tasks/<id>.yaml`, or a user-selected YAML file | Mica/user | New `schema: 4` |
+| Engine manifest | `config/engines/<id>.yaml` | Mica package/trusted registry | `schema: 2` |
+| Model manifest | `config/model-manifests/<id>.yaml` | Mica package/trusted registry | `schema: 2` |
+| Workload profile | `config/workloads/<id>.yaml`, or a user-selected YAML file | Mica/user | `schema: 5` |
 
 The machine layer has two physical files because rediscovery may rewrite facts
 but **must never rewrite user policy**. The resolver combines them into one
@@ -97,28 +97,32 @@ supported output limits and warns in `plan` when disclosed useful/trained spans
 are exceeded. No training span is inferred from a tokenizer or architecture
 window; generation presets are not yet implemented.
 
-## Task contract
+## Workload contract
 
-A task profile chooses a set of models and a default model, exact artifact
-variants or an allowed selection rule, optional engine pin, placement,
-context/output limits, generation method and sampling preset/overrides,
-batching, KV precision, warmup, priority, residency and eviction. It may also
-define the agent/tool workflow and task-level RAM or per-device dedicated
-memory requirements. A task does not set a RAM/VRAM usage cap: the global
+A workload profile chooses a collection of models, optional operation/input
+defaults, artifact variants or an allowed selection rule, optional engine
+pins, placement, context/output limits, batching, KV precision, warmup,
+priority, residency and eviction. It declares RAM and dedicated-memory
+requirements, not execution steps or a RAM/VRAM usage cap: the global
 machine allocation is the ceiling. If that allocation cannot satisfy the
 declared requirements and the selected model reservations, setup rejects the
-task without installing or loading it.
+workload without installing or loading it.
 
-Current schema-4 tasks require an explicit engine and artifact per model.
-Automatic artifact–engine selection and task-level generation presets remain
-target behavior, not shipped features.
+Schema-5 workloads may omit engine and artifact for registered models.
+`selection.engine_policy` defaults to `prefer-installed`: choose an installed
+compatible engine before model-manifest order. `manifest-order` follows that
+order; `explicit-only` requires both pins. Missing artifacts prefer Q4, then
+Q8, then the first remaining artifact ID in sorted order. Omit `engine` for
+automatic selection rather than declaring an engine ID named `auto`.
+Generation/sampling presets and execution-workflow definitions remain future
+work, not accepted workload fields.
 
-`engine: auto` is resolved deterministically from the model's ordered
-artifact–engine candidates after checking detected hardware, machine policy,
-format, required features, minimum revision, and certification. The exact
+Resolution checks compatible hardware and artifact–engine pairs. The exact
 chosen artifact, engine revision, device and effective settings are written
 to runtime state. A format match alone is not sufficient (for example, a
-specialized GGUF may require a fork-specific feature).
+specialized GGUF may require a fork-specific feature). Engine minimum-revision
+checks occur during setup; compatibility resolution alone is not inference
+certification.
 
 ## Resolution and validation order
 
@@ -161,18 +165,18 @@ build limits without changing measured hardware facts.
 | Current | Target | Migration note |
 | --- | --- | --- |
 | `state/system-profile.yaml` and `state/hardware-profile.json` | `state/hardware.yaml` | Keep JSON only for a one-time migration/fixture path; remove build policy from detected facts. |
-| CLI/server memory options and per-profile memory fields | `config/machine.yaml` global ceilings plus `config/tasks/*.yaml` narrower task ceilings | CLI may narrow a run but must not silently raise machine policy. |
+| CLI/server memory options and per-profile memory fields | `config/machine.yaml` global ceilings plus `config/workloads/*.yaml` workload requirements | CLI may narrow a run but must not silently raise machine policy; workload requirements are not extra usage ceilings. |
 | `config/engines/*.yaml` | Same path | Extend typed fields only where current manifests still defer to code. |
 | Curated model definitions in Lua and YAML | `config/model-manifests/*.yaml` | All curated model records now load from YAML; the Lua file retains diagnostic profile definitions only. |
-| `config/inference-profiles/*.yaml` and `config/profiles.lua` | `config/tasks/*.yaml` | Twenty-three built-in task definitions are standalone schema-4 YAML; the old execution-template file was removed. |
-| `schemas/profile-v3.schema.json` | Machine-policy, engine, model, and task-v4 schemas | Legacy schema-3 remains only for reading older user/remote documents during migration. |
+| `config/inference-profiles/*.yaml` and `config/profiles.lua` | `config/workloads/*.yaml` | Twenty-five built-in workload definitions are standalone schema-5 YAML; the old execution-template file was removed. |
+| `schemas/profile-v3.schema.json` | Machine-policy, engine-v2, model-v2, and workload-v5 schemas | Legacy schema-3 remains only for reading older user/remote documents during migration. |
 
 ## Step 1 acceptance boundary
 
 This document establishes ownership, names, precedence, missing-value
 semantics, and failure/warning rules. The implementation now includes a
 machine-policy resolver, authoritative packaged engine/model YAML, and
-schema-4 task YAML with synthetic-hardware tests.
+schema-5 workload YAML with synthetic-hardware tests.
 Setup creates `config/machine.yaml` only if absent and writes the new
 `state/hardware.yaml` alongside migration snapshots. Existing user policy
 is not overwritten. Schema-4 startup and live-worker admission now track

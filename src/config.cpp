@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <map>
+#include <regex>
 #include <set>
 #include <stdexcept>
 #include <string_view>
@@ -20,6 +22,55 @@ namespace mica {
 namespace {
 
 using json = nlohmann::json;
+
+const std::set<std::string> kModalities = {"text", "image", "video", "audio"};
+const std::set<std::string> kOperations = {
+    "text.generate", "chat.generate", "decisions.score", "audio.transcribe",
+    "audio.translate", "audio.diarize", "audio.synthesize_speech",
+    "audio.generate", "audio.transform", "image.generate", "image.edit",
+    "video.generate", "video.edit"};
+const std::set<std::string> kAbilities = {
+    "text_generation", "instruction_following", "tool_calling", "reasoning",
+    "structured_output", "image_understanding", "video_understanding",
+    "audio_understanding", "speech_recognition", "speech_translation",
+    "speaker_diarization", "speech_synthesis", "voice_conditioning",
+    "general_audio_generation", "music_generation", "audio_transformation",
+    "image_generation", "image_editing", "video_generation", "video_editing"};
+
+std::vector<std::string> checked_values(const json& object, const char* field,
+                                        const std::set<std::string>& allowed,
+                                        bool required = true) {
+  if (!object.contains(field)) {
+    if (required) throw std::invalid_argument(std::string("missing ") + field);
+    return {};
+  }
+  const auto values = object.at(field).get<std::vector<std::string>>();
+  if (required && values.empty()) {
+    throw std::invalid_argument(std::string(field) + " must not be empty");
+  }
+  std::set<std::string> unique;
+  for (const auto& value : values) {
+    if (!allowed.contains(value) || !unique.insert(value).second) {
+      throw std::invalid_argument(std::string("invalid or duplicate ") + field +
+                                  ": " + value);
+    }
+  }
+  return values;
+}
+
+std::string derived_capability(const json& document) {
+  const auto abilities = checked_values(document, "abilities", kAbilities);
+  const std::set<std::string> ability_set(abilities.begin(), abilities.end());
+  if (ability_set.contains("speech_recognition")) return "asr";
+  if (ability_set.contains("speech_synthesis")) return "tts";
+  if (ability_set.contains("speaker_diarization")) return "diar";
+  const auto inputs = checked_values(document, "input_modalities", kModalities);
+  if (std::find(inputs.begin(), inputs.end(), "image") != inputs.end() ||
+      std::find(inputs.begin(), inputs.end(), "video") != inputs.end()) {
+    return "vision";
+  }
+  return "text";
+}
 
 void reject_unknown_fields(const json& object,
                            std::initializer_list<std::string_view> allowed,
@@ -431,12 +482,13 @@ void load_engine_manifests(Registry& registry,
                            const std::filesystem::path& directory) {
   for (const auto& path : yaml_files(directory)) {
     const auto document = read_profile_file(path);
-    if (!document.is_object() || document.value("schema", 0) != 1) {
-      throw std::runtime_error("engine manifest must use schema 1: " + path.string());
+    if (!document.is_object() || document.value("schema", 0) != 2) {
+      throw std::runtime_error("engine manifest must use schema 2: " + path.string());
     }
     reject_unknown_fields(document,
         {"schema", "id", "status", "backend", "installer", "launcher",
-         "device_target", "hardware", "artifact_formats", "features",
+         "device_target", "hardware", "artifact_formats", "compatibility_tags",
+         "endpoint_contracts",
          "source", "install"}, "engine manifest " + path.string());
     const auto id = document.at("id").get<std::string>();
     if (id.empty() || id.size() > 128 ||
@@ -456,7 +508,7 @@ void load_engine_manifests(Registry& registry,
         (engine.installer == "cmake-audio" && engine.launcher == "audio-server") ||
         (engine.installer == "python-mlx" &&
          (engine.launcher == "mlx-lm" || engine.launcher == "mlx-vlm" ||
-          engine.launcher == "mlx-audio")) ||
+          engine.launcher == "mlx-audio" || engine.launcher == "mlx-diarization")) ||
         (engine.installer == "python-vllm" && engine.launcher == "vllm");
     if (!known_adapter) {
       throw std::runtime_error("unsupported engine installer/launcher adapter: " + id);
@@ -465,7 +517,53 @@ void load_engine_manifests(Registry& registry,
     engine.hardware = document.at("hardware").get<std::vector<std::string>>();
     engine.artifact_formats =
         document.at("artifact_formats").get<std::vector<std::string>>();
-    engine.features = document.value("features", std::vector<std::string>{});
+    engine.features = document.value("compatibility_tags", std::vector<std::string>{});
+    if (!document.contains("endpoint_contracts") ||
+        !document.at("endpoint_contracts").is_array() ||
+        document.at("endpoint_contracts").empty()) {
+      throw std::runtime_error("engine has no endpoint contracts: " + id);
+    }
+    std::set<std::string> endpoint_ids;
+    for (const auto& endpoint : document.at("endpoint_contracts")) {
+      reject_unknown_fields(endpoint,
+          {"id", "operation", "transport", "adapter_call", "method", "path",
+           "required_inputs", "optional_inputs", "outputs", "streaming",
+           "supports_tools", "description"}, "engine endpoint");
+      const auto endpoint_id = endpoint.at("id").get<std::string>();
+      const auto operation = endpoint.at("operation").get<std::string>();
+      const auto transport = endpoint.at("transport").get<std::string>();
+      if (!endpoint_ids.insert(endpoint_id).second || !kOperations.contains(operation) ||
+          (transport != "http" && transport != "in-process") ||
+          endpoint.at("adapter_call").get<std::string>().empty() ||
+          (transport == "http" &&
+           (!endpoint.contains("method") || !endpoint.contains("path") ||
+            endpoint.at("path").get<std::string>().empty() ||
+            endpoint.at("path").get<std::string>().front() != '/'))) {
+        throw std::runtime_error("invalid engine endpoint: " + id + "/" + endpoint_id);
+      }
+      EngineDefinition::EndpointContract contract;
+      contract.id = endpoint_id;
+      contract.transport = transport;
+      contract.adapter_call = endpoint.at("adapter_call").get<std::string>();
+      contract.method = endpoint.value("method", std::string("POST"));
+      contract.path = endpoint.value("path", std::string());
+      const std::map<std::string, std::string> adapters = {
+          {"chat.generate", "openai_chat"}, {"text.generate", "mica_completion_adapter"},
+          {"audio.transcribe", "openai_audio_transcriptions"},
+          {"audio.synthesize_speech", "openai_audio_speech"},
+          {"audio.diarize", "audio_diarization"}};
+      if (transport != "http" || contract.method != "POST" ||
+          !adapters.contains(operation) || adapters.at(operation) != contract.adapter_call) {
+        throw std::runtime_error("endpoint has no implemented adapter: " + id + "/" + endpoint_id);
+      }
+      contract.operation = operation;
+      contract.required_inputs = checked_values(endpoint, "required_inputs", kModalities);
+      contract.optional_inputs = checked_values(endpoint, "optional_inputs", kModalities, false);
+      contract.outputs = checked_values(endpoint, "outputs", kModalities);
+      contract.streaming = endpoint.value("streaming", false);
+      contract.supports_tools = endpoint.value("supports_tools", false);
+      engine.endpoint_contracts.push_back(std::move(contract));
+    }
     if (document.contains("source")) {
       const auto& source = document.at("source");
       reject_unknown_fields(source, {"url", "revision"}, "engine source");
@@ -540,12 +638,13 @@ void load_model_manifests(Registry& registry,
                           const std::filesystem::path& directory) {
   for (const auto& path : yaml_files(directory)) {
     const auto document = read_profile_file(path);
-    if (!document.is_object() || document.value("schema", 0) != 1) {
-      throw std::runtime_error("model manifest must use schema 1: " + path.string());
+    if (!document.is_object() || document.value("schema", 0) != 2) {
+      throw std::runtime_error("model manifest must use schema 2: " + path.string());
     }
     reject_unknown_fields(
         document,
-        {"schema", "id", "capability", "description", "source_repository",
+        {"schema", "id", "abilities", "supported_interactions",
+         "description", "source_repository", "references",
          "declared_context_tokens", "tags", "thinking_modes",
          "thinking_budget_supported", "license", "artifacts", "mlx_converter",
          "mlx_quantization_profile", "gguf_family", "gguf_parallel_slots",
@@ -566,7 +665,7 @@ void load_model_manifests(Registry& registry,
     if (model == registry.models.end()) {
       ModelDefinition fresh;
       fresh.id = id;
-      fresh.capability = document.at("capability").get<std::string>();
+      fresh.capability = derived_capability(document);
       fresh.description = document.at("description").get<std::string>();
       fresh.source_repo = document.at("source_repository").get<std::string>();
       fresh.gguf_context_tokens = document.value("declared_context_tokens", 0);
@@ -575,17 +674,41 @@ void load_model_manifests(Registry& registry,
           ((fresh.capability == "text" || fresh.capability == "vision") &&
            fresh.gguf_context_tokens < 512) ||
           (fresh.capability != "text" && fresh.capability != "vision" &&
-           fresh.capability != "asr" && fresh.capability != "tts")) {
+           fresh.capability != "asr" && fresh.capability != "tts" && fresh.capability != "diar")) {
         throw std::runtime_error("incomplete logical model manifest: " + id);
       }
       registry.models.push_back(std::move(fresh));
       model = std::prev(registry.models.end());
     }
-    if (document.at("capability").get<std::string>() != model->capability) {
+    if (derived_capability(document) != model->capability) {
       throw std::runtime_error("model capability mismatch: " + id);
     }
     model->description = document.at("description").get<std::string>();
     model->source_repo = document.at("source_repository").get<std::string>();
+    model->references.clear();
+    if (document.contains("references")) {
+      const auto& references = document.at("references");
+      if (!references.is_array()) {
+        throw std::invalid_argument("model references must be an array: " + id);
+      }
+      static const std::set<std::string> kinds = {
+          "paper", "code", "model-card", "reproducibility", "documentation"};
+      static const std::regex web_url(R"(^https?://[^/?#\s]+([/?#][^\s]*)?$)");
+      for (const auto& entry : references) {
+        reject_unknown_fields(entry, {"kind", "title", "url", "description"},
+                              "model reference: " + id);
+        ModelDefinition::Reference reference;
+        reference.kind = entry.at("kind").get<std::string>();
+        reference.title = entry.at("title").get<std::string>();
+        reference.url = entry.at("url").get<std::string>();
+        reference.description = entry.value("description", std::string());
+        if (!kinds.contains(reference.kind) || reference.title.empty() ||
+            !std::regex_match(reference.url, web_url)) {
+          throw std::invalid_argument("invalid model reference: " + id);
+        }
+        model->references.push_back(std::move(reference));
+      }
+    }
     model->gguf_context_tokens = document.value("declared_context_tokens", 0);
     model->tags = document.value("tags", std::vector<std::string>{});
     model->catalog_visible = document.value("catalog_visible", true);
@@ -598,6 +721,107 @@ void load_model_manifests(Registry& registry,
         document.value("input_modalities", std::vector<std::string>{});
     model->output_modalities =
         document.value("output_modalities", std::vector<std::string>{});
+    model->abilities = checked_values(document, "abilities", kAbilities);
+    model->supported_interactions.clear();
+    if (!document.contains("supported_interactions") ||
+        !document.at("supported_interactions").is_array() ||
+        document.at("supported_interactions").empty()) {
+      throw std::runtime_error("model has no supported interactions: " + id);
+    }
+    for (const auto& item : document.at("supported_interactions")) {
+      reject_unknown_fields(item,
+          {"operation", "required_inputs", "optional_inputs", "outputs",
+           "description"}, "model interaction");
+      ModelDefinition::Interaction interaction;
+      interaction.operation = item.at("operation").get<std::string>();
+      if (!kOperations.contains(interaction.operation)) {
+        throw std::runtime_error("invalid model operation: " + id);
+      }
+      static const std::map<std::string, std::string> required_abilities = {
+          {"text.generate", "text_generation"},
+          {"chat.generate", "text_generation"},
+          {"decisions.score", "text_generation"},
+          {"audio.transcribe", "speech_recognition"},
+          {"audio.translate", "speech_translation"},
+          {"audio.diarize", "speaker_diarization"},
+          {"audio.synthesize_speech", "speech_synthesis"},
+          {"audio.transform", "audio_transformation"},
+          {"image.generate", "image_generation"},
+          {"image.edit", "image_editing"},
+          {"video.generate", "video_generation"},
+          {"video.edit", "video_editing"}};
+      if (const auto needed = required_abilities.find(interaction.operation);
+          needed != required_abilities.end() &&
+          std::find(model->abilities.begin(), model->abilities.end(),
+                    needed->second) == model->abilities.end()) {
+        throw std::runtime_error("model operation lacks required ability: " + id);
+      }
+      if (interaction.operation == "audio.generate" &&
+          std::find(model->abilities.begin(), model->abilities.end(),
+                    "general_audio_generation") == model->abilities.end() &&
+          std::find(model->abilities.begin(), model->abilities.end(),
+                    "music_generation") == model->abilities.end()) {
+        throw std::runtime_error("audio generation lacks an audio ability: " + id);
+      }
+      if (interaction.operation != "chat.generate" &&
+          interaction.operation != "text.generate" &&
+          interaction.operation != "audio.transcribe" &&
+          interaction.operation != "audio.diarize" &&
+          interaction.operation != "audio.synthesize_speech") {
+        throw std::runtime_error("model operation has no Mica serving route yet: " +
+                                 interaction.operation);
+      }
+      interaction.required_inputs = checked_values(item, "required_inputs", kModalities);
+      interaction.optional_inputs = checked_values(item, "optional_inputs", kModalities, false);
+      interaction.outputs = checked_values(item, "outputs", kModalities);
+      const auto is_exact = [](const std::vector<std::string>& values,
+                               const std::string& expected) {
+        return values.size() == 1 && values.front() == expected;
+      };
+      const bool text_route = interaction.operation == "chat.generate" ||
+                              interaction.operation == "text.generate";
+      if ((text_route &&
+           (!is_exact(interaction.outputs, "text") ||
+            std::find(interaction.required_inputs.begin(),
+                      interaction.required_inputs.end(), "text") ==
+                interaction.required_inputs.end() ||
+            std::find(interaction.required_inputs.begin(),
+                      interaction.required_inputs.end(), "audio") !=
+                interaction.required_inputs.end() ||
+            std::find(interaction.optional_inputs.begin(),
+                      interaction.optional_inputs.end(), "audio") !=
+                interaction.optional_inputs.end())) ||
+          (interaction.operation == "audio.transcribe" &&
+           (!is_exact(interaction.required_inputs, "audio") ||
+            !is_exact(interaction.outputs, "text"))) ||
+          (interaction.operation == "audio.synthesize_speech" &&
+           (!is_exact(interaction.required_inputs, "text") ||
+            !is_exact(interaction.outputs, "audio")))) {
+        throw std::runtime_error("interaction has no compatible Mica adapter: " + id);
+      }
+      for (const auto& modality : interaction.required_inputs) {
+        if (std::find(model->input_modalities.begin(), model->input_modalities.end(),
+                      modality) == model->input_modalities.end()) {
+          throw std::runtime_error("interaction input missing from model modalities: " + id);
+        }
+      }
+      for (const auto& modality : interaction.optional_inputs) {
+        if (std::find(model->input_modalities.begin(), model->input_modalities.end(),
+                      modality) == model->input_modalities.end() ||
+            std::find(interaction.required_inputs.begin(),
+                      interaction.required_inputs.end(), modality) !=
+                interaction.required_inputs.end()) {
+          throw std::runtime_error("invalid optional interaction input: " + id);
+        }
+      }
+      for (const auto& modality : interaction.outputs) {
+        if (std::find(model->output_modalities.begin(), model->output_modalities.end(),
+                      modality) == model->output_modalities.end()) {
+          throw std::runtime_error("interaction output missing from model modalities: " + id);
+        }
+      }
+      model->supported_interactions.push_back(std::move(interaction));
+    }
     model->tool_call_formats =
         document.value("tool_call_formats", std::vector<std::string>{});
     model->trained_context_tokens = token_claim(document, "trained_context_tokens");
@@ -638,6 +862,8 @@ void load_model_manifests(Registry& registry,
       throw std::runtime_error("supported output exceeds context for " + id);
     }
     model->artifacts.clear();
+    model->engine_artifacts.clear();
+    model->engine_order.clear();
     model->repositories.clear();
     model->repository_revisions.clear();
     model->thinking_modes = document.value("thinking_modes", std::vector<std::string>{});
@@ -655,7 +881,7 @@ void load_model_manifests(Registry& registry,
       throw std::runtime_error("thinking budget requires modes in model manifest: " + id);
     }
     static const std::set<std::string> allowed_licenses = {
-        "apache-2.0", "mit", "bsd-2-clause", "bsd-3-clause", "isc"};
+        "apache-2.0", "mit", "bsd-2-clause", "bsd-3-clause", "isc", "openmdw-1.1"};
     const auto license = document.at("license").get<std::string>();
     if (!allowed_licenses.contains(license)) {
       throw std::runtime_error("model manifest requires an accepted commercial license: " + id);
@@ -671,14 +897,19 @@ void load_model_manifests(Registry& registry,
     }
     for (const auto& variant : document.at("artifacts")) {
       reject_unknown_fields(variant,
-          {"id", "backend", "engine", "format", "quantization_type",
-           "repository", "revision", "reservation_gib", "required_features",
-           "minimum_engine_commit", "files"}, "model artifact");
-      const auto backend = parse_backend(variant.at("backend").get<std::string>());
+          {"id", "compatible_engines", "format", "quantization_type",
+           "repository", "revision", "reservation_gib", "required_compatibility",
+           "minimum_engine_commit", "kv_bytes_per_token_f16", "load_path", "files"}, "model artifact");
+      const auto compatible_engines =
+          variant.at("compatible_engines").get<std::vector<std::string>>();
+      if (compatible_engines.empty()) {
+        throw std::runtime_error("artifact needs a compatible engine: " + id);
+      }
       const auto quantization =
           parse_quantization(variant.at("id").get<std::string>());
-      const auto engine_id = variant.at("engine").get<std::string>();
+      for (const auto& engine_id : compatible_engines) {
       const auto& engine = registry.engine(engine_id);
+      const auto backend = engine.backend;
       const auto format = variant.at("format").get<std::string>();
       if (engine.backend != backend ||
           std::find(engine.artifact_formats.begin(), engine.artifact_formats.end(),
@@ -696,9 +927,11 @@ void load_model_manifests(Registry& registry,
       artifact.format = format;
       artifact.quantization_type = variant.at("quantization_type").get<std::string>();
       artifact.reservation_gib = variant.at("reservation_gib").get<double>();
+      artifact.kv_bytes_per_token_f16 = variant.value("kv_bytes_per_token_f16",
+          (model->capability == "text" || model->capability == "vision") ? 65536ULL : 0ULL);
       artifact.size_source = "pinned-model-manifest";
       artifact.required_features =
-          variant.value("required_features", std::vector<std::string>{});
+          variant.value("required_compatibility", std::vector<std::string>{});
       artifact.minimum_engine_commit =
           variant.value("minimum_engine_commit", std::string());
       if (!artifact.minimum_engine_commit.empty() &&
@@ -712,6 +945,36 @@ void load_model_manifests(Registry& registry,
           throw std::runtime_error("engine lacks artifact feature " + feature +
                                    " for " + id);
         }
+      }
+      bool callable = false;
+      for (const auto& interaction : model->supported_interactions) {
+        for (const auto& endpoint : engine.endpoint_contracts) {
+          if (interaction.operation != endpoint.operation) continue;
+          const auto accepts = [&](const std::string& modality) {
+            return std::find(endpoint.required_inputs.begin(),
+                             endpoint.required_inputs.end(), modality) !=
+                       endpoint.required_inputs.end() ||
+                   std::find(endpoint.optional_inputs.begin(),
+                             endpoint.optional_inputs.end(), modality) !=
+                       endpoint.optional_inputs.end();
+          };
+          const auto produces = [&](const std::string& modality) {
+            return std::find(endpoint.outputs.begin(), endpoint.outputs.end(),
+                             modality) != endpoint.outputs.end();
+          };
+          if (std::all_of(interaction.required_inputs.begin(),
+                          interaction.required_inputs.end(), accepts) &&
+              std::all_of(interaction.optional_inputs.begin(),
+                          interaction.optional_inputs.end(), accepts) &&
+              std::all_of(interaction.outputs.begin(),
+                          interaction.outputs.end(), produces)) {
+            callable = true;
+          }
+        }
+      }
+      if (!callable) {
+        throw std::runtime_error("engine has no matching model interaction: " +
+                                 id + "/" + engine_id);
       }
       std::set<std::string> roles;
       for (const auto& entry : variant.at("files")) {
@@ -738,7 +1001,9 @@ void load_model_manifests(Registry& registry,
         file.sha256 = entry.value("sha256", std::string());
         static const std::set<std::string> allowed_roles = {
             "model", "vision-projector", "mtp-drafter", "dflash-drafter",
-            "tokenizer", "processor", "codec", "adapter"};
+            "tokenizer", "processor", "codec", "adapter", "text-encoder",
+            "image-encoder", "audio-encoder", "vae", "scheduler",
+            "diffusion-transformer", "vocoder", "config", "license"};
         if (!allowed_roles.contains(file.role) ||
             !roles.insert(file.role).second || !safe_relative_path(file.path) ||
             !safe_relative_path(file.repository_path) ||
@@ -759,14 +1024,25 @@ void load_model_manifests(Registry& registry,
         }
         artifact.files.push_back(std::move(file));
       }
+      if (variant.contains("load_path")) {
+        artifact.pattern = variant.at("load_path").get<std::string>();
+        if (!safe_relative_path(artifact.pattern)) throw std::runtime_error("unsafe artifact load path");
+      }
       if (artifact.pattern.empty() || artifact.reservation_gib <= 0 ||
           (model->capability == "vision" && backend == Backend::gguf &&
            artifact.projector_pattern.empty())) {
         throw std::runtime_error("incomplete model artifact: " + id);
       }
-      model->repositories[backend] = repository;
-      model->repository_revisions[backend] = revision;
-      model->artifacts[backend][quantization] = std::move(artifact);
+      if (model->engine_artifacts[engine_id].contains(quantization)) {
+        throw std::runtime_error("duplicate engine/artifact variant: " + id + "/" + engine_id);
+      }
+      if (std::find(model->engine_order.begin(), model->engine_order.end(), engine_id) ==
+          model->engine_order.end()) model->engine_order.push_back(engine_id);
+      model->repositories.try_emplace(backend, repository);
+      model->repository_revisions.try_emplace(backend, revision);
+      model->artifacts[backend].try_emplace(quantization, artifact);
+      model->engine_artifacts[engine_id][quantization] = std::move(artifact);
+      }
     }
   }
 }
@@ -861,6 +1137,24 @@ const ModelDefinition& Registry::model(const std::string& id) const {
   return *found;
 }
 
+const Artifact& ModelDefinition::artifact_for(Backend backend, Quantization quant,
+                                             const std::string& engine) const {
+  const auto canonical = artifacts.find(backend);
+  if (canonical != artifacts.end() && canonical->second.contains(quant) &&
+      (engine.empty() || canonical->second.at(quant).engine == engine)) {
+    return canonical->second.at(quant);
+  }
+  if (!engine.empty()) {
+    const auto variants = engine_artifacts.find(engine);
+    if (variants != engine_artifacts.end()) return variants->second.at(quant);
+  }
+  const auto& artifact = artifacts.at(backend).at(quant);
+  if (!engine.empty() && artifact.engine != engine) {
+    throw std::invalid_argument("artifact does not support engine " + engine + " for " + id);
+  }
+  return artifact;
+}
+
 const EngineDefinition& Registry::engine(const std::string& id) const {
   const auto found = engines.find(id);
   if (found == engines.end()) throw std::out_of_range("unknown engine: " + id);
@@ -897,7 +1191,7 @@ Registry load_registry(const std::filesystem::path& config_directory) {
     throw;
   }
   lua_close(state);
-  for (const auto& path : yaml_files(config_directory / "tasks")) {
+  for (const auto& path : yaml_files(config_directory / "workloads")) {
     merge_profile_file(registry, path);
   }
   if (registry.models.empty()) throw std::runtime_error("registry has no models");

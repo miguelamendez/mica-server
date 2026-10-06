@@ -1,0 +1,8 @@
+schema: 1
+allowed_devices: [cpu, "metal:0"]
+limits:
+  inference:
+    ram_gib: 3
+  build:
+    ram_gib: 8
+    parallel_jobs: 1

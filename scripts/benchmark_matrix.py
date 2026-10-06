@@ -17,6 +17,7 @@ import mimetypes
 import statistics
 import sys
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -104,8 +105,12 @@ def send_chat(base_url: str, api_key: str, payload: dict, timeout: int) -> dict:
         data=json.dumps(payload).encode(), headers=headers, method="POST",
     )
     start = time.perf_counter()
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        body = json.load(response)
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            body = json.load(response)
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Chat endpoint returned HTTP {error.code}: {detail}") from error
     wall_seconds = time.perf_counter() - start
     choice = body["choices"][0]
     message = choice.get("message", {})
@@ -167,6 +172,18 @@ def main() -> None:
     parser.add_argument("--runs", type=int, default=1)
     parser.add_argument("--max-output-tokens", type=int, default=256)
     parser.add_argument(
+        "--disable-thinking", action="store_true",
+        help="Send chat_template_kwargs.enable_thinking=false for matched instruct-mode comparisons",
+    )
+    parser.add_argument(
+        "--warmup", action="store_true",
+        help="Prime model loading with a separate arithmetic request before timed cases",
+    )
+    parser.add_argument(
+        "--no-prompt-cache", action="store_true",
+        help="Disable native prompt-prefix reuse for controlled prefill comparisons",
+    )
+    parser.add_argument(
         "--peak-rss-gib", type=float,
         help="Measured peak/steady worker RSS to associate with this run",
     )
@@ -192,6 +209,21 @@ def main() -> None:
     if args.hardware_profile:
         hardware = json.loads(args.hardware_profile.read_text())
 
+    warmup = None
+    if args.warmup:
+        warmup_payload = {
+            "model": args.model,
+            "messages": [{"role": "user", "content": "What is 17 times 19? Reply only with the integer."}],
+            "temperature": 0, "seed": 42, "max_tokens": 64, "stream": False,
+        }
+        if args.disable_thinking:
+            warmup_payload["chat_template_kwargs"] = {"enable_thinking": False}
+        if args.no_prompt_cache:
+            warmup_payload["cache_prompt"] = False
+        warmup = send_chat(args.base_url, args.api_key, warmup_payload, args.timeout)
+        print(f"[warmup] {args.model}: {warmup['output']!r} ({warmup['wall_seconds']:.2f}s; excluded from timed cases)",
+              file=sys.stderr, flush=True)
+
     cases = []
     for task in tasks:
         task_contexts = [0] if task in {"image", "video"} else context_sizes
@@ -201,16 +233,19 @@ def main() -> None:
                 payloads = []
                 for run in range(args.runs):
                     for lane in range(concurrency):
-                        payloads.append(
-                            {
-                                "model": args.model,
-                                "messages": [{"role": "user", "content": content}],
-                                "temperature": 0,
-                                "seed": 42 + run * concurrency + lane,
-                                "max_tokens": args.max_output_tokens,
-                                "stream": False,
-                            }
-                        )
+                        payload = {
+                            "model": args.model,
+                            "messages": [{"role": "user", "content": content}],
+                            "temperature": 0,
+                            "seed": 42 + run * concurrency + lane,
+                            "max_tokens": args.max_output_tokens,
+                            "stream": False,
+                        }
+                        if args.disable_thinking:
+                            payload["chat_template_kwargs"] = {"enable_thinking": False}
+                        if args.no_prompt_cache:
+                            payload["cache_prompt"] = False
+                        payloads.append(payload)
                 started = time.perf_counter()
                 with concurrent.futures.ThreadPoolExecutor(
                     max_workers=concurrency
@@ -229,10 +264,31 @@ def main() -> None:
                         "target_context_tokens": target_context,
                         "concurrency": concurrency,
                         "runs": args.runs,
+                        "request_payload": payloads[0],
                         "summary": summarize_run(results, batch_wall),
                         "requests": results,
                     }
                 )
+                # Checkpoint completed cases so an interrupted long run still
+                # preserves its measurements, settings, and exact prompts.
+                report = {
+                    "schema": 1,
+                    "created_unix_seconds": time.time(),
+                    "model": args.model,
+                    "backend": args.backend,
+                    "quantization": args.quant,
+                    "base_url": args.base_url,
+                    "max_output_tokens": args.max_output_tokens,
+                    "thinking_disabled": args.disable_thinking,
+                    "prompt_cache_disabled": args.no_prompt_cache,
+                    "warmup": warmup,
+                    "peak_rss_gib": args.peak_rss_gib,
+                    "hardware": hardware,
+                    "complete": False,
+                    "cases": cases,
+                }
+                args.output.parent.mkdir(parents=True, exist_ok=True)
+                args.output.write_text(json.dumps(report, indent=2) + "\n")
                 summary = cases[-1]["summary"]
                 print(
                     f"[benchmark] {args.model} task={task} target={target_context} "
@@ -253,9 +309,13 @@ def main() -> None:
         "quantization": args.quant,
         "base_url": args.base_url,
         "max_output_tokens": args.max_output_tokens,
+        "thinking_disabled": args.disable_thinking,
+        "prompt_cache_disabled": args.no_prompt_cache,
+        "warmup": warmup,
         "peak_rss_gib": args.peak_rss_gib,
         "hardware": hardware,
         "cases": cases,
+        "complete": True,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2) + "\n")

@@ -102,6 +102,7 @@ struct Artifact {
   std::uint64_t projector_size_bytes{0};
   std::string size_source;
   double reservation_gib{0.0};
+  std::uint64_t kv_bytes_per_token_f16{0};
   std::string projector_pattern;
   std::string projector_repository_pattern;
   std::string sha256;
@@ -113,6 +114,19 @@ struct Artifact {
 };
 
 struct EngineDefinition {
+  struct EndpointContract {
+    std::string id;
+    std::string operation;
+    std::string transport{"http"};
+    std::string adapter_call;
+    std::string method{"POST"};
+    std::string path;
+    std::vector<std::string> required_inputs;
+    std::vector<std::string> optional_inputs;
+    std::vector<std::string> outputs;
+    bool streaming{false};
+    bool supports_tools{false};
+  };
   std::string id;
   Backend backend{Backend::gguf};
   std::string status{"current"};
@@ -129,12 +143,25 @@ struct EngineDefinition {
   std::vector<std::string> hardware;
   std::vector<std::string> artifact_formats;
   std::vector<std::string> features;
+  std::vector<EndpointContract> endpoint_contracts;
   std::map<std::string, std::map<std::string, std::string>> cmake_definitions;
   std::string environment_group;
   std::vector<std::string> python_packages;
 };
 
 struct ModelDefinition {
+  struct Reference {
+    std::string kind;
+    std::string title;
+    std::string url;
+    std::string description;
+  };
+  struct Interaction {
+    std::string operation;
+    std::vector<std::string> required_inputs;
+    std::vector<std::string> optional_inputs;
+    std::vector<std::string> outputs;
+  };
   struct TokenLimitClaim {
     int tokens{0};
     std::string source;
@@ -145,6 +172,7 @@ struct ModelDefinition {
   bool catalog_visible{true};
   std::vector<std::string> tags;
   std::string source_repo;
+  std::vector<Reference> references;
   std::string mlx_converter;
   std::string mlx_quantization_profile;
   std::string gguf_family;
@@ -155,6 +183,8 @@ struct ModelDefinition {
   std::optional<TokenLimitClaim> trained_output_tokens;
   std::vector<std::string> input_modalities;
   std::vector<std::string> output_modalities;
+  std::vector<std::string> abilities;
+  std::vector<Interaction> supported_interactions;
   std::vector<std::string> tool_call_formats;
   int gguf_parallel_slots{1};
   std::vector<std::string> thinking_modes;
@@ -166,6 +196,10 @@ struct ModelDefinition {
   bool required{false};
   std::map<Backend, bool> required_by_backend;
   std::map<Backend, std::map<Quantization, Artifact>> artifacts;
+  std::map<std::string, std::map<Quantization, Artifact>> engine_artifacts;
+  std::vector<std::string> engine_order;
+  [[nodiscard]] const Artifact& artifact_for(Backend backend, Quantization quant,
+                                            const std::string& engine = {}) const;
 
   [[nodiscard]] bool required_for(Backend backend) const {
     const auto found = required_by_backend.find(backend);
@@ -177,6 +211,8 @@ struct ProfileModel {
   std::string id;
   std::string execution;
   std::string engine;
+  bool engine_explicit{true};
+  bool artifact_explicit{true};
   std::string device_target;
   Backend backend{Backend::gguf};
   Quantization quantization{Quantization::q4};
@@ -202,6 +238,9 @@ struct Profile {
   std::string name;
   std::string description;
   std::string default_chat_model;
+  // Optional defaults for text, image, video, asr, and tts requests.
+  std::map<std::string, std::string> default_models;
+  std::string engine_policy{"prefer-installed"};
   int schema{1};
   std::string mode{"interactive"};
   bool catalog_visible{true};
@@ -250,6 +289,8 @@ struct VlmToolDefinition {
 };
 
 struct Registry {
+  std::string runtime_root;
+  std::optional<HardwareInfo> resolution_hardware;
   std::string default_hf_repo;
   std::vector<ModelDefinition> models;
   std::map<std::string, EngineDefinition> engines;

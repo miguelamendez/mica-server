@@ -1,8 +1,17 @@
-# Mica profiles
+# Mica workload profiles
 
-A Mica profile is a complete task environment. It selects the models needed for
-the task and tells Mica exactly how each model is installed, loaded, retained,
-and evicted.
+A Mica workload profile is a model collection with loading and residency
+policies, not an ordered execution workflow. It selects the models needed for
+an intended use and tells Mica how each model is installed, loaded, retained,
+and evicted. The CLI keeps the concise `profile` command and `--profile` flag;
+the packaged definitions live in `config/workloads/`.
+
+Every schema-5 workload profile needs a nonempty `description` explaining its
+intended use. Its `models` array is a collection, not a set of fixed roles or
+modality groups. Optional `selection.defaults` map an operation and input
+modalities to a model ID. A request can name another eligible model in the
+active profile. With no explicit model or matching default, Mica chooses the
+highest-priority eligible model, breaking ties by model ID.
 
 An inference profile is one layer of Mica's resolver, not an installation
 script. It composes:
@@ -18,25 +27,26 @@ status are documented in [System, engine, model, and inference
 profiles](engines-and-profiles.md).
 
 The coding profile is an active built-in YAML file at
-[`config/tasks/mica-coder-bonsai-macos.yaml`](../config/tasks/mica-coder-bonsai-macos.yaml).
-All 23 built-in task profiles are self-contained schema-4 YAML in
-[`config/tasks/`](../config/tasks/). Shareable and user-created profiles use
+[`config/workloads/mica-coder-bonsai-macos.yaml`](../config/workloads/mica-coder-bonsai-macos.yaml).
+All 25 built-in workload profiles are self-contained schema-5 YAML in
+[`config/workloads/`](../config/workloads/). Shareable and user-created profiles use
 the same format. Installed files are kept in
 `<root>/config/profiles/`; the default catalog is
 [`profiles/catalog.yaml`](../profiles/catalog.yaml) in this GitHub repository.
 The authoritative machine-readable contract is
-[`schemas/task-v4.schema.json`](../schemas/task-v4.schema.json). JSON
+[`schemas/workload-v5.schema.json`](../schemas/workload-v5.schema.json). JSON
 remains the runtime/API state format, but it is not accepted for profiles.
 Older `mica.profile` entries in [`config/models.lua`](../config/models.lua)
 remain only for legacy acceptance/test reproduction; they are not the
-authoritative task definitions.
+authoritative workload definitions.
 
 An already-installed YAML profile under `<root>/config/profiles/` takes
-precedence over a packaged task with the same ID. `profile list` marks an
+precedence over a packaged workload with the same ID. `profile list` marks an
 installed schema-3 profile with `migration_recommended: true`; Mica does not
-silently replace user-edited files. To prepare reviewed schema-4 copies in a
-new directory, use `profile export-all --output DIRECTORY`, then validate and
-install the desired files individually.
+silently replace user-edited files. `profile export-all --output DIRECTORY`
+can provide a starting point, but exports of older Lua profiles remain
+schema-4 until reviewed and given a schema-5 description and selection policy.
+Validate and install the desired files individually.
 
 ## Apply a profile
 
@@ -61,7 +71,7 @@ requested.
 
 The default profile is `auto`: it resolves to `mica-assistant-mlx` on Apple
 Silicon and `mica-assistant-gguf` elsewhere. Supplying `--backend` or `--quant`
-cannot override a schema-4 profile. Change the profile itself so its behavior
+cannot override a schema-5 profile. Change the profile itself so its behavior
 remains reproducible.
 
 Setup loads detected hardware or a saved YAML/JSON profile supplied through
@@ -71,8 +81,8 @@ Separately, `config/machine.yaml` is user-owned policy: `plan` reads it,
 `setup` creates a minimal version only when absent, and neither command
 overwrites an existing policy. Use `--machine-file PATH` to plan or set up
 against another YAML policy. The global machine allocation is the memory
-ceiling; a task profile declares the RAM/VRAM it requires. Setup rejects the
-task when the allocation is smaller. Schema-4 tasks reserve discrete memory
+ceiling; a workload profile declares the RAM/VRAM it requires. Setup rejects the
+workload when the allocation is smaller. Schema-4 and schema-5 workloads reserve discrete memory
 independently for each detected GPU. This is reservation accounting, not an
 OS-enforced limit, and concurrent multi-GPU inference still needs hardware
 validation. Native
@@ -142,7 +152,7 @@ as certified.
 after validation succeeds. The editor must be one executable path; interactive
 terminal editors such as `vi` and `nano` are the reliable choices.
 Run `setup --profile <id>` after any edit. The server compares the active
-schema-4 definition with the setup snapshot and refuses to start if engines,
+schema-5 definition with the setup snapshot and refuses to start if engines,
 artifacts, context, batching, residency, or memory policy changed.
 
 ## Built-in profiles
@@ -154,7 +164,8 @@ artifacts, context, batching, residency, or memory policy changed.
 | `balanced-all` | MLX | 12 GiB | Attempts to warm all four capabilities. |
 | `text-batch` | MLX | 8 GiB | Four text sequences; utility models are ephemeral. |
 | `long-context` | MLX | 12 GiB | Single text request with the certified local context ceiling. |
-| `realtime-voice` | MLX | 8 GiB | Pins ASR, text, and TTS for a voice pipeline. |
+| `realtime-voice` | MLX | 12 GiB | Pins ASR, text, and TTS, with room for on-demand vision. |
+| `diarization` | Auto | 2 GiB | Nemotron Q8 speaker turns; selects MLX or native audio.cpp. |
 | `vision-quality` | MLX | 8 GiB | Pins Q8 vision and loads other utilities on demand. |
 | `low-memory` | MLX | 4 GiB | At most one resident worker; models are loaded per request. |
 | `gguf-interactive` | GGUF | 8 GiB | Native equivalent of the interactive workflow. |
@@ -164,22 +175,25 @@ artifacts, context, batching, residency, or memory policy changed.
 | `gguf-low-memory` | GGUF | 6 GiB | At most one native worker; no Python environment. |
 
 The machine/command-line RAM and VRAM values are the admission ceilings.
-Task requirements are eligibility checks, not smaller usage caps. Omitting
+Workload requirements are eligibility checks, not smaller usage caps. Omitting
 `--vram-gib` (or passing `auto`) derives the discrete-device capacity; an
 explicit `--vram-gib 0` disables discrete VRAM. Apple Metal and other detected
 unified-memory devices charge complete model reservations to the RAM pool.
 
 ## Profile structure
 
-Schema 4 puts the task's model selection and runtime policy in one YAML file.
+Schema 5 puts the workload's model selection and runtime policy in one YAML file.
 There is no separate execution-template lookup:
 
 ```yaml
-schema: 4
+schema: 5
 id: my-assistant
 description: Compact local text assistant
 mode: interactive
-default_chat_model: spark-x25-4b
+selection:
+  engine_policy: explicit-only
+  defaults:
+    - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
 memory:
   required_ram_gib: 8
   required_vram_gib: 0
@@ -200,10 +214,17 @@ models:
 ```
 
 The model must exist in [`config/model-manifests/`](../config/model-manifests/)
-or be defined as an external model in the task. Its selected artifact must
-name the same engine and a compatible format. The parser rejects unknown
+or be defined as an external model in the workload. Its selected artifact must
+list the chosen engine and have a compatible format. The parser rejects unknown
 fields, duplicate model IDs, impossible context/output limits, and unsupported
 artifact–engine pairs.
+
+Known models may omit `engine` and `artifact`. The default selection policy,
+`prefer-installed`, chooses an installed compatible engine before falling back
+to model-manifest order. `manifest-order` always follows manifest order;
+`explicit-only` requires both fields. An omitted artifact prefers Q4, then Q8,
+then the first remaining artifact ID in sorted order. External models still require a
+complete engine, source, and artifact declaration. Explicit settings always win.
 
 ## External Hugging Face models
 
@@ -212,8 +233,9 @@ must provide an exact compatibility contract; a Hugging Face URL or model card
 alone is not treated as proof that an engine can load the architecture.
 
 ```yaml
-schema: 4
+schema: 5
 id: my-external-assistant
+description: Private GGUF assistant using one externally sourced text model.
 mode: interactive
 memory:
   required_ram_gib: 4
@@ -275,10 +297,14 @@ do not certify compatibility or quality.
 
 ## Per-model engine selection
 
-Each schema-4 model entry pins one concrete engine and one compatible
-artifact. A profile does not set one implicit engine for the whole server.
+Each schema-5 model entry resolves to one concrete engine and one compatible
+artifact, either explicitly or by the selection policy. A profile does not set
+one implicit engine for the whole server.
 Setup installs the union of engines required by its model entries, and the
 proxy routes each model to its selected engine behind the same public URL.
+Reusing a Python environment still reconciles the requested packages. Native
+audio.cpp setup checks its compiled model-family set and adds missing families
+without removing previously installed ones.
 
 The recommended assistant profiles intentionally keep every model in one
 runtime family: MLX artifacts use `mlx-lm`, `mlx-vlm`, or `mlx-audio`; the
@@ -286,6 +312,28 @@ assistant GGUF artifacts use `llama-cpp` or `audio-cpp`; and the planned GPTQ
 artifacts use `vllm`. Bonsai deliberately uses a separate
 `prism-llama-cpp` runtime because stock llama.cpp cannot execute its rotated
 weights. This keeps disk use, dependencies, and validation boundaries clear.
+
+### Context and memory admission
+
+Reservations include a floor based on artifact bytes, workspace headroom,
+and a KV estimate scaled by `max_total_tokens × max_concurrent_requests`.
+Artifacts may set `kv_bytes_per_token_f16` from architecture dimensions; when
+unknown, text/vision variants use a conservative planning fallback, not a
+measured guarantee. Q4/Q8 cache estimates include scale overhead. MLX text and
+vision workers pass cache precision and concurrency to mlx-vlm and validate
+actual tokenized input, including projected media. Native text prompts are
+checked with the engine's own template and tokenizer; projected native media
+is additionally bounded by the worker's total context, not an exact separate
+media-input quota. Unknown cache settings and excessive outputs are rejected.
+
+MLX workers cap device allocator/wired/cache limits to their reservation.
+vLLM uses each worker's GPU allocation rather than the full server allocation;
+CPU workers receive an explicit KV-cache byte allocation from context and
+concurrency instead of the upstream automatic pool. CPU/vLLM execution still
+requires certification on the target Linux hardware.
+Admission estimates are not an OS-enforced process-RSS ceiling, and native/GPU
+workspace peaks can differ from estimates. Do not treat the admission budget
+as a guarantee that total machine memory can never briefly exceed that value.
 
 Engine IDs are strings rather than a closed profile-schema enum. Future image
 and music generation can add engine adapters, artifact validators, installers,
@@ -314,10 +362,10 @@ commands or arbitrary shell fragments.
 | `batching.max_concurrent_requests` | Per-model concurrency; engine launch derives its batch-token envelope from context × concurrency. |
 | `kv_cache.precision` | `q4`, `q8`, `auto`, `runtime-managed`, or `not-applicable`. |
 
-Mica rejects a task when its model/backend/quantization is not in
+Mica rejects a workload when its model/backend/quantization is not in
 the registry, its token limits are inconsistent, or its total context exceeds
 the model's declared local ceiling. A request that asks for more output tokens
-than the active task permits is also rejected.
+than the active workload permits is also rejected.
 
 Engine-to-backend mapping is deterministic:
 
@@ -341,8 +389,8 @@ engine-name conditional in setup or serving.
 
 | Field | Meaning |
 | --- | --- |
-| `required_ram_gib` | RAM allocation needed to activate this task; it does not cap use. |
-| `required_vram_gib` | Dedicated-VRAM allocation needed by the task; zero for CPU or unified-memory tasks. It does not cap use. |
+| `required_ram_gib` | RAM allocation needed to activate this workload; it does not cap use. |
+| `required_vram_gib` | Dedicated-VRAM allocation needed by the workload; zero for CPU or unified-memory workloads. It does not cap use. |
 | `memory_safety_reserve_gib` | Memory held outside model admission. |
 | `maximum_resident_workers` | Optional worker-count ceiling; zero means memory-only. |
 | `engine` and `artifact.id` | Concrete engine and artifact chosen for this model. |
@@ -377,12 +425,12 @@ relief, older use, and larger reservation. Pinned workers are excluded.
 7. Record measured memory, latency, and quality before marking a profile
    production-ready.
 
-An installed schema-4 task can be activated through
-`POST /admin/profile/activate` with `{"profile":"task-id"}`. The proxy keeps
+An installed schema-5 workload can be activated through
+`POST /admin/profile/activate` with `{"profile":"workload-id"}`. The proxy keeps
 resident workers whose model, artifact, engine, context, batching, KV-cache,
-placement, and memory reservations match the target task. It drains active
+placement, and memory reservations match the target workload. It drains active
 requests before unloading incompatible workers, then warms missing startup
-workers. The target task's RAM/VRAM requirements must fit the global machine
+workers. The target workload's RAM/VRAM requirements must fit the global machine
 allocation. A missing backend, changed machine allocation, or edited engine
 installation still requires `setup` and a server restart. See the
 [API reference](api.md#health-and-discovery).

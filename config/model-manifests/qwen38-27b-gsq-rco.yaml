@@ -1,0 +1,64 @@
+schema: 2
+id: qwen38-27b-gsq-rco
+description: Qwen3.8 27B with GSQ scalar quantization and RCO mixed-precision allocation; standard GGUF candidate for comparison with ternary Bonsai.
+source_repository: ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF
+license: apache-2.0
+references:
+  - kind: paper
+    title: "GSQ: Highly-Accurate Low-Precision Scalar Quantization for LLMs via Gumbel-Softmax Sampling"
+    url: https://arxiv.org/abs/2604.18556
+    description: Calibration-based refinement of discrete weight assignments and group scales.
+  - kind: code
+    title: GSQ reference implementation
+    url: https://github.com/IST-DASLab/GSQ
+    description: Apache-2.0 source, quantization configurations, and calibration/optimization tooling.
+  - kind: paper
+    title: Model Compression with Exact Budget Constraints via Riemannian Manifolds
+    url: https://arxiv.org/abs/2605.00649
+    description: RCO mixed-precision allocation under a model-size budget.
+  - kind: code
+    title: RCO reference implementation
+    url: https://github.com/IST-DASLab/RCO
+    description: Apache-2.0 source for budget-constrained precision allocation and MoE expert pruning.
+  - kind: model-card
+    title: Qwen3.8 27B GSQ-RCO release and reported evaluations
+    url: https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/blob/d562806dbafae37109975e970aae91b43e73b440/README.md
+    description: Publisher methodology and benchmarks; not Mica's local validation results.
+  - kind: reproducibility
+    title: IQ3_XXS per-tensor precision allocation
+    url: https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/blob/d562806dbafae37109975e970aae91b43e73b440/tensor-allocation/Qwen3.8-27B-GSQ-RCO-IQ3_XXS.rco-allocation.txt
+    description: Precision assigned to each tensor in the registered IQ3_XXS artifact.
+  - kind: reproducibility
+    title: Qwen3.8 27B calibration importance matrix
+    url: https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/blob/d562806dbafae37109975e970aae91b43e73b440/imatrix-qwen3.8-27b.gguf
+    description: Publisher-provided importance matrix; not the raw calibration dataset.
+input_modalities: [text, image]
+output_modalities: [text]
+abilities: [text_generation, instruction_following, reasoning, image_understanding]
+supported_interactions:
+  - {operation: chat.generate, required_inputs: [text], outputs: [text]}
+  - {operation: chat.generate, required_inputs: [text, image], outputs: [text]}
+declared_context_tokens: 262144
+tags: [coding, reasoning, mixed-precision, gsq, rco, experimental]
+gguf_parallel_slots: 1
+startup_priority: 50
+required: false
+artifacts:
+  - id: iq3_xxs
+    compatible_engines: [llama-cpp]
+    format: gguf
+    quantization_type: IQ3_XXS
+    repository: ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF
+    revision: d562806dbafae37109975e970aae91b43e73b440
+    reservation_gib: 13.0
+    kv_bytes_per_token_f16: 65536
+    required_compatibility: [text-generation, vision-projector]
+    files:
+      - role: model
+        path: Qwen3.8-27B-GSQ-RCO-IQ3_XXS.gguf
+        size_bytes: 10094357632
+        sha256: fdfcb6a29b11188956dfbfd904223588a6c1b77eb250c3e8a36e1bd269df91f7
+      - role: vision-projector
+        path: mmproj-Qwen3.8-27B-BF16.gguf
+        size_bytes: 931146528
+        sha256: 13cb7bebccbd04afc8f4090cb949ecf8937cdf7377c5799b1a0c594e7c0d3e16

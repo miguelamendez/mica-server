@@ -29,10 +29,91 @@ mica-server registry ping --modality tts
 weights. The authenticated HTTP equivalent is `GET /v1/catalog`; the active
 profile subset is `GET /v1/models`.
 
+Model manifests may also include optional `references[]` entries, each with
+`kind`, `title`, `url`, and an optional `description`. Supported kinds are
+`paper`, `code`, `model-card`, `reproducibility`, and `documentation`.
+References are validated and exposed by `registry list` and `/v1/catalog`;
+they are informational links, not dependencies, download instructions, or
+claims that Mica has reproduced a quantization pipeline. Pinned artifact
+revisions, file hashes, compatibility, and reservations remain separate.
+The GSQ manifest links both methods' papers and code, its pinned release card,
+the IQ3_XXS tensor allocation, and the calibration importance matrix.
+
 Internal route-validation fixtures are excluded from the public ledger and
 normal profile listings.
 
+## Nemotron 3 diarization
+
+`nemotron-3-diarization` is a 99.3M-parameter speaker diarization model, not ASR.
+It labels who spoke when with anonymous speaker IDs; it does not generate a
+transcript or identify a person by name.
+
+| Artifact | Engine | Weight bytes | Public Mica operation |
+| --- | --- | ---: | --- |
+| [MLX Q8](https://huggingface.co/mlx-community/Nemotron-3-Diarization-8bit) | `mlx-audio-diarization` (mlx-audio library + small HTTP adapter) | 106,613,900 | `audio.diarize` |
+| [GGUF Q8 mixed](https://huggingface.co/audio-cpp/Nemotron-3-Diarization-GGUF) | `audio-cpp`, not llama.cpp | 106,675,136 | `audio.diarize` |
+| GGUF BF16, same repository | `audio-cpp` | 198,720,928 | `audio.diarize` |
+
+No Q4 artifact is registered because neither referenced repository publishes
+one. GGUF Q8 mixes precisions and can change boundaries/turn counts; its
+publisher recommends BF16 when preserving original outputs matters. That is
+an upstream claim, not a local DER measurement. The license is
+[OpenMDW-1.1](https://openmdw.ai/license/1-1/), which allows commercial use but
+is neither MIT nor Apache. Retain its license and notices when redistributing.
+
+The public route is `POST /v1/audio/diarizations`. Native audio.cpp's plain
+transcriptions route requires transcript text, so Mica calls
+`/v1/audio/transcriptions/details` and converts sample offsets to seconds.
+The MLX library has no standard diarization HTTP route; Mica supplies one.
+Streaming/library feed and native batch/live support exist upstream, but this
+Mica adapter only advertises the offline endpoint. Neither streaming nor
+vLLM diarization is certified by this integration.
+
+Start with `mica-server setup --profile diarization --ram-gib 3`, then
+`mica-server serve`. The generic profile uses installed-engine preference;
+pin `engine: audio-cpp` and `artifact: {id: bf16}` to select native BF16.
+For reproducible API tests, use `scripts/smoke_diarization.py`. This verifies
+nonempty turns, timestamp bounds, and output shape, not labeled quality.
+
+Local smoke measurements on Apple M4 / 24 GiB unified memory (2026-10-05),
+using one 28-second, 16 kHz mono recording through the warmed public endpoint:
+
+| Precision/engine | Request wall time | Real-time factor | Returned turns / speaker IDs |
+| --- | ---: | ---: | ---: |
+| MLX Q8 | 0.540 s | 0.0193 | 7 / 4 |
+| audio.cpp Metal Q8 | 0.156 s | 0.00555 | 6 / 4 |
+
+These are single-request integration observations, including HTTP overhead,
+not medians or standardized quality benchmarks. Boundaries and turn splitting
+are not identical between engines. BF16 is registered but not locally tested.
+
 ## Artifact bundles
+
+### GSQ-RCO comparison candidate
+
+`qwen38-27b-gsq-rco` registers the publisher's IQ3_XXS GGUF (10,094,357,632
+bytes) and BF16 projector (931,146,528 bytes), both pinned to revision
+`d562806dbafae37109975e970aae91b43e73b440` with per-file SHA-256 checks.
+It uses the existing `llama-cpp` engine, not Bonsai's specialized Prism fork.
+The source [model card](https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF)
+declares Apache-2.0 and describes per-tensor mixed-precision allocation.
+
+The [comparison workload](../config/workloads/qwen38-gsq-bonsai-comparison.yaml)
+keeps one worker resident at a time and uses matching 8192-token contexts,
+Q8 KV cache, and a 16-GiB machine allocation. Its 13-GiB GSQ reservation is a
+planning allowance, not measured peak memory. This is a comparison candidate,
+not a replacement for the default coding workload. MTP variants are not part
+of this test. Publisher benchmark results from different evaluation protocols
+do not establish a controlled GSQ-versus-Bonsai quality ranking.
+
+Local validation downloaded and SHA-256-verified this IQ3_XXS bundle and
+completed real text inference through Mica. Longer runs triggered macOS
+memory-pressure warnings and were stopped; this is **not** certified for
+long-context use within 16 GiB. The default coding workload is unchanged.
+See the [local comparison record](validation/manifest-audit.md#gsq-rco-versus-bonsai-local-comparison)
+for timings, raw outputs, and the incomplete tests.
+
+### Bundle contents
 
 Every artifact belongs to one logical model and records:
 
@@ -94,14 +175,18 @@ The active [Bonsai model manifest](../config/model-manifests/ternary-bonsai-2-27
 illustrates a multi-file artifact:
 
 ```yaml
-schema: 1
+schema: 2
 id: ternary-bonsai-2-27b
-capability: vision
+input_modalities: [text, image]
+output_modalities: [text]
+abilities: [text_generation, instruction_following, reasoning, image_understanding]
+supported_interactions:
+  - {operation: chat.generate, required_inputs: [text], outputs: [text]}
+  - {operation: chat.generate, required_inputs: [text, image], outputs: [text]}
 license: apache-2.0
 artifacts:
   - id: pq2_0
-    backend: gguf
-    engine: prism-llama-cpp
+    compatible_engines: [prism-llama-cpp]
     repository: prism-ml/Ternary-Bonsai-2-27B-gguf
     revision: 6ed5e12bf84b7a63069882c91dd9e9218647d17b
     format: gguf
@@ -116,7 +201,7 @@ artifacts:
         path: Ternary-Bonsai-2-27B-mmproj-BF16.gguf
         size_bytes: 931145856
         sha256: e287342d92332fa3577ed1d42e921dac9370c08da58ba9337fa450f6cc76cfd7
-    required_features: [prism-activation-transform, vision-projector]
+    required_compatibility: [prism-activation-transform, vision-projector]
 ```
 
 For GGUF file bundles, Mica stages every file, checks its declared byte size
@@ -171,7 +256,7 @@ Registration rejects unknown or non-commercial licenses. The current
 allowlist is Apache-2.0, MIT, BSD-2-Clause, BSD-3-Clause, BSD, and ISC. Custom
 definitions are stored in `~/.mica/config/custom-models.json`.
 
-A shareable schema-4 YAML task profile can reference another Hugging Face model directly,
+A shareable schema-5 YAML workload profile can reference another Hugging Face model directly,
 but must pin an immutable revision and declare its license, modality, engine,
 artifact path/format, context limits, and memory reservation. Remote code is
 not trusted. See [Profiles](profiles.md).
