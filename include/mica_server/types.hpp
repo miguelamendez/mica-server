@@ -103,6 +103,8 @@ struct Artifact {
   std::string size_source;
   double reservation_gib{0.0};
   std::uint64_t kv_bytes_per_token_f16{0};
+  // Optional native vision preprocessing floor; zero retains engine defaults.
+  int image_min_tokens{0};
   std::string projector_pattern;
   std::string projector_repository_pattern;
   std::string sha256;

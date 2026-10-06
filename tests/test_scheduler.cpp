@@ -62,6 +62,8 @@ int main() {
   const auto& qwen_vision = registry.model("qwen35-9b");
   assert(qwen_vision.gguf_context_tokens == 262144);
   assert(qwen_vision.artifact_for(mica::Backend::gguf, mica::Quantization::q4,
+                                "llama-cpp").image_min_tokens == 1024);
+  assert(qwen_vision.artifact_for(mica::Backend::gguf, mica::Quantization::q4,
                                 "llama-cpp").files.size() == 2);
   const auto& qwen_coder = registry.profile("mica-coder-qwen-gguf");
   assert(qwen_coder.model_policies.size() == 3);
@@ -147,6 +149,18 @@ int main() {
       document["references"] = references;
       // JSON is valid YAML syntax; this fixture remains a .yaml manifest.
       { std::ofstream output(manifest); output << document.dump(2) << '\n'; }
+      bool rejected = false;
+      try { (void)mica::load_registry(copied_config); }
+      catch (const std::exception&) { rejected = true; }
+      assert(rejected);
+    }
+    mica::write_profile_file(manifest, original);
+    const auto vision_manifest = copied_config / "model-manifests/qwen35-9b.yaml";
+    const auto vision_original = mica::read_profile_file(vision_manifest);
+    for (const auto& floor : std::vector<nlohmann::json>{-1, 16385, 1.5, "1024"}) {
+      auto document = vision_original;
+      document["artifacts"][0]["image_min_tokens"] = floor;
+      mica::write_profile_file(vision_manifest, document);
       bool rejected = false;
       try { (void)mica::load_registry(copied_config); }
       catch (const std::exception&) { rejected = true; }

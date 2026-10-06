@@ -30,6 +30,10 @@ references:
     title: Unsloth pinned Qwen3.5 9B GGUF release
     url: https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/blob/3885219b6810b007914f3a7950a8d1b469d598a5/README.md
     description: Published Q4_K_M and BF16 projector; Mica downloads these existing artifacts rather than requantizing.
+  - kind: documentation
+    title: llama.cpp Qwen vision preprocessing discussion
+    url: https://github.com/ggml-org/llama.cpp/issues/16842
+    description: Native Qwen vision loader recommends a minimum 1024 image tokens when grounding accuracy is poor. The registered token floor increases visual preprocessing, not text context or output limits.
 artifacts:
   - id: q4
     compatible_engines: [llama-cpp]
@@ -39,6 +43,7 @@ artifacts:
     revision: 3885219b6810b007914f3a7950a8d1b469d598a5
     reservation_gib: 8.0
     kv_bytes_per_token_f16: 32768
+    image_min_tokens: 1024
     required_compatibility: [text-generation, vision-projector]
     files:
       - role: model

@@ -899,7 +899,7 @@ void load_model_manifests(Registry& registry,
       reject_unknown_fields(variant,
           {"id", "compatible_engines", "format", "quantization_type",
            "repository", "revision", "reservation_gib", "required_compatibility",
-           "minimum_engine_commit", "kv_bytes_per_token_f16", "load_path", "files"}, "model artifact");
+           "minimum_engine_commit", "kv_bytes_per_token_f16", "image_min_tokens", "load_path", "files"}, "model artifact");
       const auto compatible_engines =
           variant.at("compatible_engines").get<std::vector<std::string>>();
       if (compatible_engines.empty()) {
@@ -929,6 +929,16 @@ void load_model_manifests(Registry& registry,
       artifact.reservation_gib = variant.at("reservation_gib").get<double>();
       artifact.kv_bytes_per_token_f16 = variant.value("kv_bytes_per_token_f16",
           (model->capability == "text" || model->capability == "vision") ? 65536ULL : 0ULL);
+      if (variant.contains("image_min_tokens") &&
+          !variant.at("image_min_tokens").is_number_integer()) {
+        throw std::runtime_error("image token floor must be an integer: " + id);
+      }
+      artifact.image_min_tokens = variant.value("image_min_tokens", 0);
+      if (artifact.image_min_tokens < 0 || artifact.image_min_tokens > 16384 ||
+          (artifact.image_min_tokens > 0 &&
+           (backend != Backend::gguf || engine.launcher != "llama-server"))) {
+        throw std::runtime_error("unsupported image token floor for artifact: " + id);
+      }
       artifact.size_source = "pinned-model-manifest";
       artifact.required_features =
           variant.value("required_compatibility", std::vector<std::string>{});
@@ -1029,6 +1039,7 @@ void load_model_manifests(Registry& registry,
         if (!safe_relative_path(artifact.pattern)) throw std::runtime_error("unsafe artifact load path");
       }
       if (artifact.pattern.empty() || artifact.reservation_gib <= 0 ||
+          (artifact.image_min_tokens > 0 && artifact.projector_pattern.empty()) ||
           (model->capability == "vision" && backend == Backend::gguf &&
            artifact.projector_pattern.empty())) {
         throw std::runtime_error("incomplete model artifact: " + id);

@@ -1019,6 +1019,10 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
       command.emplace_back("--mmproj");
       command.emplace_back((worker.artifact_path.parent_path() /
                             worker.artifact.projector_pattern).string());
+      if (worker.artifact.image_min_tokens > 0) {
+        command.insert(command.end(), {"--image-min-tokens",
+                                       std::to_string(worker.artifact.image_min_tokens)});
+      }
     }
     command.insert(command.end(), {"--n-gpu-layers",
                                    std::to_string(worker.gpu_layers)});
@@ -1666,6 +1670,7 @@ class WorkerManager {
                           {"quantization_type", artifact.quantization_type},
                           {"required_engine_features", artifact.required_features},
                           {"minimum_engine_commit", artifact.minimum_engine_commit},
+                          {"image_min_tokens", artifact.image_min_tokens},
                           {"sha256", artifact.sha256},
                           {"projector_sha256", artifact.projector_sha256},
                           {"artifact_size_bytes", artifact.size_bytes},

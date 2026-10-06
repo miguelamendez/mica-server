@@ -20,7 +20,16 @@ upgrading the working NVIDIA driver. Native Blackwell compilation is enabled.
 The detector previously left physical CPU cores at zero on Linux. The fix
 counts unique online (socket, core) pairs from `lscpu`, without counting SMT
 threads twice. Its parser has tests for SMT, multiple sockets, and unavailable
-topology. Remote verification of the rebuilt detector is pending.
+topology. The rebuilt detector correctly reports six physical cores remotely.
+
+The first live image test detected correct colors but hallucinated the large
+printed text. Retrying without prompt-cache reuse did not fix OCR. The native
+Qwen loader warns that at least 1024 image tokens may be needed for reliable
+grounding; the default image was represented by only 300 visual tokens.
+The artifact now requests `image_min_tokens: 1024`, passed to native
+`llama-server --image-min-tokens`. Retesting is required before marking vision
+acceptance passed; this is not a claim that the quantization preserves all
+visual accuracy.
 
 ## Workload
 
