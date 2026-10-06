@@ -162,10 +162,10 @@ int main() {
           std::vector<std::string>{"none", "on"}));
   assert(coder.description.find("coding") != std::string::npos);
   assert(coder.schema == 5);
-  assert(coder.default_chat_model == "ternary-bonsai-2-27b");
-  assert(coder.default_models.at("text") == "ternary-bonsai-2-27b");
+  assert(coder.default_chat_model == "spark-x25-4b");
+  assert(coder.default_models.at("text") == "spark-x25-4b");
   assert(mica::select_profile_model(registry, coder, "chat", {"text"}) ==
-         "ternary-bonsai-2-27b");
+         "spark-x25-4b");
   assert(mica::select_profile_model(registry, coder, "chat", {"text", "image"}) ==
          "minicpm-v46-thinking");
   assert(mica::select_profile_model(registry, coder, "chat", {"text", "video"}) ==
@@ -193,7 +193,7 @@ int main() {
     ambiguous.default_chat_model.clear();
     ambiguous.default_models.clear();
     assert(mica::select_profile_model(registry, ambiguous, "chat", {"text"}) ==
-           "ternary-bonsai-2-27b");
+           "spark-x25-4b");
     bool rejected = false;
     try {
       (void)mica::select_profile_model(registry, coder, "asr", {"audio"},
@@ -214,8 +214,34 @@ int main() {
     assert(policy.max_concurrent_requests == 1);
   }
   assert(registry.model("minicpm-v46-thinking").gguf_context_tokens == 262144);
+  {
+    auto oversized = mica::profile_to_document(coder);
+    auto& context = oversized["models"][0]["context"];
+    context["max_input_tokens"] = 262144;
+    context["max_total_tokens"] = 278528;
+    auto strict = registry;
+    bool rejected = false;
+    try { (void)mica::profile_from_document(strict, oversized); }
+    catch (const std::invalid_argument& error) {
+      rejected = std::string(error.what()).find("exceeds declared context") != std::string::npos;
+    }
+    assert(rejected);
+    auto experimental = registry;
+    experimental.ignore_context_limit = true;
+    assert(mica::profile_from_document(experimental, oversized)
+               .policy_for("ternary-bonsai-2-27b")->max_total_tokens == 278528);
+    context["max_total_tokens"] = 262144;
+    rejected = false;
+    try { (void)mica::profile_from_document(experimental, oversized); }
+    catch (const std::invalid_argument& error) {
+      rejected = std::string(error.what()).find("inconsistent context limits") != std::string::npos;
+    }
+    assert(rejected);
+  }
   assert(coder.policy_for("ternary-bonsai-2-27b")->engine == "prism-llama-cpp");
   assert(coder.policy_for("spark-x25-4b")->engine == "mlx-lm");
+  assert(coder.policy_for("spark-x25-4b")->startup);
+  assert(!coder.policy_for("ternary-bonsai-2-27b")->startup);
   assert(coder.policy_for("ling-3-tiny")->engine == "llama-cpp");
   assert(coder.policy_for("ling-3-tiny")->quantization == mica::Quantization::q4);
   assert(coder.policy_for("minicpm-v46-thinking")->engine == "mlx-vlm");
@@ -237,7 +263,7 @@ int main() {
     assert(policy.max_output_tokens == 16384);
     assert(policy.max_total_tokens == 81920);
   }
-  assert(coder_roundtrip.default_chat_model == "ternary-bonsai-2-27b");
+  assert(coder_roundtrip.default_chat_model == "spark-x25-4b");
   assert(coder_roundtrip.default_models == coder.default_models);
   {
     auto document = mica::profile_to_document(coder);

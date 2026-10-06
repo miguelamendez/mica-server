@@ -560,11 +560,11 @@ profiles:
     catalog_visible: true
   - schema: 5
     id: mica-coder-bonsai-macos
-    description: Apple Silicon coding workspace with Bonsai as primary coder, Ling and Spark as alternate text models, and MiniCPM for image or PDF-page analysis.
+    description: Apple Silicon coding workspace with Spark as the default chat model, Bonsai and Ling as alternate coders, and MiniCPM for image or PDF-page analysis.
     selection:
       engine_policy: explicit-only
       defaults:
-        - {operation: chat.generate, required_inputs: [text], model: ternary-bonsai-2-27b}
+        - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
         - {operation: chat.generate, required_inputs: [text, image], model: minicpm-v46-thinking}
         - {operation: chat.generate, required_inputs: [text, video], model: minicpm-v46-thinking}
     available: true
@@ -593,8 +593,8 @@ profiles:
           gpu_layers: 99
           mode: fixed
         priority: 100
-        residency: warm
-        startup: true
+        residency: on-demand
+        startup: false
       - artifact:
           id: q4
         batching:
@@ -611,9 +611,9 @@ profiles:
         placement:
           device: metal:0
           mode: fixed
-        priority: 80
-        residency: on-demand
-        startup: false
+        priority: 110
+        residency: warm
+        startup: true
       - artifact:
           id: q4
         batching:
@@ -703,4 +703,100 @@ profiles:
       - granite-speech-5
       - audio8-tts-06b
       - minicpm-v46-thinking
+  - schema: 5
+    id: mica-coder-gguf
+    description: GGUF coding workspace for CPU or GPU hardware, with Spark as default, Bonsai and Ling as alternate coders, and MiniCPM for images and video.
+    selection:
+      engine_policy: explicit-only
+      defaults:
+        - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
+        - {operation: chat.generate, required_inputs: [text, image], model: minicpm-v46-thinking}
+        - {operation: chat.generate, required_inputs: [text, video], model: minicpm-v46-thinking}
+    mode: coding
+    memory:
+      required_ram_gib: 16
+      maximum_resident_workers: 1
+      required_vram_gib: 0
+      safety_reserve_gib: 0.5
+    models:
+      - artifact:
+          id: pq2_0
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 65536
+          max_output_tokens: 16384
+          max_total_tokens: 81920
+        engine: prism-llama-cpp
+        id: ternary-bonsai-2-27b
+        idle_seconds: 120
+        kv_cache:
+          precision: q8
+        placement:
+          device: auto
+          gpu_layers: 99
+          mode: auto
+        priority: 100
+        residency: on-demand
+        startup: false
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 65536
+          max_output_tokens: 16384
+          max_total_tokens: 81920
+        engine: llama-cpp
+        id: spark-x25-4b
+        idle_seconds: 120
+        kv_cache:
+          precision: q8
+        placement:
+          device: auto
+          mode: auto
+        priority: 110
+        residency: warm
+        startup: true
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 65536
+          max_output_tokens: 16384
+          max_total_tokens: 81920
+        engine: llama-cpp
+        id: ling-3-tiny
+        idle_seconds: 120
+        kv_cache:
+          precision: q8
+        placement:
+          device: auto
+          gpu_layers: 99
+          mode: auto
+        priority: 75
+        residency: on-demand
+        startup: false
+      - artifact:
+          id: q4
+        batching:
+          max_concurrent_requests: 1
+        context:
+          max_input_tokens: 65536
+          max_output_tokens: 16384
+          max_total_tokens: 81920
+        engine: llama-cpp
+        id: minicpm-v46-thinking
+        idle_seconds: 60
+        kv_cache:
+          precision: q4
+        placement:
+          device: auto
+          mode: auto
+        priority: 70
+        residency: on-demand
+        startup: false
+    available: true
+    catalog_visible: true
 schema: 1

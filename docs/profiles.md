@@ -115,8 +115,8 @@ explicit 16-GiB reservation budget (single resident worker):
 ./build/mica-server serve
 ```
 
-Bonsai is the default chat model and warms first; Ling Q4 and Spark Q4 are
-on-demand text alternatives, while MiniCPM serves document/image analysis.
+Spark is the default chat model and warms first; Bonsai PQ2_0 and Ling Q4 are
+on-demand coding alternatives, while MiniCPM serves document/image analysis.
 Each of the four models allows 65,536 input tokens and up to 16,384 generated
 tokens, with an 81,920-token total context and one concurrent request. The
 input allowance includes chat history, templates, tool messages, and visual
@@ -143,6 +143,49 @@ than trying to keep all four loaded. This is reservation-based admission, not
 an operating-system-enforced 16-GiB process limit. Setup and the Bonsai Metal
 inference path still need real-machine validation before treating the profile
 as certified.
+
+### Experimental context-ceiling override
+
+`plan`, `setup`, and `serve` accept `--ignore-context-limit` to bypass a
+model manifest's declared total context ceiling and enable partial-workload
+startup. Setup records the choices in
+`runtime.json`, and serving that setup retains it; run setup again without
+the flag to remove the persisted override. A warning is printed whenever
+the override is enabled. This does not change model weights, RoPE settings,
+or an engine's capabilities and does not certify quality beyond the declared
+context. Engine startup may still reject an unsupported configuration.
+
+Workload input/output/total ceilings, a known supported output ceiling, and
+per-request RAM/VRAM admission remain enforced. With this override the coding
+server can start under 14 GiB and warm Spark, but Bonsai's 81,920-token
+reservation is still too large and its requests return an admission error.
+The API being ready does not certify that every listed model fits.
+`--allow-partial-workload` selects this startup behavior without overriding
+declared model context ceilings. Pinned workers must still fit; machine
+device restrictions and physical-memory validation are never bypassed.
+
+```sh
+mica-server setup --profile mica-coder-bonsai-macos --ram-gib 14 --ignore-context-limit
+mica-server serve
+```
+
+`mica-coder-gguf` contains the same four coding models and context ceilings,
+but uses `llama-cpp` for Spark/Ling/MiniCPM and `prism-llama-cpp` for Bonsai.
+Placements follow the hardware profile (CUDA on compatible NVIDIA Linux,
+Metal on Apple Silicon, or CPU). Its default and startup model is Spark.
+
+### Model metadata audit
+
+The read-only developer tool `scripts/audit_model_limits.py` checks all model
+manifests against upstream architecture and generation configurations without
+loading weights. Run it with `uv run --with pyyaml`; it is not a dependency
+of the native server. The dated result is in
+`artifacts/model-context-audit-2026-10-05.json`.
+Missing supported/trained output claims remain unknown rather than treating
+`max_new_tokens` or a sampling default as a trained maximum. ASR, TTS, and
+diarization are not assigned a chat-style 64K context from unrelated encoder
+or decoder configuration fields. GGUF-only releases without `config.json`
+require model-card or artifact-metadata verification instead.
 
 ## Catalog and local files
 

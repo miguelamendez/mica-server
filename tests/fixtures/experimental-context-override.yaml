@@ -1,0 +1,25 @@
+schema: 5
+id: experimental-context-override
+description: Validation fixture exceeding Bonsai's declared context; not an inference-certified workload.
+selection:
+  engine_policy: explicit-only
+  defaults:
+    - {operation: chat.generate, required_inputs: [text], model: ternary-bonsai-2-27b}
+memory:
+  required_ram_gib: 16
+  required_vram_gib: 0
+  maximum_resident_workers: 1
+  safety_reserve_gib: 0.5
+models:
+  - id: ternary-bonsai-2-27b
+    engine: prism-llama-cpp
+    artifact: {id: pq2_0}
+    context:
+      max_input_tokens: 262144
+      max_output_tokens: 16384
+      max_total_tokens: 278528
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: q8}
+    placement: {mode: fixed, device: 'metal:0', gpu_layers: 99}
+    residency: on-demand
+    startup: false

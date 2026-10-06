@@ -146,6 +146,7 @@ void validate_policy(const Registry& registry, const Profile& profile,
     throw std::invalid_argument("inconsistent context limits for " + policy.id);
   }
   if ((model.capability == "text" || model.capability == "vision") &&
+      !registry.ignore_context_limit &&
       policy.max_total_tokens > model.gguf_context_tokens) {
     throw std::invalid_argument("profile exceeds declared context for " + policy.id);
   }

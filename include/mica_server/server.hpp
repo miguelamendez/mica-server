@@ -17,6 +17,8 @@ struct ServerOptions {
   std::filesystem::path api_key_file;
   std::string api_key;
   std::optional<Backend> active_backend;
+  bool ignore_context_limit{false};
+  bool allow_partial_workload{false};
 };
 
 int run_server(const Registry& registry, const ServerOptions& options);

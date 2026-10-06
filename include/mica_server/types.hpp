@@ -289,6 +289,9 @@ struct VlmToolDefinition {
 };
 
 struct Registry {
+  // Explicit experimental overrides; per-request and pinned memory limits stay enforced.
+  bool ignore_context_limit{false};
+  bool allow_partial_workload{false};
   std::string runtime_root;
   std::optional<HardwareInfo> resolution_hardware;
   std::string default_hf_repo;

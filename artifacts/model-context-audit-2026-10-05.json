@@ -1,0 +1,285 @@
+{
+  "timestamp_utc": "2026-10-06T03:56:34.255746+00:00",
+  "warning": "Upstream main is observed at audit time, not artifact certification. Unknown training/output limits remain null; generation defaults are not hard limits. No weights are downloaded or loaded.",
+  "models": [
+    {
+      "id": "audio8-tts-06b",
+      "source_repository": "Audio8/Audio8-TTS-Preview-0.6b",
+      "declared_context_tokens": null,
+      "upstream_architecture_context_tokens": null,
+      "status": "not-a-causal-text-context-limit",
+      "architecture": [
+        "ArkttsModel"
+      ],
+      "rope_scaling": null,
+      "trained_context_tokens": null,
+      "useful_context_tokens": null,
+      "supported_output_tokens": null,
+      "trained_output_tokens": null,
+      "generation_defaults_not_hard_limits": {
+        "max_new_tokens": 512,
+        "do_sample": true,
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "top_k": 50,
+        "eos_token_id": 151645
+      },
+      "config_source": {
+        "url": "https://huggingface.co/Audio8/Audio8-TTS-Preview-0.6b/raw/main/config.json"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/Audio8/Audio8-TTS-Preview-0.6b/raw/main/generation_config.json"
+      }
+    },
+    {
+      "id": "granite-speech-5",
+      "source_repository": "ibm-granite/granite-speech-5.0-470m-turboctc",
+      "declared_context_tokens": null,
+      "upstream_architecture_context_tokens": null,
+      "status": "not-a-causal-text-context-limit",
+      "architecture": [
+        "GraniteSpeech5ForCTC"
+      ],
+      "rope_scaling": null,
+      "trained_context_tokens": null,
+      "useful_context_tokens": null,
+      "supported_output_tokens": null,
+      "trained_output_tokens": null,
+      "generation_defaults_not_hard_limits": {},
+      "config_source": {
+        "url": "https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc/raw/main/config.json"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc/raw/main/generation_config.json"
+      }
+    },
+    {
+      "id": "ling-3-tiny",
+      "source_repository": "inclusionAI/Ling-3.0-tiny",
+      "declared_context_tokens": 131072,
+      "upstream_architecture_context_tokens": 131072,
+      "status": "matches-architecture-config",
+      "architecture": [
+        "BailingMoeV3ForCausalLM"
+      ],
+      "rope_scaling": null,
+      "trained_context_tokens": null,
+      "useful_context_tokens": null,
+      "supported_output_tokens": null,
+      "trained_output_tokens": null,
+      "generation_defaults_not_hard_limits": {
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "top_k": 20
+      },
+      "config_source": {
+        "url": "https://huggingface.co/inclusionAI/Ling-3.0-tiny/raw/main/config.json"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/inclusionAI/Ling-3.0-tiny/raw/main/generation_config.json"
+      }
+    },
+    {
+      "id": "minicpm-v46-thinking",
+      "source_repository": "openbmb/MiniCPM-V-4.6-Thinking",
+      "declared_context_tokens": 262144,
+      "upstream_architecture_context_tokens": 262144,
+      "status": "matches-architecture-config",
+      "architecture": [
+        "MiniCPMV4_6ForConditionalGeneration"
+      ],
+      "rope_scaling": {
+        "partial_rotary_factor": 0.25,
+        "rope_theta": 10000000,
+        "rope_type": "default"
+      },
+      "trained_context_tokens": null,
+      "useful_context_tokens": null,
+      "supported_output_tokens": null,
+      "trained_output_tokens": null,
+      "generation_defaults_not_hard_limits": {
+        "do_sample": true,
+        "temperature": 0.7,
+        "top_p": 1.0,
+        "top_k": 0,
+        "repetition_penalty": 1.0,
+        "eos_token_id": [
+          248044,
+          248046
+        ]
+      },
+      "config_source": {
+        "url": "https://huggingface.co/openbmb/MiniCPM-V-4.6-Thinking/raw/main/config.json"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/openbmb/MiniCPM-V-4.6-Thinking/raw/main/generation_config.json"
+      }
+    },
+    {
+      "id": "nemotron-3-diarization",
+      "source_repository": "nvidia/Nemotron-3-Diarization",
+      "declared_context_tokens": null,
+      "upstream_architecture_context_tokens": null,
+      "status": "not-a-causal-text-context-limit",
+      "architecture": [
+        "Nemotron3DiarizationForAudioFrameClassification"
+      ],
+      "rope_scaling": null,
+      "trained_context_tokens": null,
+      "useful_context_tokens": null,
+      "supported_output_tokens": null,
+      "trained_output_tokens": null,
+      "generation_defaults_not_hard_limits": {},
+      "config_source": {
+        "url": "https://huggingface.co/nvidia/Nemotron-3-Diarization/raw/main/config.json"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/nvidia/Nemotron-3-Diarization/raw/main/generation_config.json",
+        "error": "HTTP Error 404: Not Found"
+      }
+    },
+    {
+      "id": "qwen38-27b-gsq-rco",
+      "source_repository": "ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF",
+      "declared_context_tokens": 262144,
+      "upstream_architecture_context_tokens": null,
+      "status": "needs-model-card-or-artifact-verification",
+      "architecture": null,
+      "rope_scaling": null,
+      "trained_context_tokens": null,
+      "useful_context_tokens": null,
+      "supported_output_tokens": null,
+      "trained_output_tokens": null,
+      "generation_defaults_not_hard_limits": {},
+      "config_source": {
+        "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/raw/main/config.json",
+        "error": "HTTP Error 404: Not Found"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/raw/main/generation_config.json",
+        "error": "HTTP Error 404: Not Found"
+      }
+    },
+    {
+      "id": "spark-x25-4b",
+      "source_repository": "XHToken/Spark-X2.5-4B",
+      "declared_context_tokens": 1048576,
+      "upstream_architecture_context_tokens": 1048576,
+      "status": "matches-architecture-config",
+      "architecture": [
+        "Spark2_5ForCausalLM"
+      ],
+      "rope_scaling": {
+        "full_attention": {
+          "partial_rotary_factor": 0.25,
+          "rope_theta": 5000000
+        },
+        "sliding_attention": {
+          "partial_rotary_factor": 1.0,
+          "rope_theta": 10000
+        }
+      },
+      "trained_context_tokens": null,
+      "useful_context_tokens": null,
+      "supported_output_tokens": null,
+      "trained_output_tokens": null,
+      "generation_defaults_not_hard_limits": {
+        "max_tokens": 1048576,
+        "do_sample": true,
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "top_k": -1,
+        "repetition_penalty": 1.0,
+        "presence_penalty": 0,
+        "eos_token_id": 1
+      },
+      "config_source": {
+        "url": "https://huggingface.co/XHToken/Spark-X2.5-4B/raw/main/config.json"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/XHToken/Spark-X2.5-4B/raw/main/generation_config.json"
+      }
+    },
+    {
+      "id": "ternary-bonsai-2-27b",
+      "source_repository": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+      "declared_context_tokens": 262144,
+      "upstream_architecture_context_tokens": null,
+      "status": "needs-model-card-or-artifact-verification",
+      "architecture": null,
+      "rope_scaling": null,
+      "trained_context_tokens": null,
+      "useful_context_tokens": null,
+      "supported_output_tokens": null,
+      "trained_output_tokens": null,
+      "generation_defaults_not_hard_limits": {},
+      "config_source": {
+        "url": "https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf/raw/main/config.json",
+        "error": "HTTP Error 404: Not Found"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf/raw/main/generation_config.json",
+        "error": "HTTP Error 404: Not Found"
+      }
+    },
+    {
+      "id": "vllm-qwen3-06b-control",
+      "source_repository": "mlx-community/Qwen3-0.6B-4bit",
+      "declared_context_tokens": 40960,
+      "upstream_architecture_context_tokens": 40960,
+      "status": "matches-architecture-config",
+      "architecture": [
+        "Qwen3ForCausalLM"
+      ],
+      "rope_scaling": null,
+      "trained_context_tokens": null,
+      "useful_context_tokens": null,
+      "supported_output_tokens": null,
+      "trained_output_tokens": null,
+      "generation_defaults_not_hard_limits": {},
+      "config_source": {
+        "url": "https://huggingface.co/mlx-community/Qwen3-0.6B-4bit/raw/main/config.json"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/mlx-community/Qwen3-0.6B-4bit/raw/main/generation_config.json",
+        "error": "HTTP Error 404: Not Found"
+      }
+    },
+    {
+      "id": "xing4-29b-a4b",
+      "source_repository": "XingChen-AGI/Xing4.0-29B-A4B",
+      "declared_context_tokens": 262144,
+      "upstream_architecture_context_tokens": 262144,
+      "status": "matches-architecture-config",
+      "architecture": [
+        "Xing4_0ForCausalLM"
+      ],
+      "rope_scaling": {
+        "beta_fast": 32,
+        "beta_slow": 1,
+        "factor": 64,
+        "mscale": 1.0,
+        "mscale_all_dim": 1.0,
+        "original_max_position_embeddings": 4096,
+        "type": "yarn"
+      },
+      "trained_context_tokens": null,
+      "useful_context_tokens": null,
+      "supported_output_tokens": null,
+      "trained_output_tokens": null,
+      "generation_defaults_not_hard_limits": {
+        "do_sample": true,
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "repetition_penalty": 1.05,
+        "eos_token_id": 2
+      },
+      "config_source": {
+        "url": "https://huggingface.co/XingChen-AGI/Xing4.0-29B-A4B/raw/main/config.json"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/XingChen-AGI/Xing4.0-29B-A4B/raw/main/generation_config.json"
+      }
+    }
+  ]
+}

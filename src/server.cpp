@@ -1358,8 +1358,9 @@ class WorkerManager {
     if (state_.schema < 6) {
       throw std::runtime_error("runtime must be refreshed with setup before live switching");
     }
-    if (target.required_ram_gib > state_.max_ram_gib + 1e-9 ||
-        target.required_vram_gib > state_.max_vram_gib + 1e-9) {
+    if (!registry_.allow_partial_workload &&
+        (target.required_ram_gib > state_.max_ram_gib + 1e-9 ||
+         target.required_vram_gib > state_.max_vram_gib + 1e-9)) {
       throw std::runtime_error("global memory allocation is below target workload requirements");
     }
     std::vector<Backend> next_backends;
@@ -1438,6 +1439,7 @@ class WorkerManager {
       throw std::runtime_error("pinned target workers exceed global memory allocation");
     }
     for (const auto& item : swappable) {
+      if (registry_.allow_partial_workload) continue;
       auto vram = pinned.vram;
       for (const auto& [device, amount] : item.vram) vram[device] += amount;
       if (!fits_target(pinned.ram + item.ram, vram)) {

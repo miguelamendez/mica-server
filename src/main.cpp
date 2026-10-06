@@ -59,6 +59,8 @@ Setup options:
   --vllm-device VALUE       auto|cpu|cuda|metal|rocm|xpu|tpu
   --hardware-profile PATH   Use a saved detector profile (YAML or JSON schema 1)
   --machine-file PATH       Use machine policy YAML (default ROOT/config/machine.yaml)
+  --ignore-context-limit    Experimental context override + partial-workload startup
+  --allow-partial-workload  Start with models that fit; keep per-request memory checks
   --api-key-file PATH       Import an API token from a file (never passed inline)
   --hf-repo OWNER/REPO      Catalog repository (model artifacts use per-model repos)
   --root PATH               Application home (default $MICA_HOME or ~/.mica)
@@ -70,6 +72,8 @@ Serve options:
   --server-config PATH      Server JSON (default ~/.mica/config/server.json)
   --api-key TOKEN           Override API token (prefer a file; arguments are visible)
   --api-key-file PATH       Override the configured API-token file
+  --ignore-context-limit    Context override + partial startup; model budgets stay enforced
+  --allow-partial-workload  Allow partial startup within the configured memory allocation
 
 Custom model options:
   --url URL                 Hugging Face model URL or OWNER/REPO
@@ -245,6 +249,11 @@ mica::SetupOptions parse_setup(const std::vector<std::string>& args) {
     }
     else if (args[i] == "--api-key-file") options.api_key_file = value_after(args, i);
     else if (args[i] == "--refresh") options.refresh = true;
+    else if (args[i] == "--ignore-context-limit") {
+      options.ignore_context_limit = true;
+      options.allow_partial_workload = true;
+    }
+    else if (args[i] == "--allow-partial-workload") options.allow_partial_workload = true;
     else if (args[i] == "--dry-run") options.dry_run = true;
     else throw std::invalid_argument("unknown option: " + args[i]);
   }
@@ -572,7 +581,13 @@ int main(int argc, char** argv) {
     }
     if (args[1] == "plan" || args[1] == "setup") {
       auto options = parse_setup(args);
-      auto registry = mica::load_registry(options.config_directory);
+      auto registry = mica::load_registry(options.config_directory, options.ignore_context_limit,
+                                          options.allow_partial_workload);
+      if (options.ignore_context_limit) {
+        std::cerr << "WARNING: declared model context ceilings are ignored. "
+                     "Engine support and quality are not guaranteed; memory, "
+                     "output, and workload request limits remain enforced.\n";
+      }
       registry.runtime_root = options.root.string();
       mica::merge_custom_models(registry, options.root);
       mica::merge_installed_profiles(registry, options.root);
@@ -655,6 +670,8 @@ int main(int argc, char** argv) {
                      {"installed_backends", backends},
                      {"quantizations", quantizations},
                      {"profile", resolved.options.profile},
+                     {"ignore_context_limit", registry.ignore_context_limit},
+                     {"allow_partial_workload", registry.allow_partial_workload},
                      {"ram_budget_gib", resolved.options.max_ram_gib},
                      {"vram_budget_gib", resolved.options.max_vram_gib},
                      {"vllm_device", mica::to_string(resolved.vllm_device)},
@@ -783,6 +800,11 @@ int main(int argc, char** argv) {
         else if (args[i] == "--host") options.host = value_after(args, i);
         else if (args[i] == "--port") options.port = std::stoi(value_after(args, i));
         else if (args[i] == "--api-key") options.api_key = value_after(args, i);
+        else if (args[i] == "--ignore-context-limit") {
+          options.ignore_context_limit = true;
+          options.allow_partial_workload = true;
+        }
+        else if (args[i] == "--allow-partial-workload") options.allow_partial_workload = true;
         else if (args[i] == "--api-key-file") {
           options.api_key.clear();
           options.api_key_file = value_after(args, i);
@@ -793,7 +815,25 @@ int main(int argc, char** argv) {
         }
         else throw std::invalid_argument("unknown option: " + args[i]);
       }
-      auto registry = mica::load_registry(options.config_directory);
+      const auto context_state_path = options.root / "state/runtime.json";
+      if (std::filesystem::exists(context_state_path)) {
+        std::ifstream context_state_stream(context_state_path);
+        const auto context_state = json::parse(context_state_stream);
+        options.ignore_context_limit = options.ignore_context_limit ||
+            context_state.value("ignore_context_limit", false);
+        options.allow_partial_workload = options.allow_partial_workload ||
+            context_state.value("allow_partial_workload", false);
+      }
+      auto registry = mica::load_registry(options.config_directory, options.ignore_context_limit,
+                                          options.allow_partial_workload);
+      if (options.ignore_context_limit) {
+        std::cerr << "WARNING: declared model context ceilings are ignored; "
+                     "memory, output, and workload request limits remain enforced.\n";
+      }
+      if (options.allow_partial_workload) {
+        std::cerr << "WARNING: partial workload enabled; models exceeding global "
+                     "memory budgets remain unavailable until the allocation changes.\n";
+      }
       mica::merge_custom_models(registry, options.root);
       mica::merge_installed_profiles(registry, options.root);
       return mica::run_server(registry, options);

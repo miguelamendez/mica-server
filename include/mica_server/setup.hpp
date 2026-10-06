@@ -30,6 +30,8 @@ struct SetupOptions {
   VllmDevice vllm_device{VllmDevice::automatic};
   bool dry_run{false};
   bool refresh{false};
+  bool ignore_context_limit{false};
+  bool allow_partial_workload{false};
 };
 
 struct ResolvedSetup {

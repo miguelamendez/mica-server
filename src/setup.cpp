@@ -832,6 +832,8 @@ void write_runtime_state(const Registry& registry, const ResolvedSetup& setup) {
       {"download_policy", "first_server_start"},
       {"hf_repo", setup.options.hf_repo},
       {"max_ram_gib", setup.options.max_ram_gib},
+      {"ignore_context_limit", registry.ignore_context_limit},
+      {"allow_partial_workload", registry.allow_partial_workload},
       {"max_vram_gib", setup.options.max_vram_gib},
       {"machine_policy_file", setup.machine_policy_file.string()},
       {"machine_policy", {{"allowed_devices", setup.machine.allowed_devices},
@@ -1022,10 +1024,10 @@ ResolvedSetup resolve_setup(Registry& registry, SetupOptions options) {
                                     largest_allowed->second);
   }
   if (options.max_vram_gib < 0) throw std::runtime_error("VRAM budget cannot be negative");
-  if (options.max_ram_gib + 1e-9 < profile.required_ram_gib) {
+  if (!registry.allow_partial_workload && options.max_ram_gib + 1e-9 < profile.required_ram_gib) {
     throw std::runtime_error("global RAM allocation is below workload profile requirement");
   }
-  if (options.max_vram_gib + 1e-9 < profile.required_vram_gib) {
+  if (!registry.allow_partial_workload && options.max_vram_gib + 1e-9 < profile.required_vram_gib) {
     throw std::runtime_error("global VRAM allocation is below workload profile requirement");
   }
   if (options.quantizations.empty()) options.quantizations.push_back(Quantization::q4);
@@ -1114,6 +1116,7 @@ ResolvedSetup resolve_setup(Registry& registry, SetupOptions options) {
     };
     check_footprint(pinned);
     for (const auto& item : swappable) {
+      if (registry.allow_partial_workload) continue;
       auto scenario = pinned;
       scenario.ram += item.ram;
       for (const auto& [device, amount] : item.vram) scenario.vram[device] += amount;

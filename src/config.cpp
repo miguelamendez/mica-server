@@ -1167,8 +1167,11 @@ const Profile& Registry::profile(const std::string& name) const {
   return found->second;
 }
 
-Registry load_registry(const std::filesystem::path& config_directory) {
+Registry load_registry(const std::filesystem::path& config_directory,
+                       bool ignore_context_limit, bool allow_partial_workload) {
   Registry registry;
+  registry.ignore_context_limit = ignore_context_limit;
+  registry.allow_partial_workload = allow_partial_workload;
   load_engine_manifests(registry, config_directory / "engines");
   lua_State* state = luaL_newstate();
   if (!state) throw std::runtime_error("unable to create Lua state");

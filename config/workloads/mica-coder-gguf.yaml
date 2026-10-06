@@ -1,6 +1,6 @@
 schema: 5
-id: mica-coder-bonsai-macos
-description: Apple Silicon coding workspace with Spark as the default chat model, Bonsai and Ling as alternate coders, and MiniCPM for image or PDF-page analysis.
+id: mica-coder-gguf
+description: GGUF coding workspace for CPU or GPU hardware, with Spark as default, Bonsai and Ling as alternate coders, and MiniCPM for images and video.
 selection:
   engine_policy: explicit-only
   defaults:
@@ -28,9 +28,9 @@ models:
     kv_cache:
       precision: q8
     placement:
-      device: metal:0
+      device: auto
       gpu_layers: 99
-      mode: fixed
+      mode: auto
     priority: 100
     residency: on-demand
     startup: false
@@ -42,14 +42,14 @@ models:
       max_input_tokens: 65536
       max_output_tokens: 16384
       max_total_tokens: 81920
-    engine: mlx-lm
+    engine: llama-cpp
     id: spark-x25-4b
     idle_seconds: 120
     kv_cache:
       precision: q8
     placement:
-      device: metal:0
-      mode: fixed
+      device: auto
+      mode: auto
     priority: 110
     residency: warm
     startup: true
@@ -67,9 +67,9 @@ models:
     kv_cache:
       precision: q8
     placement:
-      device: metal:0
+      device: auto
       gpu_layers: 99
-      mode: fixed
+      mode: auto
     priority: 75
     residency: on-demand
     startup: false
@@ -81,14 +81,14 @@ models:
       max_input_tokens: 65536
       max_output_tokens: 16384
       max_total_tokens: 81920
-    engine: mlx-vlm
+    engine: llama-cpp
     id: minicpm-v46-thinking
     idle_seconds: 60
     kv_cache:
       precision: q4
     placement:
-      device: metal:0
-      mode: fixed
+      device: auto
+      mode: auto
     priority: 70
     residency: on-demand
     startup: false

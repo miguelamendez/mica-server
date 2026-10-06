@@ -341,6 +341,55 @@ if(MICA_SERVER_BUILD_TESTS)
   set_tests_properties(mica-server-coder-long-context-rejects-14g PROPERTIES
     WILL_FAIL TRUE
   )
+  add_test(
+    NAME mica-server-context-override-off-by-default
+    COMMAND $<TARGET_FILE:mica-server> plan
+            --profile-file ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/experimental-context-override.yaml
+            --ram-gib 24 --root /tmp/mica-context-override-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/mac-metal.json
+  )
+  set_tests_properties(mica-server-context-override-off-by-default PROPERTIES WILL_FAIL TRUE)
+  add_test(
+    NAME mica-server-context-override-explicit
+    COMMAND $<TARGET_FILE:mica-server> plan --ignore-context-limit
+            --profile-file ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/experimental-context-override.yaml
+            --ram-gib 24 --root /tmp/mica-context-override-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/mac-metal.json
+  )
+  set_tests_properties(mica-server-context-override-explicit PROPERTIES
+    PASS_REGULAR_EXPRESSION "\"ignore_context_limit\": true")
+  add_test(
+    NAME mica-server-context-override-allows-partial-14g-startup
+    COMMAND $<TARGET_FILE:mica-server> plan --ignore-context-limit
+            --profile mica-coder-bonsai-macos --ram-gib 14
+            --root /tmp/mica-context-override-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/mac-metal.json
+  )
+  set_tests_properties(mica-server-context-override-allows-partial-14g-startup PROPERTIES
+    PASS_REGULAR_EXPRESSION "\"allow_partial_workload\": true")
+  add_test(
+    NAME mica-server-context-override-cannot-exceed-physical-memory
+    COMMAND $<TARGET_FILE:mica-server> plan --ignore-context-limit
+            --profile mica-coder-bonsai-macos --ram-gib 25
+            --root /tmp/mica-context-override-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/mac-metal.json
+  )
+  set_tests_properties(mica-server-context-override-cannot-exceed-physical-memory PROPERTIES WILL_FAIL TRUE)
+  add_test(
+    NAME mica-server-coder-gguf-linux-cuda-plan
+    COMMAND $<TARGET_FILE:mica-server> setup --profile mica-coder-gguf
+            --ram-gib 16 --vram-gib 15.5 --dry-run
+            --root /tmp/mica-coder-gguf-linux-test
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cuda.json
+  )
+  set_tests_properties(mica-server-coder-gguf-linux-cuda-plan PROPERTIES
+    PASS_REGULAR_EXPRESSION "GGML_CUDA=ON"
+    FAIL_REGULAR_EXPRESSION "mlx-lm|mlx-vlm|GGML_METAL=ON")
   foreach(MICA_HARDWARE_CASE IN ITEMS mac-metal linux-cuda linux-rocm linux-xpu)
     add_test(
       NAME mica-server-gguf-build-${MICA_HARDWARE_CASE}
