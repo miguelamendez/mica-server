@@ -1,5 +1,29 @@
 # Linux coding-workload installation
 
+## Chat interface validation (2026-10-06)
+
+The loopback-only API and optional stdlib chat UI run as separate user services,
+`mica-server.service` and `mica-chat.service`. The UI listens on port 8090 and
+forwards to API port 8092, reading the private key file rather than embedding
+credentials in HTML. Remote browser access uses an SSH localhost tunnel.
+Services are started in the background; reboot autostart is not enabled.
+
+Workload-aware controls use `/v1/models` model interactions and selected-engine
+endpoint contracts, refresh after swaps, and revalidate before sending. The
+coding workload enables text, image/document, and video input, but disables ASR
+recording and TTS controls. Model presence does not mean all capabilities are
+usable: attachment tools also require a tool-capable main assistant and engine.
+
+Both Mac and Linux regression suites passed 77/77. The frontend capability matrix
+also passed on Mac (Node is optional for tests, not a runtime dependency).
+The Linux incremental core build used one job and peaked at 1.14 GiB RSS under
+a 4 GiB monitor. Real requests through the UI bridge succeeded: text completed
+in 0.94 seconds; image tool inspection plus streamed final answer took 13.64
+seconds including on-demand swaps. These are smoke checks, not benchmark rates.
+The image observation correctly identified the two colored squares and read
+the visible text; the final assistant summarized the squares but omitted the
+requested text. No new video/voice quality certification is claimed here.
+
 ## Scope and status
 
 The requested workload is `mica-coder-qwen-gguf`, not the older Bonsai/Ling
