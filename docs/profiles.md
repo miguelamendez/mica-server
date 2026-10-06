@@ -28,7 +28,7 @@ profiles](engines-and-profiles.md).
 
 The coding profile is an active built-in YAML file at
 [`config/workloads/mica-coder-bonsai-macos.yaml`](../config/workloads/mica-coder-bonsai-macos.yaml).
-All 25 built-in workload profiles are self-contained schema-5 YAML in
+All built-in workload profiles are self-contained schema-5 YAML in
 [`config/workloads/`](../config/workloads/). Shareable and user-created profiles use
 the same format. Installed files are kept in
 `<root>/config/profiles/`; the default catalog is
@@ -99,6 +99,7 @@ an OS-enforced process cap.
 | `bonsai-pq2-vision-cpu` | PQ2_0 through isolated `prism-llama-cpp` on CPU | Experimental; inference certification pending. |
 | `bonsai-pq2-vision-gpu` | PQ2_0 through isolated `prism-llama-cpp` on accelerator 0 | Experimental; inference certification pending. |
 | `mica-coder-bonsai-macos` | Bonsai PQ2_0 on Prism Metal, Ling Q4 on llama.cpp Metal, Spark Q4 on MLX, MiniCPM Q4 on MLX | The previous three-model profile passed text, image, video, streaming, and one-worker swap on Apple M4; Ling is a new candidate pending direct and proxied inference. [Validation](validation/bonsai-macos-metal.md) and [task benchmarks](validation/coder-profile-benchmark-macos.md). |
+| `mica-coder-qwen-gguf` | Stock llama.cpp only: Spark Q4, Qwen3.8 27B GSQ-RCO IQ3_XXS, Qwen3.5 9B Q4 + BF16 projector | One resident worker; 64K input / 16K output. Linux CUDA certification is tracked in [the installation report](validation/linux-coder-install.md). |
 
 The first two contain the same logical assistant set: Spark text, Granite ASR,
 Audio8 TTS, and MiniCPM vision/video. The GPTQ profile remains unavailable while

@@ -59,6 +59,21 @@ int main() {
                    "text_generation") != spark.abilities.end());
   assert(!spark.supported_interactions.empty());
   assert(spark.supported_interactions.front().operation == "chat.generate");
+  const auto& qwen_vision = registry.model("qwen35-9b");
+  assert(qwen_vision.gguf_context_tokens == 262144);
+  assert(qwen_vision.artifact_for(mica::Backend::gguf, mica::Quantization::q4,
+                                "llama-cpp").files.size() == 2);
+  const auto& qwen_coder = registry.profile("mica-coder-qwen-gguf");
+  assert(qwen_coder.model_policies.size() == 3);
+  for (const auto& policy : qwen_coder.model_policies) {
+    assert(policy.engine == "llama-cpp");
+    assert(policy.max_input_tokens == 65536);
+    assert(policy.max_output_tokens == 16384);
+  }
+  assert(mica::select_profile_model(registry, qwen_coder, "chat", {"text"}) ==
+         "spark-x25-4b");
+  assert(mica::select_profile_model(registry, qwen_coder, "chat", {"text", "image"}) ==
+         "qwen35-9b");
   const auto& audio8 = registry.model("audio8-tts-06b");
   assert(audio8.supported_interactions.front().operation ==
          "audio.synthesize_speech");
@@ -493,7 +508,7 @@ int main() {
   {
     const auto ledger = mica::registry_catalog(registry);
     assert(ledger.at("schema") == 2);
-    assert(ledger.at("data").size() == 9);
+    assert(ledger.at("data").size() == 10);
     const auto hidden = std::find_if(
         ledger.at("data").begin(), ledger.at("data").end(), [](const auto& item) {
           return item.value("id", "") == "vllm-qwen3-06b-control";
@@ -560,7 +575,7 @@ int main() {
     const auto video_only = mica::registry_catalog(
         registry, std::nullopt, std::nullopt, false, std::nullopt,
         std::string("video-text-to-text"));
-    assert(video_only.at("data").size() == 1);
+    assert(video_only.at("data").size() == 2);
     assert(video_only.at("data").at(0).at("id") == "minicpm-v46-thinking");
   }
   {

@@ -1,0 +1,51 @@
+schema: 2
+id: qwen35-9b
+description: Qwen3.5 9B for text, image, video, and rendered document analysis; trusted Q4_K_M weights with an unquantized BF16 vision projector.
+source_repository: Qwen/Qwen3.5-9B
+license: apache-2.0
+input_modalities: [text, image, video]
+output_modalities: [text]
+abilities: [text_generation, instruction_following, reasoning, image_understanding, video_understanding]
+supported_interactions:
+  - {operation: chat.generate, required_inputs: [text], outputs: [text]}
+  - {operation: chat.generate, required_inputs: [text, image], outputs: [text]}
+  - {operation: chat.generate, required_inputs: [text, video], outputs: [text]}
+  - {operation: chat.generate, required_inputs: [text, image, video], outputs: [text]}
+declared_context_tokens: 262144
+thinking_modes: [none, on]
+tags: [coding, image-text-to-text, video-text-to-text, document-analysis]
+gguf_parallel_slots: 1
+startup_priority: 70
+required: false
+references:
+  - kind: model-card
+    title: Qwen3.5 9B upstream model card
+    url: https://huggingface.co/Qwen/Qwen3.5-9B
+    description: Native 262144-position context and enable_thinking chat-template switch. Trained input/output ceilings and quality at long context are not independently certified here.
+  - kind: documentation
+    title: Qwen3.5 9B architecture configuration
+    url: https://huggingface.co/Qwen/Qwen3.5-9B/blob/main/config.json
+    description: Eight full-attention layers with four KV heads of width 256 imply 32768 bytes of F16 K/V per token. Recurrent state, vision processing, and workspace are covered by the separate conservative base reservation.
+  - kind: model-card
+    title: Unsloth pinned Qwen3.5 9B GGUF release
+    url: https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/blob/3885219b6810b007914f3a7950a8d1b469d598a5/README.md
+    description: Published Q4_K_M and BF16 projector; Mica downloads these existing artifacts rather than requantizing.
+artifacts:
+  - id: q4
+    compatible_engines: [llama-cpp]
+    format: gguf
+    quantization_type: Q4_K_M
+    repository: unsloth/Qwen3.5-9B-GGUF
+    revision: 3885219b6810b007914f3a7950a8d1b469d598a5
+    reservation_gib: 8.0
+    kv_bytes_per_token_f16: 32768
+    required_compatibility: [text-generation, vision-projector]
+    files:
+      - role: model
+        path: Qwen3.5-9B-Q4_K_M.gguf
+        size_bytes: 5680522464
+        sha256: 03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8
+      - role: vision-projector
+        path: mmproj-BF16.gguf
+        size_bytes: 921705024
+        sha256: 853698ce7aa6c7ba732478bad280240969ddf7b0fcbf93900046f63903a83383
