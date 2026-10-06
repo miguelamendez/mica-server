@@ -1,0 +1,1865 @@
+{
+  "schema": 1,
+  "date": "2026-10-06",
+  "engine_commit": "5e03bdd8700948b9c41c54dd1b00f28a2aebc03f",
+  "hardware": {
+    "gpu": "RTX 5060 Ti",
+    "reported_vram_mib": 16311,
+    "cpu": "Ryzen 5 9600X",
+    "host_ram_gib": 60.475
+  },
+  "allocation": {
+    "ram_gib": 16,
+    "gpu_gib": 15.5,
+    "guard_minimum_gpu_free_mib": 768,
+    "guard_host_tree_rss_gib": 15
+  },
+  "caveats": [
+    "Single-run smoke/capacity measurements, not a quality benchmark",
+    "Long-input tests use repetitive filler, not retrieval tasks",
+    "Configured 32K output reservations were not tested with full 32K output",
+    "Initial greedy coding outputs differ with speculative mode; losslessness not established",
+    "Answer excerpts are truncated at 160 characters; raw reports remain on the test host"
+  ],
+  "native_cases": [
+    {
+      "case": {
+        "name": "baseline-32k-q4",
+        "ctx": 32768
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 10717,
+      "peak_host_tree_rss_mib": 9992.86328125,
+      "minimum_gpu_free_mib": 5123,
+      "load_seconds": 1.22,
+      "return_code": 0,
+      "wall_seconds": 9.39,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.22,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 187.828,
+            "predicted_n": 2,
+            "predicted_ms": 32.562,
+            "predicted_per_second": 30.710644309317612
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 7.84,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 140.139,
+            "predicted_n": 256,
+            "predicted_ms": 7698.673,
+            "predicted_per_second": 33.122591386853294
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "dflash-112k-q4",
+        "ctx": 114688,
+        "method": "dflash"
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 14863,
+      "peak_host_tree_rss_mib": 9992.765625,
+      "minimum_gpu_free_mib": 977,
+      "load_seconds": 1.52,
+      "return_code": 0,
+      "wall_seconds": 5.83,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.35,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 240.991,
+            "predicted_n": 2,
+            "predicted_ms": 108.952,
+            "predicted_per_second": 9.178353770467728,
+            "draft_n": 7,
+            "draft_n_accepted": 0
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 3.8,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 169.349,
+            "predicted_n": 256,
+            "predicted_ms": 3627.612,
+            "predicted_per_second": 70.29417699577573,
+            "draft_n": 379,
+            "draft_n_accepted": 200
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "dflash-192k-cpu-draft",
+        "ctx": 196608,
+        "method": "dflash",
+        "draft_ngl": 0
+      },
+      "ready": false,
+      "passed": false,
+      "peak_total_gpu_used_mib": 15105,
+      "peak_host_tree_rss_mib": 9992.83984375,
+      "minimum_gpu_free_mib": 735,
+      "guard_stop": {
+        "gpu_used_mib": 15105,
+        "gpu_free_mib": 735,
+        "rss_mib": 942.4921875
+      },
+      "error": "server exited during load",
+      "return_code": -15,
+      "wall_seconds": 1.2,
+      "samples": []
+    },
+    {
+      "case": {
+        "name": "dflash-192k-ngl56-cpu-draft",
+        "ctx": 196608,
+        "method": "dflash",
+        "ngl": 56,
+        "draft_ngl": 0
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 14175,
+      "peak_host_tree_rss_mib": 9992.71484375,
+      "minimum_gpu_free_mib": 1666,
+      "load_seconds": 1.5,
+      "return_code": 0,
+      "wall_seconds": 13.62,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.68,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 455.174,
+            "predicted_n": 2,
+            "predicted_ms": 224.484,
+            "predicted_per_second": 4.454660465779298,
+            "draft_n": 7,
+            "draft_n_accepted": 0
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 11.27,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 359.744,
+            "predicted_n": 256,
+            "predicted_ms": 10905.409,
+            "predicted_per_second": 23.38289192088073,
+            "draft_n": 365,
+            "draft_n_accepted": 202
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "dflash-32k-q4",
+        "ctx": 32768,
+        "method": "dflash"
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 13083,
+      "peak_host_tree_rss_mib": 9992.828125,
+      "minimum_gpu_free_mib": 2757,
+      "load_seconds": 1.2,
+      "return_code": 0,
+      "wall_seconds": 5.51,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.35,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 235.023,
+            "predicted_n": 2,
+            "predicted_ms": 108.788,
+            "predicted_per_second": 9.192190315108284,
+            "draft_n": 7,
+            "draft_n_accepted": 0
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 3.8,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 169.329,
+            "predicted_n": 256,
+            "predicted_ms": 3628.566,
+            "predicted_per_second": 70.27569568804867,
+            "draft_n": 379,
+            "draft_n_accepted": 200
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "dflash-64k-q4",
+        "ctx": 65536,
+        "method": "dflash"
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 13795,
+      "peak_host_tree_rss_mib": 9992.87109375,
+      "minimum_gpu_free_mib": 2045,
+      "load_seconds": 1.22,
+      "return_code": 0,
+      "wall_seconds": 5.53,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.35,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 238.036,
+            "predicted_n": 2,
+            "predicted_ms": 108.972,
+            "predicted_per_second": 9.176669236134053,
+            "draft_n": 7,
+            "draft_n_accepted": 0
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 3.8,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 169.324,
+            "predicted_n": 256,
+            "predicted_ms": 3632.106,
+            "predicted_per_second": 70.2072021025818,
+            "draft_n": 379,
+            "draft_n_accepted": 200
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "dflash-64k-q8",
+        "ctx": 65536,
+        "kv": "q8",
+        "method": "dflash"
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 14819,
+      "peak_host_tree_rss_mib": 9992.83984375,
+      "minimum_gpu_free_mib": 1021,
+      "load_seconds": 1.2,
+      "return_code": 0,
+      "wall_seconds": 5.2,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.35,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 237.67,
+            "predicted_n": 2,
+            "predicted_ms": 109.088,
+            "predicted_per_second": 9.166911117629803,
+            "draft_n": 7,
+            "draft_n_accepted": 0
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 3.49,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 169.659,
+            "predicted_n": 256,
+            "predicted_ms": 3313.724,
+            "predicted_per_second": 76.95269732784021,
+            "draft_n": 346,
+            "draft_n_accepted": 205
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log_line(line: str) -> dict:\n    \"\"\"\n    Parse a standard nginx access log line into a dictionary.\n\n    Expected format:\n "
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "dflash-96k-q4",
+        "ctx": 98304,
+        "method": "dflash"
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 14507,
+      "peak_host_tree_rss_mib": 9992.83203125,
+      "minimum_gpu_free_mib": 1333,
+      "load_seconds": 1.21,
+      "return_code": 0,
+      "wall_seconds": 5.52,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.35,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 239.947,
+            "predicted_n": 2,
+            "predicted_ms": 108.514,
+            "predicted_per_second": 9.215400777779825,
+            "draft_n": 7,
+            "draft_n_accepted": 0
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 3.8,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 169.428,
+            "predicted_n": 256,
+            "predicted_ms": 3627.46,
+            "predicted_per_second": 70.29712250445216,
+            "draft_n": 379,
+            "draft_n_accepted": 200
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "filled-dflash-112k-q4",
+        "ctx": 114688,
+        "method": "dflash",
+        "long_input": 81920
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 14879,
+      "peak_host_tree_rss_mib": 9992.84765625,
+      "minimum_gpu_free_mib": 961,
+      "load_seconds": 1.52,
+      "return_code": 0,
+      "wall_seconds": 146.48,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.35,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 241.939,
+            "predicted_n": 2,
+            "predicted_ms": 108.79,
+            "predicted_per_second": 9.192021325489474,
+            "draft_n": 7,
+            "draft_n_accepted": 0
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 3.8,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 170.922,
+            "predicted_n": 256,
+            "predicted_ms": 3629.79,
+            "predicted_per_second": 70.25199804947393,
+            "draft_n": 379,
+            "draft_n_accepted": 200
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        },
+        {
+          "label": "filled-context",
+          "wall_seconds": 140.56,
+          "timings": {
+            "prompt_n": 81815,
+            "prompt_ms": 140410.819,
+            "predicted_n": 4,
+            "predicted_ms": 104.039,
+            "predicted_per_second": 28.835340593431308,
+            "draft_n": 7,
+            "draft_n_accepted": 2
+          },
+          "answer_excerpt": "context loaded."
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "filled-text-192k-q4",
+        "ctx": 196608,
+        "long_input": 163840
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 14293,
+      "peak_host_tree_rss_mib": 9992.796875,
+      "minimum_gpu_free_mib": 1547,
+      "load_seconds": 1.21,
+      "return_code": 0,
+      "wall_seconds": 362.56,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.22,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 187.233,
+            "predicted_n": 2,
+            "predicted_ms": 32.42,
+            "predicted_per_second": 30.84515731030228
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 7.87,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 140.017,
+            "predicted_n": 256,
+            "predicted_ms": 7727.913,
+            "predicted_per_second": 32.99726588536905
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        },
+        {
+          "label": "filled-context",
+          "wall_seconds": 352.94,
+          "timings": {
+            "prompt_n": 163736,
+            "prompt_ms": 352299.357,
+            "predicted_n": 4,
+            "predicted_ms": 546.88,
+            "predicted_per_second": 5.485664131070802
+          },
+          "answer_excerpt": "context loaded."
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "filled-text-256k-ngl56-q4",
+        "ctx": 262144,
+        "ngl": 56,
+        "long_input": 229376
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 14517,
+      "peak_host_tree_rss_mib": 9992.8828125,
+      "minimum_gpu_free_mib": 1324,
+      "load_seconds": 1.2,
+      "return_code": 0,
+      "wall_seconds": 750.68,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.43,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 367.136,
+            "predicted_n": 2,
+            "predicted_ms": 59.264,
+            "predicted_per_second": 16.87365010799136
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 14.61,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 295.806,
+            "predicted_n": 256,
+            "predicted_ms": 14307.774,
+            "predicted_per_second": 17.822478884556045
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        },
+        {
+          "label": "filled-context",
+          "wall_seconds": 734.04,
+          "timings": {
+            "prompt_n": 229271,
+            "prompt_ms": 732799.338,
+            "predicted_n": 4,
+            "predicted_ms": 1113.958,
+            "predicted_per_second": 2.693099739846565
+          },
+          "answer_excerpt": "context loaded."
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "quality-text-baseline",
+        "ctx": 32768
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 10719,
+      "peak_host_tree_rss_mib": 9992.859375,
+      "minimum_gpu_free_mib": 5122,
+      "load_seconds": 1.22,
+      "return_code": 0,
+      "wall_seconds": 10.7,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.22,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 188.495,
+            "predicted_n": 2,
+            "predicted_ms": 32.615,
+            "predicted_per_second": 30.66073892380806
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 7.86,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 141.014,
+            "predicted_n": 256,
+            "predicted_ms": 7712.06,
+            "predicted_per_second": 33.06509544790885
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        },
+        {
+          "label": "arithmetic",
+          "wall_seconds": 0.22,
+          "timings": {
+            "prompt_n": 27,
+            "prompt_ms": 123.854,
+            "predicted_n": 4,
+            "predicted_ms": 97.237,
+            "predicted_per_second": 30.85245328424365
+          },
+          "answer_excerpt": "391"
+        },
+        {
+          "label": "logic",
+          "wall_seconds": 0.17,
+          "timings": {
+            "prompt_n": 35,
+            "prompt_ms": 133.364,
+            "predicted_n": 2,
+            "predicted_ms": 31.899,
+            "predicted_per_second": 31.348945107997114
+          },
+          "answer_excerpt": "9"
+        },
+        {
+          "label": "extract",
+          "wall_seconds": 0.91,
+          "timings": {
+            "prompt_n": 42,
+            "prompt_ms": 140.467,
+            "predicted_n": 26,
+            "predicted_ms": 764.137,
+            "predicted_per_second": 32.71664636053483
+          },
+          "answer_excerpt": "{\n  \"name\": \"Ada\",\n  \"issue\": \"billing\",\n  \"urgent\": false\n}"
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "quality-text-dflash",
+        "ctx": 32768,
+        "method": "dflash"
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 13085,
+      "peak_host_tree_rss_mib": 9992.875,
+      "minimum_gpu_free_mib": 2756,
+      "load_seconds": 1.21,
+      "return_code": 0,
+      "wall_seconds": 6.44,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.35,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 236.498,
+            "predicted_n": 2,
+            "predicted_ms": 109.343,
+            "predicted_per_second": 9.145532864472349,
+            "draft_n": 7,
+            "draft_n_accepted": 0
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 3.81,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 169.711,
+            "predicted_n": 256,
+            "predicted_ms": 3641.886,
+            "predicted_per_second": 70.01866615264728,
+            "draft_n": 379,
+            "draft_n_accepted": 200
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        },
+        {
+          "label": "arithmetic",
+          "wall_seconds": 0.22,
+          "timings": {
+            "prompt_n": 27,
+            "prompt_ms": 148.988,
+            "predicted_n": 4,
+            "predicted_ms": 69.35,
+            "predicted_per_second": 43.25883201153569,
+            "draft_n": 7,
+            "draft_n_accepted": 2
+          },
+          "answer_excerpt": "391"
+        },
+        {
+          "label": "logic",
+          "wall_seconds": 0.23,
+          "timings": {
+            "prompt_n": 35,
+            "prompt_ms": 160.268,
+            "predicted_n": 2,
+            "predicted_ms": 71.902,
+            "predicted_per_second": 13.90781897582821,
+            "draft_n": 7,
+            "draft_n_accepted": 0
+          },
+          "answer_excerpt": "9"
+        },
+        {
+          "label": "extract",
+          "wall_seconds": 0.45,
+          "timings": {
+            "prompt_n": 42,
+            "prompt_ms": 169.063,
+            "predicted_n": 26,
+            "predicted_ms": 280.839,
+            "predicted_per_second": 89.01897528477171,
+            "draft_n": 28,
+            "draft_n_accepted": 21
+          },
+          "answer_excerpt": "{\n  \"name\": \"Ada\",\n  \"issue\": \"billing\",\n  \"urgent\": false\n}"
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "quality-vision-baseline",
+        "ctx": 32768,
+        "vision": true
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 11823,
+      "peak_host_tree_rss_mib": 9989.79296875,
+      "minimum_gpu_free_mib": 4018,
+      "load_seconds": 1.21,
+      "return_code": 0,
+      "wall_seconds": 15.23,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.22,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 187.649,
+            "predicted_n": 2,
+            "predicted_ms": 32.548,
+            "predicted_per_second": 30.72385400024579
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 7.86,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 139.975,
+            "predicted_n": 256,
+            "predicted_ms": 7717.061,
+            "predicted_per_second": 33.04366779010818
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        },
+        {
+          "label": "image",
+          "wall_seconds": 2.39,
+          "timings": {
+            "prompt_n": 1063,
+            "prompt_ms": 1907.236,
+            "predicted_n": 16,
+            "predicted_ms": 468.923,
+            "predicted_per_second": 31.988194223785143
+          },
+          "answer_excerpt": "- Blue square (top-left)\n- Red square (bottom-right)"
+        },
+        {
+          "label": "arithmetic",
+          "wall_seconds": 0.22,
+          "timings": {
+            "prompt_n": 27,
+            "prompt_ms": 123.226,
+            "predicted_n": 4,
+            "predicted_ms": 96.699,
+            "predicted_per_second": 31.02410573015233
+          },
+          "answer_excerpt": "391"
+        },
+        {
+          "label": "logic",
+          "wall_seconds": 0.16,
+          "timings": {
+            "prompt_n": 35,
+            "prompt_ms": 131.221,
+            "predicted_n": 2,
+            "predicted_ms": 31.807,
+            "predicted_per_second": 31.439620209387872
+          },
+          "answer_excerpt": "9"
+        },
+        {
+          "label": "extract",
+          "wall_seconds": 0.91,
+          "timings": {
+            "prompt_n": 42,
+            "prompt_ms": 139.198,
+            "predicted_n": 26,
+            "predicted_ms": 765.362,
+            "predicted_per_second": 32.664281738575994
+          },
+          "answer_excerpt": "{\n  \"name\": \"Ada\",\n  \"issue\": \"billing\",\n  \"urgent\": false\n}"
+        },
+        {
+          "label": "ocr",
+          "wall_seconds": 2.15,
+          "timings": {
+            "prompt_n": 1065,
+            "prompt_ms": 1879.586,
+            "predicted_n": 9,
+            "predicted_ms": 255.712,
+            "predicted_per_second": 31.285195845325994
+          },
+          "answer_excerpt": "MICA 31415"
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "quality-vision-mtp",
+        "ctx": 32768,
+        "vision": true,
+        "method": "mtp"
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 13847,
+      "peak_host_tree_rss_mib": 9989.76171875,
+      "minimum_gpu_free_mib": 1994,
+      "load_seconds": 1.51,
+      "return_code": 0,
+      "wall_seconds": 12.47,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.31,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 217.243,
+            "predicted_n": 2,
+            "predicted_ms": 88.687,
+            "predicted_per_second": 11.275609728596073,
+            "draft_n": 7,
+            "draft_n_accepted": 0
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 4.93,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 166.759,
+            "predicted_n": 256,
+            "predicted_ms": 4757.301,
+            "predicted_per_second": 53.60182170520637,
+            "draft_n": 421,
+            "draft_n_accepted": 194
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        },
+        {
+          "label": "image",
+          "wall_seconds": 2.3,
+          "timings": {
+            "prompt_n": 1063,
+            "prompt_ms": 1956.609,
+            "predicted_n": 16,
+            "predicted_ms": 330.163,
+            "predicted_per_second": 45.432104748260706,
+            "draft_n": 28,
+            "draft_n_accepted": 11
+          },
+          "answer_excerpt": "- Blue square (top-left)\n- Red square (bottom-right)"
+        },
+        {
+          "label": "arithmetic",
+          "wall_seconds": 0.32,
+          "timings": {
+            "prompt_n": 27,
+            "prompt_ms": 151.984,
+            "predicted_n": 4,
+            "predicted_ms": 166.075,
+            "predicted_per_second": 18.06412765316875,
+            "draft_n": 14,
+            "draft_n_accepted": 1
+          },
+          "answer_excerpt": "391"
+        },
+        {
+          "label": "logic",
+          "wall_seconds": 0.24,
+          "timings": {
+            "prompt_n": 35,
+            "prompt_ms": 159.137,
+            "predicted_n": 2,
+            "predicted_ms": 82.804,
+            "predicted_per_second": 12.076711269986957,
+            "draft_n": 7,
+            "draft_n_accepted": 0
+          },
+          "answer_excerpt": "9"
+        },
+        {
+          "label": "extract",
+          "wall_seconds": 0.5,
+          "timings": {
+            "prompt_n": 42,
+            "prompt_ms": 165.699,
+            "predicted_n": 26,
+            "predicted_ms": 328.385,
+            "predicted_per_second": 76.13015210804392,
+            "draft_n": 28,
+            "draft_n_accepted": 21
+          },
+          "answer_excerpt": "{\n  \"name\": \"Ada\",\n  \"issue\": \"billing\",\n  \"urgent\": false\n}"
+        },
+        {
+          "label": "ocr",
+          "wall_seconds": 2.21,
+          "timings": {
+            "prompt_n": 1065,
+            "prompt_ms": 1946.998,
+            "predicted_n": 9,
+            "predicted_ms": 247.249,
+            "predicted_per_second": 32.356045929407195,
+            "draft_n": 21,
+            "draft_n_accepted": 5
+          },
+          "answer_excerpt": "MICA 31415"
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "text-none-192k-q4",
+        "ctx": 196608
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 14277,
+      "peak_host_tree_rss_mib": 9992.82421875,
+      "minimum_gpu_free_mib": 1563,
+      "load_seconds": 1.21,
+      "return_code": 0,
+      "wall_seconds": 9.4,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.22,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 187.995,
+            "predicted_n": 2,
+            "predicted_ms": 32.583,
+            "predicted_per_second": 30.69085105729982
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 7.85,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 140.434,
+            "predicted_n": 256,
+            "predicted_ms": 7712.262,
+            "predicted_per_second": 33.06422940506949
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "text-none-224k-q4",
+        "ctx": 229376
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 14989,
+      "peak_host_tree_rss_mib": 9992.87890625,
+      "minimum_gpu_free_mib": 851,
+      "load_seconds": 1.2,
+      "return_code": 0,
+      "wall_seconds": 9.4,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.22,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 187.636,
+            "predicted_n": 2,
+            "predicted_ms": 32.515,
+            "predicted_per_second": 30.755036137167462
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 7.86,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 140.468,
+            "predicted_n": 256,
+            "predicted_ms": 7714.27,
+            "predicted_per_second": 33.055622891083665
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "text-none-256k-ngl56-q4",
+        "ctx": 262144,
+        "ngl": 56
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 14487,
+      "peak_host_tree_rss_mib": 9992.8828125,
+      "minimum_gpu_free_mib": 1354,
+      "load_seconds": 1.2,
+      "return_code": 0,
+      "wall_seconds": 16.4,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.43,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 364.161,
+            "predicted_n": 2,
+            "predicted_ms": 61.667,
+            "predicted_per_second": 16.216128561467237
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 14.6,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 293.37,
+            "predicted_n": 256,
+            "predicted_ms": 14308.102,
+            "predicted_per_second": 17.82207032071759
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "text-none-256k-q4",
+        "ctx": 262144
+      },
+      "ready": false,
+      "passed": false,
+      "peak_total_gpu_used_mib": 15487,
+      "peak_host_tree_rss_mib": 9992.87109375,
+      "minimum_gpu_free_mib": 353,
+      "guard_stop": {
+        "gpu_used_mib": 15487,
+        "gpu_free_mib": 353,
+        "rss_mib": 951.5078125
+      },
+      "error": "server exited during load",
+      "return_code": -15,
+      "wall_seconds": 1.21,
+      "samples": []
+    },
+    {
+      "case": {
+        "name": "vision-mtp-32k-q4",
+        "ctx": 32768,
+        "method": "mtp",
+        "vision": true
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 13845,
+      "peak_host_tree_rss_mib": 9989.73046875,
+      "minimum_gpu_free_mib": 1995,
+      "load_seconds": 1.51,
+      "return_code": 0,
+      "wall_seconds": 9.17,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.31,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 215.92,
+            "predicted_n": 2,
+            "predicted_ms": 88.505,
+            "predicted_per_second": 11.298796678153778,
+            "draft_n": 7,
+            "draft_n_accepted": 0
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 4.9,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 166.554,
+            "predicted_n": 256,
+            "predicted_ms": 4732.166,
+            "predicted_per_second": 53.88652891720197,
+            "draft_n": 421,
+            "draft_n_accepted": 194
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        },
+        {
+          "label": "image",
+          "wall_seconds": 2.29,
+          "timings": {
+            "prompt_n": 1063,
+            "prompt_ms": 1947.555,
+            "predicted_n": 16,
+            "predicted_ms": 328.104,
+            "predicted_per_second": 45.71721161582913,
+            "draft_n": 28,
+            "draft_n_accepted": 11
+          },
+          "answer_excerpt": "- Blue square (top-left)\n- Red square (bottom-right)"
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "vision-mtp-32k-q8",
+        "ctx": 32768,
+        "kv": "q8",
+        "method": "mtp",
+        "vision": true
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 14359,
+      "peak_host_tree_rss_mib": 9989.7578125,
+      "minimum_gpu_free_mib": 1481,
+      "load_seconds": 1.51,
+      "return_code": 0,
+      "wall_seconds": 8.87,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.31,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 216.298,
+            "predicted_n": 2,
+            "predicted_ms": 88.38,
+            "predicted_per_second": 11.314777098891152,
+            "draft_n": 7,
+            "draft_n_accepted": 0
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 4.68,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 165.877,
+            "predicted_n": 256,
+            "predicted_ms": 4516.249,
+            "predicted_per_second": 56.462785820710955,
+            "draft_n": 402,
+            "draft_n_accepted": 197
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log_line(line: str) -> dict:\n    \"\"\"\n    Parse a standard nginx access log line into a dictionary.\n\n    Expected format:\n "
+        },
+        {
+          "label": "image",
+          "wall_seconds": 2.21,
+          "timings": {
+            "prompt_n": 1063,
+            "prompt_ms": 1945.506,
+            "predicted_n": 5,
+            "predicted_ms": 247.019,
+            "predicted_per_second": 16.193086361777837,
+            "draft_n": 21,
+            "draft_n_accepted": 1
+          },
+          "answer_excerpt": "Blue and red."
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "vision-mtp-64k-q4",
+        "ctx": 65536,
+        "method": "mtp",
+        "vision": true
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 14729,
+      "peak_host_tree_rss_mib": 9989.69921875,
+      "minimum_gpu_free_mib": 1111,
+      "load_seconds": 1.51,
+      "return_code": 0,
+      "wall_seconds": 9.17,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.31,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 216.93,
+            "predicted_n": 2,
+            "predicted_ms": 88.525,
+            "predicted_per_second": 11.296243998870375,
+            "draft_n": 7,
+            "draft_n_accepted": 0
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 4.9,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 166.741,
+            "predicted_n": 256,
+            "predicted_ms": 4734.767,
+            "predicted_per_second": 53.85692685616843,
+            "draft_n": 421,
+            "draft_n_accepted": 194
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        },
+        {
+          "label": "image",
+          "wall_seconds": 2.29,
+          "timings": {
+            "prompt_n": 1063,
+            "prompt_ms": 1950.274,
+            "predicted_n": 16,
+            "predicted_ms": 326.877,
+            "predicted_per_second": 45.88882056553382,
+            "draft_n": 28,
+            "draft_n_accepted": 11
+          },
+          "answer_excerpt": "- Blue square (top-left)\n- Red square (bottom-right)"
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "vision-mtp-96k-cpu-projector",
+        "ctx": 98304,
+        "method": "mtp",
+        "vision": true,
+        "projector_cpu": true
+      },
+      "ready": true,
+      "passed": true,
+      "peak_total_gpu_used_mib": 14525,
+      "peak_host_tree_rss_mib": 9993.4609375,
+      "minimum_gpu_free_mib": 1315,
+      "load_seconds": 1.51,
+      "return_code": 0,
+      "wall_seconds": 15.83,
+      "samples": [
+        {
+          "label": "warmup",
+          "wall_seconds": 0.31,
+          "timings": {
+            "prompt_n": 16,
+            "prompt_ms": 217.857,
+            "predicted_n": 2,
+            "predicted_ms": 88.354,
+            "predicted_per_second": 11.318106707110035,
+            "draft_n": 7,
+            "draft_n_accepted": 0
+          },
+          "answer_excerpt": "ready"
+        },
+        {
+          "label": "code",
+          "wall_seconds": 4.91,
+          "timings": {
+            "prompt_n": 39,
+            "prompt_ms": 166.88,
+            "predicted_n": 256,
+            "predicted_ms": 4742.507,
+            "predicted_per_second": 53.76902975578107,
+            "draft_n": 421,
+            "draft_n_accepted": 194
+          },
+          "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined"
+        },
+        {
+          "label": "image",
+          "wall_seconds": 8.89,
+          "timings": {
+            "prompt_n": 1063,
+            "prompt_ms": 8629.487,
+            "predicted_n": 5,
+            "predicted_ms": 247.093,
+            "predicted_per_second": 16.188236817716408,
+            "draft_n": 21,
+            "draft_n_accepted": 1
+          },
+          "answer_excerpt": "Blue and red."
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "vision-mtp-96k-q4",
+        "ctx": 98304,
+        "method": "mtp",
+        "vision": true
+      },
+      "ready": false,
+      "passed": false,
+      "peak_total_gpu_used_mib": 15171,
+      "peak_host_tree_rss_mib": 9989.76171875,
+      "minimum_gpu_free_mib": 669,
+      "guard_stop": {
+        "gpu_used_mib": 15171,
+        "gpu_free_mib": 669,
+        "rss_mib": 1532.84375
+      },
+      "error": "server exited during load",
+      "return_code": -15,
+      "wall_seconds": 1.5,
+      "samples": []
+    }
+  ],
+  "proxy": {
+    "samples": [
+      {
+        "model": "qwen38-27b-text-dflash",
+        "label": "text-dflash/arithmetic",
+        "seconds": 0.23,
+        "answer_excerpt": "391",
+        "timings": {
+          "prompt_n": 27,
+          "prompt_ms": 156.355,
+          "predicted_n": 4,
+          "predicted_ms": 71.004,
+          "predicted_per_second": 42.25114078080108,
+          "draft_n": 7,
+          "draft_n_accepted": 2
+        },
+        "workers": [
+          {
+            "backend": "gguf",
+            "device": "cuda:0",
+            "gpu_layers": 99,
+            "id": "qwen38-27b-text-dflash@gguf:iq3_xxs",
+            "in_flight": 0,
+            "last_used_monotonic_ns": 90150491281036,
+            "pid": 91394,
+            "port": 46765,
+            "quantization": "iq3_xxs",
+            "ram_reservation_gib": 12,
+            "reservation_gib": 12.5,
+            "vram_reservation_gib": 14.6875
+          }
+        ],
+        "commands": [
+          [
+            "${MICA_HOME}/runtimes/llama.cpp/build-mica/bin/llama-server",
+            "-m",
+            "${MICA_HOME}/models/gguf/qwen38-27b-text-dflash/Qwen3.8-27B-GSQ-RCO-IQ3_XXS.gguf",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "46765",
+            "--ctx-size",
+            "114688",
+            "--parallel",
+            "1",
+            "--threads",
+            "8",
+            "--threads-batch",
+            "8",
+            "--n-gpu-layers",
+            "99",
+            "--cache-type-k",
+            "q4_0",
+            "--cache-type-v",
+            "q4_0",
+            "--batch-size",
+            "512",
+            "--ubatch-size",
+            "128",
+            "--ctx-checkpoints",
+            "2",
+            "--cache-ram",
+            "0",
+            "--fit",
+            "off",
+            "--flash-attn",
+            "on",
+            "--jinja",
+            "--spec-type",
+            "draft-dflash",
+            "--spec-draft-model",
+            "${MICA_HOME}/models/gguf/qwen38-27b-text-dflash/Qwen3.8-27B-DFlash2-Q4_K_M.gguf",
+            "--spec-draft-n-max",
+            "7",
+            "--spec-draft-type-k",
+            "q4_0",
+            "--spec-draft-type-v",
+            "q4_0",
+            "--spec-draft-ngl",
+            "99",
+            ""
+          ]
+        ]
+      },
+      {
+        "model": "qwen38-27b-text-dflash",
+        "label": "text-dflash/code",
+        "seconds": 3.79,
+        "answer_excerpt": "```python\nimport re\n\n\ndef parse_nginx_log(line: str) -> dict:\n    \"\"\"\n    Parse a single nginx access log line into a dictionary.\n\n    Expected format (combined",
+        "timings": {
+          "prompt_n": 39,
+          "prompt_ms": 167.037,
+          "predicted_n": 256,
+          "predicted_ms": 3622.576,
+          "predicted_per_second": 70.39189792015405,
+          "draft_n": 379,
+          "draft_n_accepted": 200
+        },
+        "workers": [
+          {
+            "backend": "gguf",
+            "device": "cuda:0",
+            "gpu_layers": 99,
+            "id": "qwen38-27b-text-dflash@gguf:iq3_xxs",
+            "in_flight": 0,
+            "last_used_monotonic_ns": 90154284312695,
+            "pid": 91394,
+            "port": 46765,
+            "quantization": "iq3_xxs",
+            "ram_reservation_gib": 12,
+            "reservation_gib": 12.5,
+            "vram_reservation_gib": 14.6875
+          }
+        ],
+        "commands": [
+          [
+            "${MICA_HOME}/runtimes/llama.cpp/build-mica/bin/llama-server",
+            "-m",
+            "${MICA_HOME}/models/gguf/qwen38-27b-text-dflash/Qwen3.8-27B-GSQ-RCO-IQ3_XXS.gguf",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "46765",
+            "--ctx-size",
+            "114688",
+            "--parallel",
+            "1",
+            "--threads",
+            "8",
+            "--threads-batch",
+            "8",
+            "--n-gpu-layers",
+            "99",
+            "--cache-type-k",
+            "q4_0",
+            "--cache-type-v",
+            "q4_0",
+            "--batch-size",
+            "512",
+            "--ubatch-size",
+            "128",
+            "--ctx-checkpoints",
+            "2",
+            "--cache-ram",
+            "0",
+            "--fit",
+            "off",
+            "--flash-attn",
+            "on",
+            "--jinja",
+            "--spec-type",
+            "draft-dflash",
+            "--spec-draft-model",
+            "${MICA_HOME}/models/gguf/qwen38-27b-text-dflash/Qwen3.8-27B-DFlash2-Q4_K_M.gguf",
+            "--spec-draft-n-max",
+            "7",
+            "--spec-draft-type-k",
+            "q4_0",
+            "--spec-draft-type-v",
+            "q4_0",
+            "--spec-draft-ngl",
+            "99",
+            ""
+          ]
+        ]
+      },
+      {
+        "model": "qwen38-27b-vision-mtp",
+        "label": "vision-mtp/colors",
+        "seconds": 7.09,
+        "answer_excerpt": "blue, red",
+        "timings": {
+          "prompt_n": 1063,
+          "prompt_ms": 1946.54,
+          "predicted_n": 4,
+          "predicted_ms": 83.167,
+          "predicted_per_second": 36.071999711424,
+          "draft_n": 7,
+          "draft_n_accepted": 2
+        },
+        "workers": [
+          {
+            "backend": "gguf",
+            "device": "cuda:0",
+            "gpu_layers": 99,
+            "id": "qwen38-27b-vision-mtp@gguf:iq3_xxs",
+            "in_flight": 0,
+            "last_used_monotonic_ns": 90161377745595,
+            "pid": 91415,
+            "port": 47367,
+            "quantization": "iq3_xxs",
+            "ram_reservation_gib": 12,
+            "reservation_gib": 13.1,
+            "vram_reservation_gib": 14.428125
+          }
+        ],
+        "commands": [
+          [
+            "${MICA_HOME}/runtimes/llama.cpp/build-mica/bin/llama-server",
+            "-m",
+            "${MICA_HOME}/models/gguf/qwen38-27b-vision-mtp/Qwen3.8-27B-GSQ-RCO-IQ3_XXS.gguf",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "47367",
+            "--ctx-size",
+            "65536",
+            "--parallel",
+            "1",
+            "--threads",
+            "8",
+            "--threads-batch",
+            "8",
+            "--mmproj",
+            "${MICA_HOME}/models/gguf/qwen38-27b-vision-mtp/mmproj-Qwen3.8-27B-BF16.gguf",
+            "--image-min-tokens",
+            "1024",
+            "--image-max-tokens",
+            "1024",
+            "--n-gpu-layers",
+            "99",
+            "--cache-type-k",
+            "q4_0",
+            "--cache-type-v",
+            "q4_0",
+            "--batch-size",
+            "512",
+            "--ubatch-size",
+            "128",
+            "--ctx-checkpoints",
+            "2",
+            "--cache-ram",
+            "0",
+            "--fit",
+            "off",
+            "--flash-attn",
+            "on",
+            "--jinja",
+            "--spec-type",
+            "draft-mtp",
+            "--spec-draft-model",
+            "${MICA_HOME}/models/gguf/qwen38-27b-vision-mtp/mtp-Qwen3.8-27B-Q4_0.gguf",
+            "--spec-draft-n-max",
+            "7",
+            "--spec-draft-type-k",
+            "q4_0",
+            "--spec-draft-type-v",
+            "q4_0",
+            "--spec-draft-ngl",
+            "99",
+            ""
+          ]
+        ]
+      },
+      {
+        "model": "qwen38-27b-vision-mtp",
+        "label": "vision-mtp/ocr",
+        "seconds": 2.21,
+        "answer_excerpt": "MICA 31415",
+        "timings": {
+          "prompt_n": 1065,
+          "prompt_ms": 1952.661,
+          "predicted_n": 9,
+          "predicted_ms": 242.668,
+          "predicted_per_second": 32.966851830484444,
+          "draft_n": 21,
+          "draft_n_accepted": 5
+        },
+        "workers": [
+          {
+            "backend": "gguf",
+            "device": "cuda:0",
+            "gpu_layers": 99,
+            "id": "qwen38-27b-vision-mtp@gguf:iq3_xxs",
+            "in_flight": 0,
+            "last_used_monotonic_ns": 90163588237230,
+            "pid": 91415,
+            "port": 47367,
+            "quantization": "iq3_xxs",
+            "ram_reservation_gib": 12,
+            "reservation_gib": 13.1,
+            "vram_reservation_gib": 14.428125
+          }
+        ],
+        "commands": [
+          [
+            "${MICA_HOME}/runtimes/llama.cpp/build-mica/bin/llama-server",
+            "-m",
+            "${MICA_HOME}/models/gguf/qwen38-27b-vision-mtp/Qwen3.8-27B-GSQ-RCO-IQ3_XXS.gguf",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "47367",
+            "--ctx-size",
+            "65536",
+            "--parallel",
+            "1",
+            "--threads",
+            "8",
+            "--threads-batch",
+            "8",
+            "--mmproj",
+            "${MICA_HOME}/models/gguf/qwen38-27b-vision-mtp/mmproj-Qwen3.8-27B-BF16.gguf",
+            "--image-min-tokens",
+            "1024",
+            "--image-max-tokens",
+            "1024",
+            "--n-gpu-layers",
+            "99",
+            "--cache-type-k",
+            "q4_0",
+            "--cache-type-v",
+            "q4_0",
+            "--batch-size",
+            "512",
+            "--ubatch-size",
+            "128",
+            "--ctx-checkpoints",
+            "2",
+            "--cache-ram",
+            "0",
+            "--fit",
+            "off",
+            "--flash-attn",
+            "on",
+            "--jinja",
+            "--spec-type",
+            "draft-mtp",
+            "--spec-draft-model",
+            "${MICA_HOME}/models/gguf/qwen38-27b-vision-mtp/mtp-Qwen3.8-27B-Q4_0.gguf",
+            "--spec-draft-n-max",
+            "7",
+            "--spec-draft-type-k",
+            "q4_0",
+            "--spec-draft-type-v",
+            "q4_0",
+            "--spec-draft-ngl",
+            "99",
+            ""
+          ]
+        ]
+      },
+      {
+        "model": "qwen38-27b-text",
+        "label": "text-long/arithmetic",
+        "seconds": 0.23,
+        "answer_excerpt": "391",
+        "timings": {
+          "prompt_n": 27,
+          "prompt_ms": 127.722,
+          "predicted_n": 4,
+          "predicted_ms": 95.879,
+          "predicted_per_second": 31.28943772880401
+        },
+        "workers": [
+          {
+            "backend": "gguf",
+            "device": "cuda:0",
+            "gpu_layers": 99,
+            "id": "qwen38-27b-text@gguf:iq3_xxs",
+            "in_flight": 0,
+            "last_used_monotonic_ns": 90171024875680,
+            "pid": 91440,
+            "port": 36257,
+            "quantization": "iq3_xxs",
+            "ram_reservation_gib": 12,
+            "reservation_gib": 10.5,
+            "vram_reservation_gib": 14.34121345281601
+          }
+        ],
+        "commands": [
+          [
+            "${MICA_HOME}/runtimes/llama.cpp/build-mica/bin/llama-server",
+            "-m",
+            "${MICA_HOME}/models/gguf/qwen38-27b-text/Qwen3.8-27B-GSQ-RCO-IQ3_XXS.gguf",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "36257",
+            "--ctx-size",
+            "196608",
+            "--parallel",
+            "1",
+            "--threads",
+            "8",
+            "--threads-batch",
+            "8",
+            "--n-gpu-layers",
+            "99",
+            "--cache-type-k",
+            "q4_0",
+            "--cache-type-v",
+            "q4_0",
+            "--batch-size",
+            "512",
+            "--ubatch-size",
+            "128",
+            "--ctx-checkpoints",
+            "2",
+            "--cache-ram",
+            "0",
+            "--fit",
+            "off",
+            "--flash-attn",
+            "on",
+            "--jinja",
+            "--spec-type",
+            "none",
+            ""
+          ]
+        ]
+      },
+      {
+        "model": "qwen38-27b-text",
+        "label": "text-max/arithmetic",
+        "seconds": 0.51,
+        "answer_excerpt": "391",
+        "timings": {
+          "prompt_n": 27,
+          "prompt_ms": 330.183,
+          "predicted_n": 4,
+          "predicted_ms": 170.93,
+          "predicted_per_second": 17.551044287135085
+        },
+        "workers": [
+          {
+            "backend": "gguf",
+            "device": "cuda:0",
+            "gpu_layers": 56,
+            "id": "qwen38-27b-text@gguf:iq3_xxs",
+            "in_flight": 0,
+            "last_used_monotonic_ns": 90176239381015,
+            "pid": 91462,
+            "port": 43833,
+            "quantization": "iq3_xxs",
+            "ram_reservation_gib": 12,
+            "reservation_gib": 10.5,
+            "vram_reservation_gib": 14.14231177121401
+          }
+        ],
+        "commands": [
+          [
+            "${MICA_HOME}/runtimes/llama.cpp/build-mica/bin/llama-server",
+            "-m",
+            "${MICA_HOME}/models/gguf/qwen38-27b-text/Qwen3.8-27B-GSQ-RCO-IQ3_XXS.gguf",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "43833",
+            "--ctx-size",
+            "262144",
+            "--parallel",
+            "1",
+            "--threads",
+            "8",
+            "--threads-batch",
+            "8",
+            "--n-gpu-layers",
+            "56",
+            "--cache-type-k",
+            "q4_0",
+            "--cache-type-v",
+            "q4_0",
+            "--batch-size",
+            "512",
+            "--ubatch-size",
+            "128",
+            "--ctx-checkpoints",
+            "2",
+            "--cache-ram",
+            "0",
+            "--fit",
+            "off",
+            "--flash-attn",
+            "on",
+            "--jinja",
+            "--spec-type",
+            "none",
+            ""
+          ]
+        ]
+      }
+    ],
+    "activations": [
+      {
+        "profile": "qwen27b-modes",
+        "seconds": 0.8,
+        "response": {
+          "previous_profile": "mica-coder-qwen-gguf",
+          "profile": "qwen27b-modes",
+          "ready": false,
+          "retained": [],
+          "startup_pending": [
+            "qwen38-27b-text-dflash"
+          ],
+          "unloaded": [
+            "spark-x25-4b@gguf:q4"
+          ]
+        }
+      },
+      {
+        "profile": "qwen27b-modes-long",
+        "seconds": 0.2,
+        "response": {
+          "previous_profile": "qwen27b-modes",
+          "profile": "qwen27b-modes-long",
+          "ready": false,
+          "retained": [],
+          "startup_pending": [
+            "qwen38-27b-text"
+          ],
+          "unloaded": [
+            "qwen38-27b-vision-mtp@gguf:iq3_xxs"
+          ]
+        }
+      },
+      {
+        "profile": "qwen27b-modes-max-context",
+        "seconds": 0.2,
+        "response": {
+          "previous_profile": "qwen27b-modes-long",
+          "profile": "qwen27b-modes-max-context",
+          "ready": false,
+          "retained": [],
+          "startup_pending": [
+            "qwen38-27b-text"
+          ],
+          "unloaded": [
+            "qwen38-27b-text@gguf:iq3_xxs"
+          ]
+        }
+      },
+      {
+        "profile": "mica-coder-qwen-gguf",
+        "seconds": 0.2,
+        "response": {
+          "previous_profile": "qwen27b-modes-max-context",
+          "profile": "mica-coder-qwen-gguf",
+          "ready": false,
+          "retained": [],
+          "startup_pending": [
+            "spark-x25-4b"
+          ],
+          "unloaded": [
+            "qwen38-27b-text@gguf:iq3_xxs"
+          ]
+        }
+      }
+    ],
+    "passed": true,
+    "restored_profile": "mica-coder-qwen-gguf"
+  }
+}

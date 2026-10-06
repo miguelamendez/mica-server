@@ -109,19 +109,54 @@ checks allocation and inference, **not** retrieval or coding quality at length.
 | --- | ---: | ---: | ---: | ---: | ---: |
 | DFlash GPU, 114,688 window | 81,815 | 140.41 | 28.84 | 14,879 | 961 |
 | Target only GPU, 196,608 window | 163,736 | 352.30 | 5.49 | 14,293 | 1,547 |
+| Target only, 56 GPU layers, 262,144 window | 229,271 | 732.80 | 2.69 | 14,517 | 1,324 |
 
-The full-window partial-CPU filled-context validation was still pending when
-this initial report was written. Its successful short request is not enough
-to certify a filled 256K window. All long-output reservations still need a
-real extended-output stress test.
+The full-window partial-CPU configuration passed with 229,271 actual input
+tokens and 1,324 MiB minimum GPU headroom, but prefill took over 12 minutes.
+Measured host process-tree RSS peaked at approximately 9.76 GiB during these
+tests. The largest input preserves the configured 32K output reservation;
+all long-output reservations still need a real extended-output stress test.
 
 ## Quality and prior calibration caveats
 
 The combined image prompt identified the blue/red squares but did not
-transcribe the printed label. Initial greedy coding outputs also differed
-between target-only and speculative runs. Therefore the speed measurements
-do **not** establish lossless decoding or unchanged vision/coding quality.
-Follow-up strict-answer checks and an OCR-only prompt are tracked separately.
+transcribe the printed label, in both baseline and MTP modes. An OCR-only
+follow-up correctly returned `MICA 31415` in both. The strict-answer checks
+below agreed across target-only, DFlash and MTP; this is a small smoke suite,
+not an accuracy benchmark. Initial greedy coding outputs differed between
+target-only and speculative runs, so the speed measurements do **not**
+establish lossless decoding or unchanged coding quality.
+
+| Check | Expected | Target only | DFlash | Vision + MTP |
+| --- | --- | --- | --- | --- |
+| 17 × 23 | `391` | `391` | `391` | `391` |
+| 17 sheep, all but nine leave | `9` | `9` | `9` | `9` |
+| Structured record extraction | Ada / billing / false | Correct JSON | Same JSON | Same JSON |
+| OCR-only image request | `MICA 31415` | Correct with projector | Not applicable | Correct |
+| Square colors | blue / red | Correct with projector | Not applicable | Correct |
+
+## Actual Mica proxy validation
+
+The native-only tests were followed by authenticated requests through the
+installed Mica server. All four configurations were activated via
+`POST /admin/profile/activate`; the test waited for readiness and inspected
+the actual worker process arguments after inference. It verified DFlash
+without `--mmproj`, external MTP with a projector and 1,024-image-token cap,
+the 196,608 window, and the 262,144 window with 56 GPU layers. Each step had
+exactly one resident worker. The text+DFlash coding request measured 70.39
+decode tokens/s through Mica; arithmetic returned `391` in all three text
+configurations. Image requests returned `blue, red` and `MICA 31415`.
+
+The shared target files were reused without downloading another target copy.
+All 77 regression tests passed on macOS and Linux; Linux core compilation
+peaked at 1.14 GiB process-tree RSS with a monitored 4 GiB cap and one job.
+The original `mica-coder-qwen-gguf` workload and both Linux services were
+restored after validation. New workloads are available but are not the new
+startup default. The Mac server was left unchanged and remained ready.
+
+Raw native case JSON/logs and the proxy report remain under
+`~/.mica/state/qwen27b-tuning/` on the test host. The versioned, path-redacted
+summary is [`artifacts/qwen27b-tuning-2026-10-06.json`](../../artifacts/qwen27b-tuning-2026-10-06.json).
 
 An existing user `qwen` launcher and its `profiles.ini` were found on the Linux
 host. That launcher previously used a different IQ3_S target with embedded
@@ -143,6 +178,7 @@ File sizes, full SHA-256 hashes, immutable publisher revisions and the tested
 minimum engine commit are in the three `config/model-manifests/qwen38-27b-*.yaml`
 bundle records. The target header contains 64 decoder blocks and 16 full
 attention layers; target F16 K/V is 65,536 bytes/token. The MTP bundle charges
-69,632 bytes/token including its extra head. DFlash's bounded sliding-window
-state is covered by its separate base reservation rather than multiplying
-every drafter layer by the target's entire context window.
+69,632 bytes/token including its extra head. DFlash has sliding-window
+attention plus additional draft state/workspace; its extra costs are covered
+by the tested base reservation and conservative target-cache padding, not an
+exact general-purpose formula for every possible drafter or context size.
