@@ -27,9 +27,9 @@ printed text. Retrying without prompt-cache reuse did not fix OCR. The native
 Qwen loader warns that at least 1024 image tokens may be needed for reliable
 grounding; the default image was represented by only 300 visual tokens.
 The artifact now requests `image_min_tokens: 1024`, passed to native
-`llama-server --image-min-tokens`. Retesting is required before marking vision
-acceptance passed; this is not a claim that the quantization preserves all
-visual accuracy.
+`llama-server --image-min-tokens`. The same image retest correctly reads
+`MICA 31415` and identifies both colored squares. This is a fixture-level
+improvement, not a claim that the quantization preserves all visual accuracy.
 
 The acceptance client also exposed a startup race: systemd may return before
 Mica binds the API socket. Readiness polling now retries connection-refused
@@ -83,20 +83,56 @@ never commit it or embed its value in example commands.
 
 ## Acceptance checklist
 
-- Core source build and native hardware detection: passed before this workload.
-- Existing core test suite: 75/75 passed on Linux before the new model addition;
-  76/76 passed locally after registering the new workload and model.
+- Core source build and native hardware detection: passed, including physical-core detection.
+- Core test suite: 77/77 passed on macOS and on Linux after the final native change.
 - New manifest/schema checks: passed locally (59 documents).
-- Prism CUDA build: in progress.
-- Stock llama.cpp CUDA build: pending completion of the Prism build.
-- New workload setup and model checksums: pending.
-- Real Spark and Qwen coder inference: pending.
-- Real Qwen3.5 image/video inference and streaming: pending.
-- API authentication, default routing, and one-worker swaps: pending.
+- Prism CUDA build: passed; binary detects the RTX 5060 Ti. Bonsai inference was not part of this workload.
+- Stock llama.cpp CUDA build: passed; actual inference runs on CUDA device 0.
+- New workload setup and model downloads: passed, 20.23 GB across five files;
+  Qwen bundle SHA-256 checks passed, and Spark's pinned file-size check passed.
+- Real Spark and Qwen coder inference: passed; Qwen reasoning uses thinking enabled.
+- Real Qwen3.5 image/video inference and text streaming: passed.
+- API authentication, default routing, and one-worker swaps: passed.
+- Final live acceptance suite: 56/56 checks passed.
 - Full 64K-input / 16K-generation quality and peak-memory certification: not tested.
 
-Completion will be recorded only after actual inference, not merely a healthy
-proxy endpoint or successful download.
+The final raw prompts, outputs, timing data, swap results, and worker snapshot
+are stored in
+[`artifacts/linux-coder-acceptance-2026-10-05.json`](../../artifacts/linux-coder-acceptance-2026-10-05.json).
+Older, weaker checks are not used as final acceptance evidence. Non-thinking
+Qwen reasoning and video time localization retain the limitations noted above.
+
+## Installed runtime and service
+
+Stock llama.cpp resolved `latest` to
+`5e03bdd8700948b9c41c54dd1b00f28a2aebc03f`; Prism uses
+`9a9394a895b96003ca842a6041cb28ac49a108f7`. Both builds use CUDA 12.8,
+`GGML_CUDA=ON`, and native `sm_120a` kernels. Combined engine-build process-tree
+RSS peaked at 3.43 GiB under the 8-GiB build guard, with one compiler job.
+
+The final active workload is `mica-coder-qwen-gguf`. Spark is the default and
+resident worker; Qwen models load on demand. Model caches, machine policy,
+hardware facts, API key, logs, and state live under `~/.mica`. This GGUF-only
+setup did not create a Python environment. Python was used only by optional
+build monitoring and acceptance clients.
+
+The background server listens on **Linux loopback** `127.0.0.1:8092`, not a
+public network interface. Its user-systemd unit is linked from
+`~/.mica/state/systemd/mica-server.service`; logs are in
+`~/.mica/logs/server.log`. The unit applies a 16-GiB cgroup host-memory ceiling
+and disables swap for the service. Cgroup usage includes filesystem cache and
+can transiently overshoot its accounting ceiling; it is not a VRAM cap. Mica's
+VRAM allocation remains 15.5 GiB with reservation-based admission.
+
+```sh
+systemctl --user status mica-server.service
+systemctl --user stop mica-server.service
+systemctl --user start mica-server.service
+curl http://127.0.0.1:8092/ready
+```
+
+The service stays running independently of the SSH session. It has not been
+enabled for automatic reboot startup.
 
 ## Live workload-swap test
 

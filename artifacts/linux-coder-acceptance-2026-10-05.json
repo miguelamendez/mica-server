@@ -1,0 +1,1329 @@
+{
+  "schema": 1,
+  "complete": true,
+  "passed": true,
+  "profile": "mica-coder-qwen-gguf",
+  "checks": [
+    {
+      "name": "API requires authentication",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "active workload lists models",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "admin state available",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "at most one resident worker",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "correct initial workload",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "default_spark_text HTTP success",
+      "passed": true,
+      "detail": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+              "content": "323",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1791263474,
+        "id": "chatcmpl-wxQGGQBvW3ljva4fMpXRJhqWfTtCOLhB",
+        "model": "spark-x25-4b",
+        "object": "chat.completion",
+        "system_fingerprint": "b11434-5e03bdd87",
+        "timings": {
+          "cache_n": 9,
+          "predicted_ms": 29.317,
+          "predicted_n": 4,
+          "predicted_per_second": 102.32970631374289,
+          "predicted_per_token_ms": 9.772333333333334,
+          "prompt_ms": 38.997,
+          "prompt_n": 23,
+          "prompt_per_second": 589.788958124984,
+          "prompt_per_token_ms": 1.6955217391304347
+        },
+        "usage": {
+          "completion_tokens": 4,
+          "prompt_tokens": 32,
+          "prompt_tokens_details": {
+            "cached_tokens": 9
+          },
+          "total_tokens": 36
+        }
+      }
+    },
+    {
+      "name": "default_spark_text produced text",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "default_spark_text normal stop",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "Spark arithmetic",
+      "passed": true,
+      "detail": "323"
+    },
+    {
+      "name": "admin state available",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "at most one resident worker",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "activate coder-qwen-swap-test",
+      "passed": true,
+      "detail": {
+        "previous_profile": "mica-coder-qwen-gguf",
+        "profile": "coder-qwen-swap-test",
+        "ready": false,
+        "retained": [
+          "spark-x25-4b@gguf:q4"
+        ],
+        "startup_pending": [],
+        "unloaded": []
+      }
+    },
+    {
+      "name": "Spark retained in smaller workload",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "admin state available",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "at most one resident worker",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "Spark PID unchanged",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "excluded coder rejected",
+      "passed": true,
+      "detail": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "invalid_request",
+            "message": "model is not in active profile: qwen38-27b-gsq-rco"
+          }
+        },
+        "wall_seconds": 0.000261342000158038
+      }
+    },
+    {
+      "name": "activate mica-coder-qwen-gguf",
+      "passed": true,
+      "detail": {
+        "previous_profile": "coder-qwen-swap-test",
+        "profile": "mica-coder-qwen-gguf",
+        "ready": false,
+        "retained": [
+          "spark-x25-4b@gguf:q4"
+        ],
+        "startup_pending": [],
+        "unloaded": []
+      }
+    },
+    {
+      "name": "admin state available",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "at most one resident worker",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "Spark retained on return",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "qwen27_reasoning HTTP success",
+      "passed": true,
+      "detail": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+              "content": "9 \u2014 \u201call but 9\u201d means 9 sheep did not run away.",
+              "reasoning_content": "We need answer user: \"A farmer has 17 sheep. All but 9 run away. How many remain? Reply with the number and one short explanation.\"\n\nNeed parse: \"All but 9 run away\" means all except 9 run away, so 9 remain. Could be trick? Farmer has 17 sheep. All but 9 run away => 9 remain. Reply with number and one short explanation. Need final concise. Ensure no extra.\n",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1791263483,
+        "id": "chatcmpl-pHP40Oi5inMfTj7pJFiknjk4rlgcLmQh",
+        "model": "qwen38-27b-gsq-rco",
+        "object": "chat.completion",
+        "system_fingerprint": "b11434-5e03bdd87",
+        "timings": {
+          "cache_n": 42,
+          "predicted_ms": 3534.564,
+          "predicted_n": 118,
+          "predicted_per_second": 33.10167817020713,
+          "predicted_per_token_ms": 30.209948717948716,
+          "prompt_ms": 181.271,
+          "prompt_n": 38,
+          "prompt_per_second": 209.6308841458369,
+          "prompt_per_token_ms": 4.77028947368421
+        },
+        "usage": {
+          "completion_tokens": 118,
+          "prompt_tokens": 80,
+          "prompt_tokens_details": {
+            "cached_tokens": 42
+          },
+          "total_tokens": 198
+        }
+      }
+    },
+    {
+      "name": "qwen27_reasoning produced text",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "qwen27_reasoning normal stop",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "Qwen27 reasoning answer begins with nine",
+      "passed": true,
+      "detail": "9 \u2014 \u201call but 9\u201d means 9 sheep did not run away."
+    },
+    {
+      "name": "admin state available",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "at most one resident worker",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "activate coder-qwen-swap-test",
+      "passed": true,
+      "detail": {
+        "previous_profile": "mica-coder-qwen-gguf",
+        "profile": "coder-qwen-swap-test",
+        "ready": false,
+        "retained": [],
+        "startup_pending": [
+          "spark-x25-4b"
+        ],
+        "unloaded": [
+          "qwen38-27b-gsq-rco@gguf:iq3_xxs"
+        ]
+      }
+    },
+    {
+      "name": "excluded resident coder unloaded",
+      "passed": true,
+      "detail": {
+        "previous_profile": "mica-coder-qwen-gguf",
+        "profile": "coder-qwen-swap-test",
+        "ready": false,
+        "retained": [],
+        "startup_pending": [
+          "spark-x25-4b"
+        ],
+        "unloaded": [
+          "qwen38-27b-gsq-rco@gguf:iq3_xxs"
+        ]
+      }
+    },
+    {
+      "name": "admin state available",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "at most one resident worker",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "excluded coder absent",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "activate mica-coder-qwen-gguf",
+      "passed": true,
+      "detail": {
+        "previous_profile": "coder-qwen-swap-test",
+        "profile": "mica-coder-qwen-gguf",
+        "ready": false,
+        "retained": [
+          "spark-x25-4b@gguf:q4"
+        ],
+        "startup_pending": [],
+        "unloaded": []
+      }
+    },
+    {
+      "name": "default_qwen9_image HTTP success",
+      "passed": true,
+      "detail": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+              "content": "The large text in the image is:  \n**MICA 31415**\n\n- The **upper-left square** is **blue**.  \n- The **lower-right square** is **red**.\n\n\u2705 Final Answer:  \n**Blue and Red**",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1791263490,
+        "id": "chatcmpl-kn8szFuwUHTO2ZDrP8naGliKlll4d16q",
+        "model": "qwen35-9b",
+        "object": "chat.completion",
+        "system_fingerprint": "b11434-5e03bdd87",
+        "timings": {
+          "cache_n": 0,
+          "predicted_ms": 763.477,
+          "predicted_n": 55,
+          "predicted_per_second": 70.72904619261615,
+          "predicted_per_token_ms": 14.138462962962963,
+          "prompt_ms": 871.298,
+          "prompt_n": 1067,
+          "prompt_per_second": 1224.6097202105364,
+          "prompt_per_token_ms": 0.8165866916588566
+        },
+        "usage": {
+          "completion_tokens": 55,
+          "prompt_tokens": 1067,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "total_tokens": 1122
+        }
+      }
+    },
+    {
+      "name": "default_qwen9_image produced text",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "default_qwen9_image normal stop",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "image OCR and colors",
+      "passed": true,
+      "detail": "The large text in the image is:  \n**MICA 31415**\n\n- The **upper-left square** is **blue**.  \n- The **lower-right square** is **red**.\n\n\u2705 Final Answer:  \n**Blue and Red**"
+    },
+    {
+      "name": "admin state available",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "at most one resident worker",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "activate coder-qwen-swap-test",
+      "passed": true,
+      "detail": {
+        "previous_profile": "mica-coder-qwen-gguf",
+        "profile": "coder-qwen-swap-test",
+        "ready": false,
+        "retained": [
+          "qwen35-9b@gguf:q4"
+        ],
+        "startup_pending": [
+          "spark-x25-4b"
+        ],
+        "unloaded": []
+      }
+    },
+    {
+      "name": "vision retained in smaller workload",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "admin state available",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "at most one resident worker",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "vision PID unchanged",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "activate mica-coder-qwen-gguf",
+      "passed": true,
+      "detail": {
+        "previous_profile": "coder-qwen-swap-test",
+        "profile": "mica-coder-qwen-gguf",
+        "ready": false,
+        "retained": [
+          "qwen35-9b@gguf:q4"
+        ],
+        "startup_pending": [
+          "spark-x25-4b"
+        ],
+        "unloaded": []
+      }
+    },
+    {
+      "name": "default_qwen9_video HTTP success",
+      "passed": true,
+      "detail": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+              "content": "Red, Green, Blue",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1791263501,
+        "id": "chatcmpl-uFeW4Y9bD1FOmsZvRSSWCCIPyZhGOnTA",
+        "model": "qwen35-9b",
+        "object": "chat.completion",
+        "system_fingerprint": "b11434-5e03bdd87",
+        "timings": {
+          "cache_n": 0,
+          "predicted_ms": 77.657,
+          "predicted_n": 6,
+          "predicted_per_second": 64.38569607376026,
+          "predicted_per_token_ms": 15.5314,
+          "prompt_ms": 10780.945,
+          "prompt_n": 13553,
+          "prompt_per_second": 1257.1254189683743,
+          "prompt_per_token_ms": 0.7954655795764776
+        },
+        "usage": {
+          "completion_tokens": 6,
+          "prompt_tokens": 13553,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "total_tokens": 13559
+        }
+      }
+    },
+    {
+      "name": "default_qwen9_video produced text",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "default_qwen9_video normal stop",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "video temporal colors",
+      "passed": true,
+      "detail": "Red, Green, Blue"
+    },
+    {
+      "name": "admin state available",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "at most one resident worker",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "video reused vision worker",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "stream completed with answer",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "admin state available",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "at most one resident worker",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "original workload restored",
+      "passed": true,
+      "detail": null
+    }
+  ],
+  "cases": [
+    {
+      "kind": "default_spark_text",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "What is 17 times 19? Reply only with the integer."
+          }
+        ],
+        "max_tokens": 512,
+        "temperature": 0,
+        "stream": false,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "result": {
+        "status": 200,
+        "body": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "content": "323",
+                "role": "assistant"
+              }
+            }
+          ],
+          "created": 1791263474,
+          "id": "chatcmpl-wxQGGQBvW3ljva4fMpXRJhqWfTtCOLhB",
+          "model": "spark-x25-4b",
+          "object": "chat.completion",
+          "system_fingerprint": "b11434-5e03bdd87",
+          "timings": {
+            "cache_n": 9,
+            "predicted_ms": 29.317,
+            "predicted_n": 4,
+            "predicted_per_second": 102.32970631374289,
+            "predicted_per_token_ms": 9.772333333333334,
+            "prompt_ms": 38.997,
+            "prompt_n": 23,
+            "prompt_per_second": 589.788958124984,
+            "prompt_per_token_ms": 1.6955217391304347
+          },
+          "usage": {
+            "completion_tokens": 4,
+            "prompt_tokens": 32,
+            "prompt_tokens_details": {
+              "cached_tokens": 9
+            },
+            "total_tokens": 36
+          }
+        },
+        "wall_seconds": 1.2802973450015998
+      }
+    },
+    {
+      "kind": "workload_swap",
+      "result": {
+        "status": 200,
+        "body": {
+          "previous_profile": "mica-coder-qwen-gguf",
+          "profile": "coder-qwen-swap-test",
+          "ready": false,
+          "retained": [
+            "spark-x25-4b@gguf:q4"
+          ],
+          "startup_pending": [],
+          "unloaded": []
+        },
+        "wall_seconds": 0.0006953820047783665
+      }
+    },
+    {
+      "kind": "workload_swap",
+      "result": {
+        "status": 200,
+        "body": {
+          "previous_profile": "coder-qwen-swap-test",
+          "profile": "mica-coder-qwen-gguf",
+          "ready": false,
+          "retained": [
+            "spark-x25-4b@gguf:q4"
+          ],
+          "startup_pending": [],
+          "unloaded": []
+        },
+        "wall_seconds": 0.0003798300022026524
+      }
+    },
+    {
+      "kind": "qwen27_reasoning",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "A farmer has 17 sheep. All but 9 run away. How many remain? Reply with the number and one short explanation."
+          }
+        ],
+        "max_tokens": 512,
+        "temperature": 0,
+        "stream": false,
+        "chat_template_kwargs": {
+          "enable_thinking": true
+        },
+        "model": "qwen38-27b-gsq-rco"
+      },
+      "result": {
+        "status": 200,
+        "body": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "content": "9 \u2014 \u201call but 9\u201d means 9 sheep did not run away.",
+                "reasoning_content": "We need answer user: \"A farmer has 17 sheep. All but 9 run away. How many remain? Reply with the number and one short explanation.\"\n\nNeed parse: \"All but 9 run away\" means all except 9 run away, so 9 remain. Could be trick? Farmer has 17 sheep. All but 9 run away => 9 remain. Reply with number and one short explanation. Need final concise. Ensure no extra.\n",
+                "role": "assistant"
+              }
+            }
+          ],
+          "created": 1791263483,
+          "id": "chatcmpl-pHP40Oi5inMfTj7pJFiknjk4rlgcLmQh",
+          "model": "qwen38-27b-gsq-rco",
+          "object": "chat.completion",
+          "system_fingerprint": "b11434-5e03bdd87",
+          "timings": {
+            "cache_n": 42,
+            "predicted_ms": 3534.564,
+            "predicted_n": 118,
+            "predicted_per_second": 33.10167817020713,
+            "predicted_per_token_ms": 30.209948717948716,
+            "prompt_ms": 181.271,
+            "prompt_n": 38,
+            "prompt_per_second": 209.6308841458369,
+            "prompt_per_token_ms": 4.77028947368421
+          },
+          "usage": {
+            "completion_tokens": 118,
+            "prompt_tokens": 80,
+            "prompt_tokens_details": {
+              "cached_tokens": 42
+            },
+            "total_tokens": 198
+          }
+        },
+        "wall_seconds": 8.492810867006483
+      }
+    },
+    {
+      "kind": "workload_swap",
+      "result": {
+        "status": 200,
+        "body": {
+          "previous_profile": "mica-coder-qwen-gguf",
+          "profile": "coder-qwen-swap-test",
+          "ready": false,
+          "retained": [],
+          "startup_pending": [
+            "spark-x25-4b"
+          ],
+          "unloaded": [
+            "qwen38-27b-gsq-rco@gguf:iq3_xxs"
+          ]
+        },
+        "wall_seconds": 0.20158037699729903
+      }
+    },
+    {
+      "kind": "workload_swap",
+      "result": {
+        "status": 200,
+        "body": {
+          "previous_profile": "coder-qwen-swap-test",
+          "profile": "mica-coder-qwen-gguf",
+          "ready": false,
+          "retained": [
+            "spark-x25-4b@gguf:q4"
+          ],
+          "startup_pending": [],
+          "unloaded": []
+        },
+        "wall_seconds": 0.0006518919981317595
+      }
+    },
+    {
+      "kind": "default_qwen9_image",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "image_url",
+                "image_url": {
+                  "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoAAAAHgCAIAAAC6s0uzAAAACXBIWXMAAAABAAAAAQBPJcTWAAAQAElEQVR4nO3dCbhUdf34cZQlUVxQA1Fwz31BRSy0H2VPCC6hAq5Y4oIk5pppUmqKgqaISylkiSUUiIiaQpoooea+m6GUKLYoCiqCS1z4ff93nv/p/OZyL3PnzvBBeb2enp45xztnvgyXeZ/vzJlzVqupqWkGAKxYLaIHAACrIgEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABwgLcvHnUI7Mi1NREjwBg5WYGDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAPP5t2jRoueff/7VV1997733PvjggzXXXHODDTZo3759165d27ZtGz06YBUVFuCamqhHpl4XXXTRkiVLilZ27NjxhBNOaMpmP/7448suu2zp0qX5leuss86ZZ565zJ9/8803b7zxxmyxTZs23//+98t43FmzZo0fP/6222577rnn6vuZbbbZ5tBDDx00aFCnTp3KeIhlmjJlymOPPZZfc8YZZ6y77rqV2n6JXnrppWeffXbevHlpn2OttdbadNNNd9lll6233rriD5T2b376058W/n6r8Se97rrr3nnnncLtk046qUOHDk3fZlPGXPT72SjnnXdeq1atyrsvnz9mwPxXCnBRJpMWLVr069evKa+qd911V9py0cr0MtpAgC+++OJsccMNN2xsgJ966qlLLrnkjjvuWO5PvvLKK8OHD0/7B0cdddSIESPSYzXqgZbpe9/73muvvZZfs/7665966qlN33Ip0rN3zTXXjBkz5t133637X1OGv/3tb5988snt27ev1CMOGzbs0ksvLdweMGBAZQOc/iCnnXZatnjQQQdVJMBNGfMDDzyQ//1slLPPPluAyQgwy7F48eJUsvSqXfYWfve731VwPA1LM5tzzz33Zz/7WaPulXY7xo4dO3Xq1NGjRx988MFNGcD06dOL6pvccMMNKybA1157bXqJ/89//lPfD7zxxhtDhw698sorL7jggrRbs9pqqzXxER999NG0B9PEjdTn73//ezWetyaO+dlnn63gYFiVCTDLN2HChLIDvGDBgrvvvruy46nP3/72t549e6ZX7fLunqaMffr0SbE88cQTyx7DTTfdVHflzJkzU5i7d+9e9maXK+1D9O/fv8R9nY8++ijtpqQh3XbbbV/4whfKftA02+7Xr1/djy0qIm02/YkWLlxY2c02fczPPPNMBcfDqkyAWb777rvv/fffL++txcmTJzcwIaug559//pvf/Gb2YWFemudtt912u+6664YbbrjOOut8+OGHb7311pNPPpmCXfeHBw0atPrqqx9//PFljCHtbUycOHGZ/yl1vaoBHjhwYGPfaZgyZcqRRx45adKk8h7x7bffTrs7//znP8u7+3JdfPHFRR+lN11Fxpx+0yo1HlZxAsyytWjRYkmtZk17FzqrwhprrPHxxx9Xcog5//73v9MLa9367rTTToMHDz788MOXufcwe/bs1MWRI0cW7SKku+yxxx6dO3du7DAmTJiQJpfZ4vrrrz9v3rzC7dS5uXPnfvGLX2zsNkuR9nJ+9atfFa1Mf4PdunXbZZdd0j7HBx988NJLLz300ENFf9L01/rLX/6yjL2NOXPm9OjR45VXXmnSuOuX0jt06NDKbrMiY04bmT9/frbYpUuXXr16lX73li1bNuXR+ZwRYJYt9XLPPfd84IEHCovjx48vI8DppSrNngu3999//7InWw2rqak59NBD06Q2v7J169ZXXnllmhc28DHn5ptvPnz48BNPPLFfv375I6VTpY444ohUrObNmzdqJPkKbrrppilsF1xwQWEx7cSMGTPm7LPPbtQGS5G2fMoppxStTGuGDBnSrl27/Mr01zFs2LARI0bkD7U7//zzjz322Eb9Sf/whz/0798/27eouIULF6btV/ad7UqNuegD4LTN733ve03cJqssAaZeKUtZgFNH33vvvfXWW69RW5g4cWLN///CWdpalQJ87bXXFr1X2aFDh9///vclTmG32mqrBx98MM2NnnjiiWzlq6++mqaGqd+lDyPd5dFHH80W99tvv/TqnAU4GTVqVDUCfOutt/7rX//Kr7npppuWubfUtm3byy+/PE3ujzrqqGzlv//976lTpx5wwAGlPFYq94UXXljxuWmRU089tewP8uuq7JiLvtK22267VWSzrJoEmHodcsghJ598cuF26ugdd9zxne98p1Fb+O1vf1u4sdZaa6UgVXh8td5+++185JrVfm84TXd23HHH0jeyzjrrpH2F9GKanyFddNFFaWpY+pdGUrDzi7169Uoz7L333vvhhx8urHnttdfuvffeVPrSB1aKojef005Dw+9VHH744emvcvz48dma6dOnlxLgtINy+umn53cyqmHy5MljxozJFrfccsumxLjiYy46AmuXXXap1JZZBQkw9WrXrt3//M///OlPfyosTpgwoVEBTmnM7nvQQQetscYalR9i7fT3ww8/zK+58cYbG1Xfgo4dO15yySXf/e53szVpWjllypTevXuXcvclS5b85je/yRbTDkfPnj3TjfSMZQFuVnsoVmUD/Mknn8yYMSNbbN68edHuyDIddthh+QDPmTOn4Z9//fXXf/jDH+bvUrD99ttvvPHG999/f2OG3JA0Hc+f9eWII47o0KHDVVddVcamqjTm/FvQW2yxRdp1K2870EyAaVjfvn2ziDb2Xej02pd91tivX79qDO/TTz8dPXp0fs03vvGNsh/r+OOPv/zyy/Pf4h03blyJAZ46dWqKR7aY7lX4ek8azCmnnJLGWVh/1113pR/baKONyhthXfPnz0+P9fjjj7/xxhtpsXv37qVsvOhYsNVXX72BH04D3nbbbeseyp4qnvZ1Bg8e3PhR1yvtr2SHOG2yySY///nPyzvlRZXGvGDBgtmzZ2eL3n+miQSYhvTp0yc7E0JNTc3kyZOPPfbYEu+bHf+85pprNupI0dLdc889RUc+n3vuuWVvLU0f0/RryJAhzWpPv/XVr3415bzE+xa9D5ymboUbaYaUnsPsrfg0UU4B+NGPflT2IIuk3BYmeXPnzn3iiSfSzLuUexV9/2qrrbZq4IfTJLuoZG3bth05cmT//v0bP96GXHPNNX/84x+zxd/85jdln1SrSmP2ATCVJcA0JL2+d+vW7ZFHHiksptf6EgM8Z86c7IO3Aw88ME0H02tixYc3ZcqU/OJmm2227777NmWDxx13XPoj77PPPo06Z/K8efPS1DZbTPHOf+CdtpkFOElT9vPOO6/hSWcZ0qR2//33L/GHi05lXHi3vBSFb0gPHTq0IufszHvxxRd/8IMfZIvpdqW+Nl3BMRd9ACzANJEAsxz9+vXLAnz//feX+C50/rO3ww47rEpjmzp1an7xoIMOauIG27VrV/oUP3PLLbcsXrw4W0zT6BYt/vsvK+0T5I8k+sc//nH33Xc3fajlSVPwM888M/+xdNeuXdM+Vin37d279/Dhw7fZZpuKjyrtnB199NHZnLVz585ln2y5SGXHXPQdpN133z27/cILL6Q8v/XWWy1btkz7cGkHbo899mj6mT75fBNglqNPnz5nnHFG4XZNTc2kSZPSlG6598rmfK1bt67S+89z5859880382u+/vWvV+OBlqvo/eeTTjqp6AdOPvnk/PUkbrjhhhUf4LSLcOedd15yySX5iqS/nV/84hcN37FVq1YDBw5MvwPVSG/Beeedl2bA2cONGzcuvwdThiqNOf/UpX219u3bL1y48Lpadc+utcEGG6T8DxkyZPPNN6/gGPg8EWCWY5NNNtlrr72yL9pOmDBhuQGeNWtW9lJ1wAEHVOn457qnNOrSpUs1HqhhTz/9dJr9ZIv777//pptuWvQz6Rn70Y9+lJ0ILE3c33jjjbo/VnGjRo1677333n333cJpsIoOF19zzTUnT5680047NbyRDh06XH/99dUb5LRp00aOHJktjhgxYtttt23iNqsx5rT3mZ7GbDFN0++5554BAwYs8+ynzWpPLZ72zH7961+fdtppw4YNa+xJXVgVCDDL17dv3yzA999///z58xu+jn3+pMTpvlUa1cyZM/OLKScdO3as0mM1IP+l1Wa1k926P7Puuuv2798//8lrmndW6l3WBqRp96JFi5b5n7p37z569OhqXB64UdLvUv5by7169cp/E2yl8vLLL+cP7Eo7XqW8jbF48eIrr7zyySefnDhx4vrrr1/NAfLZI8AsX79+/bJTOC1ZsmTSpEkNnz04e/85zX1LPMVSGYqud7vZZptV6YEa8Mknn4wdOzZbTJPa+g5oOuWUU/IBTrcvvPDCqs6K3n///frqu912251++ulbbLFF9R69RCeddFJ2Gq8NN9yw7hmtdN9T5gAAEABJREFUVx5FR2DVN/FdpunTp6dfjBkzZjTl2lN8/ggwy9epU6cuXbqkvfjC4oQJExoI8AsvvPDXv/61cDtNaNLEtEqjWrBgQX6x4Ul5ldxxxx3vvfdetphyUt9xNzvvvHP+ePK333779ttvr97bA81qj/aq7z+lv6BDDjlk8803v+KKK9KN6o2hYTfffPNtt92WLab6Fp28eqVS32WAW7Vq1b179/Rv5Itf/OLChQvnzJnz8MMP183zU089dcIJJ+TP1gICTEnSJDgL8LRp0+bNm1ff+2n5r9xU6fwbBUXTu9atW1fvseqTn7G1aNGi4TcG0iQ4C3Cz2g9oqxrg5V50b/bs2WkAZ5111uWXX169YTTw6PnLGAwcOLB6b5ZURN3LAG+xxRZDhw7t3bt33d+9KVOmXHDBBSm6+ZXjxo077rjjog4VZCUkwJQkvVKfc845hduFd6HzpwzMS/Pjwo00MzjwwAOrN6SiK7utmKsO56UpZnatp2a1T1HDVxvs06dP+/bts6s2pf2YWbNmVe9T2E022STNL7t06dKhQ4dmtWfWTDOztMeQP9lFcuWVV6633nrnnXdelYaxTOlX6Oijj07zxcLil770pREjRqzIAZSha9euc+fO/ctf/lJYHDRoUBpzfW8p9+rVq0ePHmeeeeZ1112XXz9kyJD8ThirOAGmJJtvvnnnzp2zd+FuvfXWZQb4iSeeyE7lmF6DSjwxU3natGmTX6zv887qufnmm/OLyzz8Ki9NkdM8L3/s1ejRo6s3+9y+VrbYsWPHw2ulydkxxxyTv6htmqt961vfWu7h0BWUJo7ZeVqaN28+duzYkDcwGmV4rQULFjz++ONp32u5V+dMf66rr7563rx5aeKbrXzsscdmzpzZ9MO8+XwQYErVr1+/LMD1vQudf/+5euffKCg6T2HRMVkrwE033ZTdTtP9+2o1fJeiixanLaQer+ADc9KO0QMPPLDPPvtk30pK89HU4PzHsVWV9tLyeyE/+clP9thjjxXz0E239tprl36C0iQ1+M4778x/AewPf/iDAFMgwJSqb9++hfMkN6t9yU6v1yeeeGLRz6SZceFGy5Ytq/2R3pZbbplfnDNnztKlS1fYuYceeuih/GXyPv300zK+VpR2YiZOnHj00UdXdGjLt/POO19xxRWDBg3K1tx1110NfK5fQYsWLTrqqKPS709hce+9927K6btXfukpPeKII/IHwKffnOz86qziBJhSbb311umFOzvpRGptUYBnzJiRHfjTs2fPNFeo9njyi4sXL3799ddX2FmHiq7+W7ZRo0at+AA3qz1fZpr1ZjPympqaP//5zyvgMKjUnmzHpU2bNrfccsvn/nyN++67bz7ARe+CsCoTYBqhX79+WYAfeOCBd955J3+C+xV2/HPBVltttcYaa2Snl2pW+wFb0wP85ptvpj9Uw2fvWrhwYZq5NvGBCh5++OG//OUvO+ywQ0W2VrqUvR49euS/FfPiiy9WO8Cp8fn37XfaaaflfvG36JCl0aNHF44pK0gD3nPPPSs7yIorOj/M3Llzo0bCykaAaYSU1fPPP79wu3As9MCBA7PF7EPEli1broBzHTdv3vwrX/lK2g/I1kyfPv3www9v4mbT1DBts2vXrl/72te+/vWvd+vWrW6Mx48fX8FjvtIk+Oqrr67U1kpXtLMyb968aj9i0eTv0VqN2kLRdZzSrtLKH+Ci35+KXwiLzy4BphG22Wab7bff/uWXXy4s3nrrrVmAp02blp18IE2t1llnnRUwnhTIfIBvv/32n/3sZ015SzPNpx988MHFixc/UuvSSy+97LLL8tdRKMhP45JjjjmmUTPvp59++u67784Wb7755uHDhzflMOC09/PSSy899thjRx99dOnbWbp0admPSOmKTspR8Ss58tklwDROmgRfdNFFhdv5d6Hz7z9X9fwSeQcffHA2I29We3qpqVOnNuXiS2mXouj7xOkhin5m1qxZ+fdF11xzzeuvv75R+ZwzZ04+wAsWLEjPXinXmKpr9OjRt9xySyr6Rx991Kz2u7+l//HTMPKL7du3L2MAq4j0JKe/92yxf//+pX+Bu+gUWiFnLGflJMA0ToprFuA0hZo8efIJJ5yQpoxp9llY2aJFi969e6+Ywey4447548KSYcOGNSXARaeDSNP9uq+zRR9bpkI3dvLaqVOn7t27T58+PVszatSo8gL88ssv5y/uO2nSpNL/+Pfee29+URgakJ7ktK+TLbZq1ar0U5f8/ve/zy/uvffelRwZn2UCTOOk5m277bbZlYgmTpyYAnzfffe9//77hTXf/OY3i76hW1XHH3/86aefni2mF8rf/e53RxxxRBmbGjNmzPPPP59fM2DAgKKfSfscv/71r/NryjuGOW05H+Ann3zymWee2W233Rq7nc6dO+cXx40bl3ZBSnmTc+zYsdlVEApWwCkS0w7Nj3/840bdJe0lZFfialb7CX3+IKy99tqrYoNrUNrPyy+m34ESAzxjxoyi48j23XffSo6MzzIBptHSJPiSSy4p3J42bVpKb3b6yWYr5PjnvBNPPHHo0KH5j9lOPvnkPfbY40tf+lKjtjN79uzTTjstv2a99dbLf1O2YOrUqflubbDBBmmHo/Gj/n/P4eDBg7NzMTarnQTfcMMNjd1Omu+uvvrq2ddqP/7447PPPrvoI+q65syZU/TB9pe//OWGz6NZEWnX7cILL2zUXT788MN8gAcOHBhy1o4DDjggf+bqV199NU2IswMg6jN//vyiNza6devmLBxkBJhGS4nNAlxTU3P77bffeeedhcXmzZuvsPefC9ZYY41zzjknu1pis9rL8KXJ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GAACCDAABBBgAAggwAAQQIABIIAAA0AAAQaAAAIMAAEEGAACCDAABBBgAAggwAAQQIABIIAAA0AAAQaAAAIMAAEEGAACCDAABBBgAAggwAAQQIABIIAAA0AAAQaAAAIMAAEEGAACCDAABBBgAAggwAAQQIABIIAAA0AAAQaAAAIMAAEEGAACCDAABBBgAAggwAAQQIABIIAAA0AAAQaAAAIMAAEEGJAqXrQAAAF6SURBVAACCDAABBBgAAggwAAQQIABIIAAA0AAAQaAAAIMAAEEGAACCDAABBBgAAggwAAQQIABIIAAA0AAAQaAAAIMAAEEGAACCDAABBBgAAggwAAQQIABIIAAA0AAAQaAAAIMAAEEGAACCDAABBBgAAggwAAQQIABIIAAAzRbraYmegiscgQYAAIIMAAEEGAACCDAABBAgAEggAADQAABBoAAAgwAAQQYAAIIMAAEEGAACCDAABBAgAEggAADQAABBoAAAgwAAQQYAAIIMAAEEGAACCDAABBAgAEggAADQAABBoAAAgwAAQQYAAIIMAAEEGAACCDAABBAgAEggAADQAABBoAAAgwAAQQYAAIIMAAEEGAACCDAABBAgAEggAADQAABBoAAAgwAAQQYAAIIMAAEEGAACCDAABBAgAEggAADQAABBoAAAgwAAQQYAAIIMAAEEGAACCDAABBAgAEggAADQAABBoAAAgwAAQQYAAIIMAAEEGAACPC/CYi0p4TDf3sAAAAASUVORK5CYII="
+                }
+              },
+              {
+                "type": "text",
+                "text": "Read the large text and name the colors of the upper-left and lower-right squares."
+              }
+            ]
+          }
+        ],
+        "max_tokens": 512,
+        "temperature": 0,
+        "stream": false,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "result": {
+        "status": 200,
+        "body": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "content": "The large text in the image is:  \n**MICA 31415**\n\n- The **upper-left square** is **blue**.  \n- The **lower-right square** is **red**.\n\n\u2705 Final Answer:  \n**Blue and Red**",
+                "role": "assistant"
+              }
+            }
+          ],
+          "created": 1791263490,
+          "id": "chatcmpl-kn8szFuwUHTO2ZDrP8naGliKlll4d16q",
+          "model": "qwen35-9b",
+          "object": "chat.completion",
+          "system_fingerprint": "b11434-5e03bdd87",
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 763.477,
+            "predicted_n": 55,
+            "predicted_per_second": 70.72904619261615,
+            "predicted_per_token_ms": 14.138462962962963,
+            "prompt_ms": 871.298,
+            "prompt_n": 1067,
+            "prompt_per_second": 1224.6097202105364,
+            "prompt_per_token_ms": 0.8165866916588566
+          },
+          "usage": {
+            "completion_tokens": 55,
+            "prompt_tokens": 1067,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 1122
+          }
+        },
+        "wall_seconds": 5.0786590370044
+      }
+    },
+    {
+      "kind": "workload_swap",
+      "result": {
+        "status": 200,
+        "body": {
+          "previous_profile": "mica-coder-qwen-gguf",
+          "profile": "coder-qwen-swap-test",
+          "ready": false,
+          "retained": [
+            "qwen35-9b@gguf:q4"
+          ],
+          "startup_pending": [
+            "spark-x25-4b"
+          ],
+          "unloaded": []
+        },
+        "wall_seconds": 0.0007450630000676028
+      }
+    },
+    {
+      "kind": "workload_swap",
+      "result": {
+        "status": 200,
+        "body": {
+          "previous_profile": "coder-qwen-swap-test",
+          "profile": "mica-coder-qwen-gguf",
+          "ready": false,
+          "retained": [
+            "qwen35-9b@gguf:q4"
+          ],
+          "startup_pending": [
+            "spark-x25-4b"
+          ],
+          "unloaded": []
+        },
+        "wall_seconds": 0.000391582005249802
+      }
+    },
+    {
+      "kind": "default_qwen9_video",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "input_video",
+                "input_video": {
+                  "data": "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAASqRtZGF0AAACrgYF//+q3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE2NSByMzIyMiBiMzU2MDVhIC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAyNSAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTMgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDExMyBtZT1oZXggc3VibWU9NyBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0xIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tMiB0aHJlYWRzPTEyIGxvb2thaGVhZF90aHJlYWRzPTIgc2xpY2VkX3RocmVhZHM9MCBucj0wIGRlY2ltYXRlPTEgaW50ZXJsYWNlZD0wIGJsdXJheV9jb21wYXQ9MCBjb25zdHJhaW5lZF9pbnRyYT0wIGJmcmFtZXM9MyBiX3B5cmFtaWQ9MiBiX2FkYXB0PTEgYl9iaWFzPTAgZGlyZWN0PTEgd2VpZ2h0Yj0xIG9wZW5fZ29wPTAgd2VpZ2h0cD0yIGtleWludD0yNTAga2V5aW50X21pbj00IHNjZW5lY3V0PTQwIGludHJhX3JlZnJlc2g9MCByY19sb29rYWhlYWQ9NDAgcmM9Y3JmIG1idHJlZT0xIGNyZj0yMy4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCBpcF9yYXRpbz0xLjQwIGFxPTE6MS4wMACAAAAPEGWIhAAT//7q4/zLK6Vc1/klmWpJM25XU09ITES9xltqfbhXHrs9YAAAAwAAAwE0UDH4VY6m+abIAABMQAJoKgVg3y5qkwkdolKj/DYaxBljKMLTDLruYjNzPImwgVCOe5SAN9UOC3pShukM/Q55RACoi+Xhl/pm5eghwR1f9zZUStxXnv96DVHfj+5a9tzKTFXgEUNk9JTwTPNN3Yge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"
+                }
+              },
+              {
+                "type": "text",
+                "text": "List the three background colors in chronological order, from the beginning to the end. Output only the color names, without explanations or timestamps."
+              }
+            ]
+          }
+        ],
+        "max_tokens": 512,
+        "temperature": 0,
+        "stream": false,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "result": {
+        "status": 200,
+        "body": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "content": "Red, Green, Blue",
+                "role": "assistant"
+              }
+            }
+          ],
+          "created": 1791263501,
+          "id": "chatcmpl-uFeW4Y9bD1FOmsZvRSSWCCIPyZhGOnTA",
+          "model": "qwen35-9b",
+          "object": "chat.completion",
+          "system_fingerprint": "b11434-5e03bdd87",
+          "timings": {
+            "cache_n": 0,
+            "predicted_ms": 77.657,
+            "predicted_n": 6,
+            "predicted_per_second": 64.38569607376026,
+            "predicted_per_token_ms": 15.5314,
+            "prompt_ms": 10780.945,
+            "prompt_n": 13553,
+            "prompt_per_second": 1257.1254189683743,
+            "prompt_per_token_ms": 0.7954655795764776
+          },
+          "usage": {
+            "completion_tokens": 6,
+            "prompt_tokens": 13553,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 13559
+          }
+        },
+        "wall_seconds": 11.144704838006874
+      }
+    },
+    {
+      "kind": "stream",
+      "events": [
+        {
+          "choices": [
+            {
+              "delta": {
+                "content": null,
+                "role": "assistant"
+              },
+              "finish_reason": null,
+              "index": 0
+            }
+          ],
+          "created": 1791263503,
+          "id": "chatcmpl-Mbw5nm8jhtC4tMTVhNCgGXcwWRlHUVRZ",
+          "model": "spark-x25-4b",
+          "object": "chat.completion.chunk",
+          "system_fingerprint": "b11434-5e03bdd87"
+        },
+        {
+          "choices": [
+            {
+              "delta": {
+                "content": "4"
+              },
+              "finish_reason": null,
+              "index": 0
+            }
+          ],
+          "created": 1791263503,
+          "id": "chatcmpl-Mbw5nm8jhtC4tMTVhNCgGXcwWRlHUVRZ",
+          "model": "spark-x25-4b",
+          "object": "chat.completion.chunk",
+          "system_fingerprint": "b11434-5e03bdd87"
+        },
+        {
+          "choices": [
+            {
+              "delta": {},
+              "finish_reason": "stop",
+              "index": 0
+            }
+          ],
+          "created": 1791263503,
+          "id": "chatcmpl-Mbw5nm8jhtC4tMTVhNCgGXcwWRlHUVRZ",
+          "model": "spark-x25-4b",
+          "object": "chat.completion.chunk",
+          "system_fingerprint": "b11434-5e03bdd87",
+          "timings": {
+            "cache_n": 9,
+            "predicted_ms": 9.846,
+            "predicted_n": 2,
+            "predicted_per_second": 101.56408693885842,
+            "predicted_per_token_ms": 9.846,
+            "prompt_ms": 38.36,
+            "prompt_n": 21,
+            "prompt_per_second": 547.4452554744526,
+            "prompt_per_token_ms": 1.8266666666666667
+          }
+        }
+      ],
+      "done": true,
+      "wall_seconds": 1.4598631970002316
+    }
+  ],
+  "models": {
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "abilities": [
+            "text_generation",
+            "instruction_following",
+            "reasoning",
+            "tool_calling"
+          ],
+          "artifact_size_bytes": 2600223552,
+          "artifact_size_gib": 2.4216468930244446,
+          "backend": "gguf",
+          "capability": "text",
+          "description": "Spark-X2.5-4B compact reasoning and general text model.",
+          "download_size_bytes": 2600223552,
+          "download_size_gib": 2.4216468930244446,
+          "engine": "llama-cpp",
+          "format": "gguf",
+          "id": "spark-x25-4b",
+          "image_min_tokens": 0,
+          "input_modalities": [
+            "text"
+          ],
+          "memory_reservation_gib": 4.8,
+          "minimum_engine_commit": "",
+          "object": "model",
+          "output_modalities": [
+            "text"
+          ],
+          "owned_by": "local",
+          "placement": {
+            "device": "auto",
+            "gpu_layers": 99,
+            "mode": "auto"
+          },
+          "priority": 110,
+          "projector_sha256": "",
+          "quantization": "q4",
+          "quantization_type": "Q4_K_M",
+          "repository": "miguelamendez/mica-spark-x25-4b",
+          "required_engine_features": [
+            "text-generation"
+          ],
+          "residency": "warm",
+          "sha256": "",
+          "startup": true,
+          "state": "stopped",
+          "supported_interactions": [
+            {
+              "operation": "chat.generate",
+              "optional_inputs": [],
+              "outputs": [
+                "text"
+              ],
+              "required_inputs": [
+                "text"
+              ]
+            },
+            {
+              "operation": "text.generate",
+              "optional_inputs": [],
+              "outputs": [
+                "text"
+              ],
+              "required_inputs": [
+                "text"
+              ]
+            }
+          ],
+          "tags": [
+            "text-generation",
+            "reasoning",
+            "license:apache-2.0"
+          ],
+          "thinking_budget_supported": false,
+          "thinking_modes": []
+        },
+        {
+          "abilities": [
+            "text_generation",
+            "instruction_following",
+            "reasoning",
+            "image_understanding"
+          ],
+          "artifact_size_bytes": 10094357632,
+          "artifact_size_gib": 9.401103138923645,
+          "backend": "gguf",
+          "capability": "vision",
+          "description": "Qwen3.8 27B with GSQ scalar quantization and RCO mixed-precision allocation; standard GGUF candidate for comparison with ternary Bonsai.",
+          "download_size_bytes": 11025504160,
+          "download_size_gib": 10.268300920724869,
+          "engine": "llama-cpp",
+          "format": "gguf",
+          "id": "qwen38-27b-gsq-rco",
+          "image_min_tokens": 0,
+          "input_modalities": [
+            "text",
+            "image"
+          ],
+          "memory_reservation_gib": 13.0,
+          "minimum_engine_commit": "",
+          "object": "model",
+          "output_modalities": [
+            "text"
+          ],
+          "owned_by": "local",
+          "placement": {
+            "device": "auto",
+            "gpu_layers": 99,
+            "mode": "auto"
+          },
+          "priority": 90,
+          "projector_sha256": "13cb7bebccbd04afc8f4090cb949ecf8937cdf7377c5799b1a0c594e7c0d3e16",
+          "quantization": "iq3_xxs",
+          "quantization_type": "IQ3_XXS",
+          "repository": "ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF",
+          "required_engine_features": [
+            "text-generation",
+            "vision-projector"
+          ],
+          "residency": "on-demand",
+          "sha256": "fdfcb6a29b11188956dfbfd904223588a6c1b77eb250c3e8a36e1bd269df91f7",
+          "startup": false,
+          "state": "stopped",
+          "supported_interactions": [
+            {
+              "operation": "chat.generate",
+              "optional_inputs": [],
+              "outputs": [
+                "text"
+              ],
+              "required_inputs": [
+                "text"
+              ]
+            },
+            {
+              "operation": "chat.generate",
+              "optional_inputs": [],
+              "outputs": [
+                "text"
+              ],
+              "required_inputs": [
+                "text",
+                "image"
+              ]
+            }
+          ],
+          "tags": [
+            "coding",
+            "reasoning",
+            "mixed-precision",
+            "gsq",
+            "rco",
+            "experimental",
+            "license:apache-2.0"
+          ],
+          "thinking_budget_supported": false,
+          "thinking_modes": []
+        },
+        {
+          "abilities": [
+            "text_generation",
+            "instruction_following",
+            "reasoning",
+            "image_understanding",
+            "video_understanding"
+          ],
+          "artifact_size_bytes": 5680522464,
+          "artifact_size_gib": 5.290398806333542,
+          "backend": "gguf",
+          "capability": "vision",
+          "description": "Qwen3.5 9B for text, image, video, and rendered document analysis; trusted Q4_K_M weights with an unquantized BF16 vision projector.",
+          "download_size_bytes": 6602227488,
+          "download_size_gib": 6.148803502321243,
+          "engine": "llama-cpp",
+          "format": "gguf",
+          "id": "qwen35-9b",
+          "image_min_tokens": 1024,
+          "input_modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "memory_reservation_gib": 8.0,
+          "minimum_engine_commit": "",
+          "object": "model",
+          "output_modalities": [
+            "text"
+          ],
+          "owned_by": "local",
+          "placement": {
+            "device": "auto",
+            "gpu_layers": 99,
+            "mode": "auto"
+          },
+          "priority": 70,
+          "projector_sha256": "853698ce7aa6c7ba732478bad280240969ddf7b0fcbf93900046f63903a83383",
+          "quantization": "q4",
+          "quantization_type": "Q4_K_M",
+          "repository": "unsloth/Qwen3.5-9B-GGUF",
+          "required_engine_features": [
+            "text-generation",
+            "vision-projector"
+          ],
+          "residency": "on-demand",
+          "sha256": "03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8",
+          "startup": false,
+          "state": "stopped",
+          "supported_interactions": [
+            {
+              "operation": "chat.generate",
+              "optional_inputs": [],
+              "outputs": [
+                "text"
+              ],
+              "required_inputs": [
+                "text"
+              ]
+            },
+            {
+              "operation": "chat.generate",
+              "optional_inputs": [],
+              "outputs": [
+                "text"
+              ],
+              "required_inputs": [
+                "text",
+                "image"
+              ]
+            },
+            {
+              "operation": "chat.generate",
+              "optional_inputs": [],
+              "outputs": [
+                "text"
+              ],
+              "required_inputs": [
+                "text",
+                "video"
+              ]
+            },
+            {
+              "operation": "chat.generate",
+              "optional_inputs": [],
+              "outputs": [
+                "text"
+              ],
+              "required_inputs": [
+                "text",
+                "image",
+                "video"
+              ]
+            }
+          ],
+          "tags": [
+            "coding",
+            "image-text-to-text",
+            "video-text-to-text",
+            "document-analysis",
+            "license:apache-2.0"
+          ],
+          "thinking_budget_supported": false,
+          "thinking_modes": []
+        }
+      ],
+      "default_chat_model": "spark-x25-4b",
+      "defaults": {
+        "image": "qwen35-9b",
+        "text": "spark-x25-4b",
+        "video": "qwen35-9b"
+      },
+      "object": "list",
+      "profile": "mica-coder-qwen-gguf"
+    },
+    "wall_seconds": 1.4095556609972846
+  },
+  "final_state": {
+    "active_backends": [
+      "gguf"
+    ],
+    "effective_ram_limit_gib": 15.5,
+    "effective_vram_limit_gib": 15.0,
+    "max_ram_gib": 16.0,
+    "max_vram_gib": 15.5,
+    "profile": {
+      "backend": "gguf",
+      "kv_cache_precision": "q8",
+      "max_concurrent_requests": 1,
+      "max_input_tokens": 65536,
+      "max_output_tokens": 16384,
+      "max_total_tokens": 81920,
+      "maximum_resident_workers": 1,
+      "memory_safety_reserve_gib": 0.5,
+      "mode": "coding",
+      "models": [
+        {
+          "backend": "gguf",
+          "engine": "llama-cpp",
+          "execution": "",
+          "id": "spark-x25-4b",
+          "idle_seconds": 120,
+          "kv_cache_precision": "q8",
+          "max_concurrent_requests": 1,
+          "max_input_tokens": 65536,
+          "max_output_tokens": 16384,
+          "max_total_tokens": 81920,
+          "placement": {
+            "device": "auto",
+            "gpu_layers": 99,
+            "mode": "auto",
+            "ram_reservation_gib": -1.0,
+            "vram_reservation_gib": -1.0
+          },
+          "priority": 110,
+          "quantization": "q4",
+          "residency": "warm",
+          "startup": true
+        },
+        {
+          "backend": "gguf",
+          "engine": "llama-cpp",
+          "execution": "",
+          "id": "qwen38-27b-gsq-rco",
+          "idle_seconds": 120,
+          "kv_cache_precision": "q4",
+          "max_concurrent_requests": 1,
+          "max_input_tokens": 65536,
+          "max_output_tokens": 16384,
+          "max_total_tokens": 81920,
+          "placement": {
+            "device": "auto",
+            "gpu_layers": 99,
+            "mode": "auto",
+            "ram_reservation_gib": -1.0,
+            "vram_reservation_gib": -1.0
+          },
+          "priority": 90,
+          "quantization": "iq3_xxs",
+          "residency": "on-demand",
+          "startup": false
+        },
+        {
+          "backend": "gguf",
+          "engine": "llama-cpp",
+          "execution": "",
+          "id": "qwen35-9b",
+          "idle_seconds": 120,
+          "kv_cache_precision": "q8",
+          "max_concurrent_requests": 1,
+          "max_input_tokens": 65536,
+          "max_output_tokens": 16384,
+          "max_total_tokens": 81920,
+          "placement": {
+            "device": "auto",
+            "gpu_layers": 99,
+            "mode": "auto",
+            "ram_reservation_gib": -1.0,
+            "vram_reservation_gib": -1.0
+          },
+          "priority": 70,
+          "quantization": "q4",
+          "residency": "on-demand",
+          "startup": false
+        }
+      ],
+      "name": "mica-coder-qwen-gguf",
+      "required_ram_gib": 16.0,
+      "required_vram_gib": 0.0,
+      "schema": 5
+    },
+    "ready": true,
+    "reserved_ram_gib": 0.5,
+    "reserved_vram_gib": 7.6125,
+    "vllm_device": "cuda",
+    "workers": [
+      {
+        "backend": "gguf",
+        "device": "cuda:0",
+        "gpu_layers": 99,
+        "id": "spark-x25-4b@gguf:q4",
+        "in_flight": 0,
+        "last_used_monotonic_ns": 54484519431265,
+        "pid": 58959,
+        "port": 47511,
+        "quantization": "q4",
+        "ram_reservation_gib": 0.5,
+        "reservation_gib": 4.8,
+        "vram_reservation_gib": 7.6125
+      }
+    ]
+  }
+}
