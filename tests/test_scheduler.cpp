@@ -49,7 +49,7 @@ int main() {
   assert(!spark.description.empty());
   assert(!spark.tags.empty());
   assert(spark.catalog_visible);
-  assert(spark.gguf_context_tokens == 8192);
+  assert(spark.gguf_context_tokens == 1048576);
   assert(spark.gguf_parallel_slots == 4);
   assert((spark.thinking_modes == std::vector<std::string>{"none", "on"}));
   assert(spark.thinking_budget_supported);
@@ -103,7 +103,11 @@ int main() {
   assert(gsq.references.at(3).url == "https://github.com/IST-DASLab/RCO");
   assert(gsq.references.at(5).kind == "reproducibility");
   assert(!gsq.references.at(5).description.empty());
-  assert(spark.references.empty());
+  assert(spark.references.size() == 1);
+  assert(spark.references.front().kind == "documentation");
+  assert(spark.references.front().url ==
+         "https://huggingface.co/XHToken/Spark-X2.5-4B/blob/main/config.json");
+  assert(registry.model("audio8-tts-06b").references.empty());
   {
     char temporary[] = "/tmp/mica-reference-tests-XXXXXX";
     const auto created = mkdtemp(temporary);
@@ -203,6 +207,13 @@ int main() {
   assert(coder.required_ram_gib == 16.0);
   assert(coder.maximum_resident_workers == 1);
   assert(coder.model_policies.size() == 4);
+  for (const auto& policy : coder.model_policies) {
+    assert(policy.max_input_tokens == 65536);
+    assert(policy.max_output_tokens == 16384);
+    assert(policy.max_total_tokens == 81920);
+    assert(policy.max_concurrent_requests == 1);
+  }
+  assert(registry.model("minicpm-v46-thinking").gguf_context_tokens == 262144);
   assert(coder.policy_for("ternary-bonsai-2-27b")->engine == "prism-llama-cpp");
   assert(coder.policy_for("spark-x25-4b")->engine == "mlx-lm");
   assert(coder.policy_for("ling-3-tiny")->engine == "llama-cpp");
@@ -221,6 +232,11 @@ int main() {
   const auto coder_roundtrip = mica::profile_from_document(
       roundtrip_registry, mica::profile_to_document(coder));
   assert(coder_roundtrip.model_policies.size() == 4);
+  for (const auto& policy : coder_roundtrip.model_policies) {
+    assert(policy.max_input_tokens == 65536);
+    assert(policy.max_output_tokens == 16384);
+    assert(policy.max_total_tokens == 81920);
+  }
   assert(coder_roundtrip.default_chat_model == "ternary-bonsai-2-27b");
   assert(coder_roundtrip.default_models == coder.default_models);
   {
@@ -467,7 +483,9 @@ int main() {
     assert(spark_entry->at("supported_interactions").at(0).at("operation") ==
            "chat.generate");
     assert(spark_entry->at("license") == "apache-2.0");
-    assert(spark_entry->at("references").empty());
+  assert(spark_entry->at("references").size() == 1);
+  assert(spark_entry->at("references").at(0).at("url") ==
+         spark.references.front().url);
     const auto gsq_entry = std::find_if(
         ledger.at("data").begin(), ledger.at("data").end(), [](const auto& item) {
           return item.value("id", "") == "qwen38-27b-gsq-rco";

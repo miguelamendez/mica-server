@@ -10,7 +10,12 @@ supported_interactions:
   - {operation: chat.generate, required_inputs: [text, image, video], outputs: [text]}
 description: MiniCPM-V 4.6 Thinking for image, video, and rendered document-page analysis.
 source_repository: openbmb/MiniCPM-V-4.6-Thinking
-declared_context_tokens: 8192
+declared_context_tokens: 262144
+references:
+  - kind: documentation
+    title: MiniCPM-V 4.6 Thinking upstream architecture configuration
+    url: https://huggingface.co/openbmb/MiniCPM-V-4.6-Thinking/blob/main/config.json
+    description: text_config.max_position_embeddings declares 262144 total positions; visual tokens share the budget and long-context quality remains unverified.
 tags: [image-text-to-text, video-text-to-text, document-analysis]
 thinking_modes: [none, on]
 thinking_budget_supported: true

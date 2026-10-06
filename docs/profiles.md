@@ -106,7 +106,7 @@ that multimodal set is uncertified; internal validation fixtures are never
 advertised as supported models.
 
 For the 24-GiB Apple Silicon coding profile, inspect and set up with the
-explicit 16-GiB reservation budget:
+explicit 16-GiB reservation budget (single resident worker):
 
 ```sh
 ./build/mica-server profile show mica-coder-bonsai-macos
@@ -117,6 +117,23 @@ explicit 16-GiB reservation budget:
 
 Bonsai is the default chat model and warms first; Ling Q4 and Spark Q4 are
 on-demand text alternatives, while MiniCPM serves document/image analysis.
+Each of the four models allows 65,536 input tokens and up to 16,384 generated
+tokens, with an 81,920-token total context and one concurrent request. The
+input allowance includes chat history, templates, tool messages, and visual
+tokens, not just the newest user message. Reasoning may consume part of the
+generation allowance; this does not guarantee 16,384 visible answer tokens.
+These are workload ceilings, not a requirement to generate that many tokens
+on every request or a claim of measured long-context quality. Smaller output
+budgets can be requested per call.
+
+The current conservative KV estimate gives Bonsai a 14.8125-GiB model/cache
+reservation at this context size, plus the 0.5-GiB workload safety margin. The
+workload therefore requires a 16-GiB machine allocation; a 14-GiB allocation
+must reject it. `--ram-gib 16` cannot override a lower existing machine-policy
+ceiling. Review `~/.mica/config/machine.yaml` explicitly before setup; Mica
+does not raise that user-owned limit automatically. Context declarations in
+the upstream configs are not evidence of trained context or usable quality
+at the maximum. Full-size inference and memory validation remain pending.
 Ling Q8 is registered in the model manifest but is not selected by this profile;
 choose it in a copied YAML profile for a quality comparison. Ling's MLX Q4
 community conversion requires a separate `rapid-mlx` implementation, so it is

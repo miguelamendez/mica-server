@@ -309,7 +309,7 @@ if(MICA_SERVER_BUILD_TESTS)
   add_test(
     NAME mica-server-coder-yaml-profile
     COMMAND $<TARGET_FILE:mica-server> profile validate
-            ${CMAKE_CURRENT_SOURCE_DIR}/config/inference-profiles/mica-coder-bonsai-macos.yaml
+            ${CMAKE_CURRENT_SOURCE_DIR}/config/workloads/mica-coder-bonsai-macos.yaml
             --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
             --root /tmp/mica-coder-yaml-test
   )
@@ -328,6 +328,18 @@ if(MICA_SERVER_BUILD_TESTS)
   set_tests_properties(mica-server-coder-macos-setup-plan PROPERTIES
     PASS_REGULAR_EXPRESSION "mlx-lm>=0.31.3 mlx-vlm>=0.7.2.*PrismML-Eng/llama.cpp.git.*GGML_METAL=ON.*--target llama-server --parallel 2"
     FAIL_REGULAR_EXPRESSION "mlx-audio|audio.cpp|GGML_CUDA=ON"
+  )
+  add_test(
+    NAME mica-server-coder-long-context-rejects-14g
+    COMMAND $<TARGET_FILE:mica-server> plan
+            --profile mica-coder-bonsai-macos --ram-gib 14
+            --root /tmp/mica-coder-long-context-rejection
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
+            --hardware-profile
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/mac-metal.json
+  )
+  set_tests_properties(mica-server-coder-long-context-rejects-14g PROPERTIES
+    WILL_FAIL TRUE
   )
   foreach(MICA_HARDWARE_CASE IN ITEMS mac-metal linux-cuda linux-rocm linux-xpu)
     add_test(

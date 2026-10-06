@@ -9,7 +9,12 @@ supported_interactions:
   - {operation: text.generate, required_inputs: [text], outputs: [text]}
 description: Spark-X2.5-4B compact reasoning and general text model.
 source_repository: XHToken/Spark-X2.5-4B
-declared_context_tokens: 8192
+declared_context_tokens: 1048576
+references:
+  - kind: documentation
+    title: Spark upstream architecture configuration
+    url: https://huggingface.co/XHToken/Spark-X2.5-4B/blob/main/config.json
+    description: max_position_embeddings declares 1048576 total positions; this is not a trained-context or quality certification.
 tags: [text-generation, reasoning]
 thinking_modes: [none, on]
 thinking_budget_supported: true
