@@ -1,0 +1,872 @@
+{
+  "timestamp_utc": "2026-10-08T01:49:51.301826+00:00",
+  "warning": "Upstream main is observed at audit time, not artifact certification. Unknown recommendations/output ceilings remain null; training disclosures and publisher guidance are recorded in references. Generation defaults are not hard limits. No weights are downloaded or loaded.",
+  "models": [
+    {
+      "id": "audio8-tts-06b",
+      "source_repository": "Edge0/Audio8-TTS-Preview-0.6b",
+      "native_context_tokens": 2048,
+      "upstream_architecture_context_tokens": 2048,
+      "status": "matches-architecture-config",
+      "architecture": [
+        "ArkttsModel"
+      ],
+      "rope_scaling": null,
+      "recommended_context_tokens": null,
+      "max_output_tokens": null,
+      "context_units": "packed-text-audio-positions",
+      "references": [
+        {
+          "kind": "model-card",
+          "title": "Audio8 packed text and audio capacity",
+          "url": "https://huggingface.co/Edge0/Audio8-TTS-Preview-0.6b",
+          "description": "Publisher documents up to 2048 packed text/audio positions for the DualAR model, not 2048 words or seconds. Text, voice-reference audio, and generated acoustic frames share this capacity. Exact training lengths and a general output-duration ceiling were not verified in the 2026-10-07 audit. Audio8's former repository URL redirects to Edge0."
+        },
+        {
+          "kind": "documentation",
+          "title": "Audio8 architecture configuration",
+          "url": "https://huggingface.co/Edge0/Audio8-TTS-Preview-0.6b/blob/main/config.json",
+          "description": "max_seq_len is 2048. The 512 max_new_tokens generation default is not a trained or hard output limit and acoustic tokens are not LLM response-text tokens."
+        }
+      ],
+      "generation_defaults_not_hard_limits": {
+        "max_new_tokens": 512,
+        "do_sample": true,
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "top_k": 50,
+        "eos_token_id": 151645
+      },
+      "config_source": {
+        "url": "https://huggingface.co/Edge0/Audio8-TTS-Preview-0.6b/raw/main/config.json",
+        "sha256": "92e19f10edb6c79ef2ccf4aebe218baa2c12743d648d75238041eca39439f8d3"
+      },
+      "architecture_source": {
+        "url": "https://huggingface.co/Edge0/Audio8-TTS-Preview-0.6b/raw/main/config.json",
+        "sha256": "92e19f10edb6c79ef2ccf4aebe218baa2c12743d648d75238041eca39439f8d3"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/Edge0/Audio8-TTS-Preview-0.6b/raw/main/generation_config.json",
+        "sha256": "bbb0b0059d787345929a56f60d284c1a03ea2f4bca7c405d713eed20eb74658a"
+      }
+    },
+    {
+      "id": "granite-speech-5",
+      "source_repository": "ibm-granite/granite-speech-5.0-470m-turboctc",
+      "native_context_tokens": null,
+      "upstream_architecture_context_tokens": null,
+      "status": "not-a-causal-text-context-limit",
+      "architecture": [
+        "GraniteSpeech5ForCTC"
+      ],
+      "rope_scaling": null,
+      "recommended_context_tokens": null,
+      "max_output_tokens": null,
+      "context_units": "not-applicable",
+      "references": [
+        {
+          "kind": "model-card",
+          "title": "Granite Speech TurboCTC architecture and training",
+          "url": "https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc",
+          "description": "Non-autoregressive CTC ASR trained on approximately 60000 hours of English audio. Its 16384 BPE units describe vocabulary size, not a context or output ceiling. No LLM-style input-plus-generation window applies; audio duration, chunking, and memory must be validated separately."
+        }
+      ],
+      "generation_defaults_not_hard_limits": {},
+      "config_source": {
+        "url": "https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc/raw/main/config.json",
+        "sha256": "41b72a7596bebe5106573f9e0f64c6b0acdac145373386946e7d1ef277fe0c9f"
+      },
+      "architecture_source": {
+        "url": "https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc/raw/main/config.json",
+        "sha256": "41b72a7596bebe5106573f9e0f64c6b0acdac145373386946e7d1ef277fe0c9f"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc/raw/main/generation_config.json",
+        "sha256": "e9eef52b79e24b329889157f75e02aea236c429552a4a986dd5fffb349809208"
+      }
+    },
+    {
+      "id": "ling-3-tiny",
+      "source_repository": "inclusionAI/Ling-3.0-tiny",
+      "native_context_tokens": 131072,
+      "upstream_architecture_context_tokens": 131072,
+      "status": "matches-architecture-config",
+      "architecture": [
+        "BailingMoeV3ForCausalLM"
+      ],
+      "rope_scaling": null,
+      "recommended_context_tokens": null,
+      "max_output_tokens": null,
+      "context_units": "tokens",
+      "references": [
+        {
+          "kind": "documentation",
+          "title": "Ling native architecture context",
+          "url": "https://huggingface.co/inclusionAI/Ling-3.0-tiny/blob/main/config.json",
+          "description": "max_position_embeddings is 131072 without RoPE scaling. This is architecture capacity, not a disclosed training sequence length."
+        },
+        {
+          "kind": "model-card",
+          "title": "Ling deployment extension and evaluation output budget",
+          "url": "https://huggingface.co/inclusionAI/Ling-3.0-tiny",
+          "description": "Publisher evaluates with 32K output at 256K total context using a 2x YaRN extension. This is not the native window, a trained-output maximum, or a recommended native input budget. Training lengths and a separate native recommendation were not verified in the 2026-10-07 audit."
+        }
+      ],
+      "generation_defaults_not_hard_limits": {
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "top_k": 20
+      },
+      "config_source": {
+        "url": "https://huggingface.co/inclusionAI/Ling-3.0-tiny/raw/main/config.json",
+        "sha256": "9750d847957913f665a13c0b5a6537199e33c6f3ec970d9fcb55a0e5076d4012"
+      },
+      "architecture_source": {
+        "url": "https://huggingface.co/inclusionAI/Ling-3.0-tiny/raw/main/config.json",
+        "sha256": "9750d847957913f665a13c0b5a6537199e33c6f3ec970d9fcb55a0e5076d4012"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/inclusionAI/Ling-3.0-tiny/raw/main/generation_config.json",
+        "sha256": "64752c5973a55faf4cfc02604c7587c38b090f00013f91191f52362dcc79a4a8"
+      }
+    },
+    {
+      "id": "minicpm-v46-thinking",
+      "source_repository": "openbmb/MiniCPM-V-4.6-Thinking",
+      "native_context_tokens": 262144,
+      "upstream_architecture_context_tokens": 262144,
+      "status": "matches-architecture-config",
+      "architecture": [
+        "MiniCPMV4_6ForConditionalGeneration"
+      ],
+      "rope_scaling": {
+        "partial_rotary_factor": 0.25,
+        "rope_theta": 10000000,
+        "rope_type": "default"
+      },
+      "recommended_context_tokens": null,
+      "max_output_tokens": null,
+      "context_units": "tokens",
+      "references": [
+        {
+          "kind": "documentation",
+          "title": "MiniCPM-V 4.6 Thinking upstream architecture configuration",
+          "url": "https://huggingface.co/openbmb/MiniCPM-V-4.6-Thinking/blob/main/config.json",
+          "description": "text_config.max_position_embeddings declares 262144 total positions; visual tokens share the budget and long-context quality remains unverified."
+        },
+        {
+          "kind": "model-card",
+          "title": "MiniCPM-V 4.6 Thinking media and generation examples",
+          "url": "https://huggingface.co/openbmb/MiniCPM-V-4.6-Thinking",
+          "description": "Image and video examples request 512 and 2048 output tokens respectively; these are example settings, not model maxima. Processor defaults allow 128 sampled frames with 1 fps short-video sampling, not a text context or fixed duration ceiling. Exact training lengths, recommended total context, and hard output ceiling were not verified in the 2026-10-07 audit."
+        }
+      ],
+      "generation_defaults_not_hard_limits": {
+        "do_sample": true,
+        "temperature": 0.7,
+        "top_p": 1.0,
+        "top_k": 0,
+        "repetition_penalty": 1.0,
+        "eos_token_id": [
+          248044,
+          248046
+        ]
+      },
+      "config_source": {
+        "url": "https://huggingface.co/openbmb/MiniCPM-V-4.6-Thinking/raw/main/config.json",
+        "sha256": "72d83ac9089bebddf28131b9953908acaf0a5740b868263c8aaac7c40b97991c"
+      },
+      "architecture_source": {
+        "url": "https://huggingface.co/openbmb/MiniCPM-V-4.6-Thinking/raw/main/config.json",
+        "sha256": "72d83ac9089bebddf28131b9953908acaf0a5740b868263c8aaac7c40b97991c"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/openbmb/MiniCPM-V-4.6-Thinking/raw/main/generation_config.json",
+        "sha256": "355e944b910ce784e4c561d67b8e7fee9c6c89385cc790e5a6affb7747b1f118"
+      }
+    },
+    {
+      "id": "nemotron-3-diarization",
+      "source_repository": "nvidia/Nemotron-3-Diarization",
+      "native_context_tokens": null,
+      "upstream_architecture_context_tokens": null,
+      "status": "not-a-causal-text-context-limit",
+      "architecture": [
+        "Nemotron3DiarizationForAudioFrameClassification"
+      ],
+      "rope_scaling": null,
+      "recommended_context_tokens": null,
+      "max_output_tokens": null,
+      "context_units": "not-applicable",
+      "references": [
+        {
+          "kind": "model-card",
+          "title": "Nemotron diarization audio limits and outputs",
+          "url": "https://huggingface.co/nvidia/Nemotron-3-Diarization",
+          "description": "Publisher supports 16 kHz mono audio and up to eight anonymous speaker channels, with no fixed maximum recording duration when chunked inference is used. Outputs are frame-level speaker probabilities, not autoregressive text generation; Mica serializes derived turns. Streaming look-ahead and cache frames are not an LLM token-context limit. Adapter support and available memory still constrain usable input."
+        }
+      ],
+      "generation_defaults_not_hard_limits": {},
+      "config_source": {
+        "url": "https://huggingface.co/nvidia/Nemotron-3-Diarization/raw/main/config.json",
+        "sha256": "dd795ec07ffa09acf18d231aa3fa8642aa5c521760953754e02559a7413b6873"
+      },
+      "architecture_source": {
+        "url": "https://huggingface.co/nvidia/Nemotron-3-Diarization/raw/main/config.json",
+        "sha256": "dd795ec07ffa09acf18d231aa3fa8642aa5c521760953754e02559a7413b6873"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/nvidia/Nemotron-3-Diarization/raw/main/generation_config.json",
+        "error": "HTTP Error 404: Not Found"
+      }
+    },
+    {
+      "id": "qwen35-4b",
+      "source_repository": "Qwen/Qwen3.5-4B",
+      "native_context_tokens": 262144,
+      "upstream_architecture_context_tokens": 262144,
+      "status": "matches-architecture-config",
+      "architecture": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "rope_scaling": {
+        "mrope_interleaved": true,
+        "mrope_section": [
+          11,
+          11,
+          10
+        ],
+        "rope_type": "default",
+        "rope_theta": 10000000,
+        "partial_rotary_factor": 0.25
+      },
+      "recommended_context_tokens": null,
+      "max_output_tokens": null,
+      "context_units": "tokens",
+      "references": [
+        {
+          "kind": "model-card",
+          "title": "Qwen3.5 4B upstream model card",
+          "url": "https://huggingface.co/Qwen/Qwen3.5-4B",
+          "description": "Native total context is 262144 including input and output. Publisher recommends 32768 generated tokens for most queries; this is not a hard or trained-output ceiling. Exact training lengths and a separate recommended total window were not verified in the 2026-10-07 audit. Media and reasoning consume their respective token budgets."
+        },
+        {
+          "kind": "documentation",
+          "title": "Qwen3.5 4B architecture configuration",
+          "url": "https://huggingface.co/Qwen/Qwen3.5-4B/blob/main/config.json",
+          "description": "Eight full-attention layers, four KV heads, and head width 256 imply 32768 bytes of F16 K/V per token. The base reservation also covers recurrent state, vision processing, and workspace."
+        },
+        {
+          "kind": "model-card",
+          "title": "Trusted Unsloth Q4_K_M and F16 projector",
+          "url": "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/tree/e87f176479d0855a907a41277aca2f8ee7a09523",
+          "description": "Reuse the published quantization with its matching projector; no local requantization."
+        }
+      ],
+      "generation_defaults_not_hard_limits": {},
+      "config_source": {
+        "url": "https://huggingface.co/Qwen/Qwen3.5-4B/raw/main/config.json",
+        "sha256": "ddc63e1c717afa86c865bb5e01313d89d72bb53b97ad4a8a03ba8510c0621670"
+      },
+      "architecture_source": {
+        "url": "https://huggingface.co/Qwen/Qwen3.5-4B/raw/main/config.json",
+        "sha256": "ddc63e1c717afa86c865bb5e01313d89d72bb53b97ad4a8a03ba8510c0621670"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/Qwen/Qwen3.5-4B/raw/main/generation_config.json",
+        "error": "HTTP Error 404: Not Found"
+      }
+    },
+    {
+      "id": "qwen35-9b",
+      "source_repository": "Qwen/Qwen3.5-9B",
+      "native_context_tokens": 262144,
+      "upstream_architecture_context_tokens": 262144,
+      "status": "matches-architecture-config",
+      "architecture": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "rope_scaling": {
+        "mrope_interleaved": true,
+        "mrope_section": [
+          11,
+          11,
+          10
+        ],
+        "rope_type": "default",
+        "rope_theta": 10000000,
+        "partial_rotary_factor": 0.25
+      },
+      "recommended_context_tokens": null,
+      "max_output_tokens": null,
+      "context_units": "tokens",
+      "references": [
+        {
+          "kind": "model-card",
+          "title": "Qwen3.5 9B upstream model card",
+          "url": "https://huggingface.co/Qwen/Qwen3.5-9B",
+          "description": "Native total context is 262144 including input and output. Publisher recommends 32768 generated tokens for most queries; this is not a supported or trained-output ceiling. Exact training lengths and a separate recommended total window were not verified in the 2026-10-07 audit. enable_thinking controls thinking per request."
+        },
+        {
+          "kind": "documentation",
+          "title": "Qwen3.5 9B architecture configuration",
+          "url": "https://huggingface.co/Qwen/Qwen3.5-9B/blob/main/config.json",
+          "description": "Eight full-attention layers with four KV heads of width 256 imply 32768 bytes of F16 K/V per token. Recurrent state, vision processing, and workspace are covered by the separate conservative base reservation."
+        },
+        {
+          "kind": "model-card",
+          "title": "Unsloth pinned Qwen3.5 9B GGUF release",
+          "url": "https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/blob/3885219b6810b007914f3a7950a8d1b469d598a5/README.md",
+          "description": "Published Q4_K_M and BF16 projector; Mica downloads these existing artifacts rather than requantizing."
+        },
+        {
+          "kind": "documentation",
+          "title": "llama.cpp Qwen vision preprocessing discussion",
+          "url": "https://github.com/ggml-org/llama.cpp/issues/16842",
+          "description": "Native Qwen vision loader recommends a minimum 1024 image tokens when grounding accuracy is poor. The registered token floor increases visual preprocessing, not text context or output limits."
+        }
+      ],
+      "generation_defaults_not_hard_limits": {},
+      "config_source": {
+        "url": "https://huggingface.co/Qwen/Qwen3.5-9B/raw/main/config.json",
+        "sha256": "d0883072e01861ed0b2d47be3c16c36a8e81c224c7ffaa310c6558fb3f932b05"
+      },
+      "architecture_source": {
+        "url": "https://huggingface.co/Qwen/Qwen3.5-9B/raw/main/config.json",
+        "sha256": "d0883072e01861ed0b2d47be3c16c36a8e81c224c7ffaa310c6558fb3f932b05"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/Qwen/Qwen3.5-9B/raw/main/generation_config.json",
+        "error": "HTTP Error 404: Not Found"
+      }
+    },
+    {
+      "id": "qwen38-27b-gsq-rco",
+      "source_repository": "ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF",
+      "native_context_tokens": 262144,
+      "upstream_architecture_context_tokens": 262144,
+      "status": "matches-architecture-config",
+      "architecture": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "rope_scaling": {
+        "mrope_interleaved": true,
+        "mrope_section": [
+          11,
+          11,
+          10
+        ],
+        "partial_rotary_factor": 0.25,
+        "rope_theta": 10000000,
+        "rope_type": "default"
+      },
+      "recommended_context_tokens": null,
+      "max_output_tokens": null,
+      "context_units": "tokens",
+      "references": [
+        {
+          "kind": "paper",
+          "title": "GSQ: Highly-Accurate Low-Precision Scalar Quantization for LLMs via Gumbel-Softmax Sampling",
+          "url": "https://arxiv.org/abs/2604.18556",
+          "description": "Calibration-based refinement of discrete weight assignments and group scales."
+        },
+        {
+          "kind": "code",
+          "title": "GSQ reference implementation",
+          "url": "https://github.com/IST-DASLab/GSQ",
+          "description": "Apache-2.0 source, quantization configurations, and calibration/optimization tooling."
+        },
+        {
+          "kind": "paper",
+          "title": "Model Compression with Exact Budget Constraints via Riemannian Manifolds",
+          "url": "https://arxiv.org/abs/2605.00649",
+          "description": "RCO mixed-precision allocation under a model-size budget."
+        },
+        {
+          "kind": "code",
+          "title": "RCO reference implementation",
+          "url": "https://github.com/IST-DASLab/RCO",
+          "description": "Apache-2.0 source for budget-constrained precision allocation and MoE expert pruning."
+        },
+        {
+          "kind": "model-card",
+          "title": "Qwen3.8 27B GSQ-RCO release and reported evaluations",
+          "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/blob/d562806dbafae37109975e970aae91b43e73b440/README.md",
+          "description": "Publisher methodology and benchmarks; not Mica's local validation results."
+        },
+        {
+          "kind": "reproducibility",
+          "title": "IQ3_XXS per-tensor precision allocation",
+          "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/blob/d562806dbafae37109975e970aae91b43e73b440/tensor-allocation/Qwen3.8-27B-GSQ-RCO-IQ3_XXS.rco-allocation.txt",
+          "description": "Precision assigned to each tensor in the registered IQ3_XXS artifact."
+        },
+        {
+          "kind": "reproducibility",
+          "title": "Qwen3.8 27B calibration importance matrix",
+          "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/blob/d562806dbafae37109975e970aae91b43e73b440/imatrix-qwen3.8-27b.gguf",
+          "description": "Publisher-provided importance matrix; not the raw calibration dataset."
+        },
+        {
+          "kind": "model-card",
+          "title": "Pinned BF16 vision projector",
+          "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/blob/d562806dbafae37109975e970aae91b43e73b440/mmproj-Qwen3.8-27B-BF16.gguf",
+          "description": "Separate mmproj file included in this bundle; not embedded in the target GGUF."
+        },
+        {
+          "kind": "model-card",
+          "title": "Pinned DFlash2 Q4_K_M drafter",
+          "url": "https://huggingface.co/z-lab/Qwen3.8-27B-DFlash2-GGUF/blob/2d9571f8ce46e151f61c6499c99dee6079e1d610/Qwen3.8-27B-DFlash2-Q4_K_M.gguf",
+          "description": "External text-only drafter used by qwen38-27b-text-dflash; not downloaded by this bundle. An alternative to MTP, not stacked with it."
+        },
+        {
+          "kind": "model-card",
+          "title": "Pinned external Q4_0 MTP head",
+          "url": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/blob/4ca720788d1e01f1bff70c033e0d0028fd02e502/MTP/mtp-Qwen3.8-27B-Q4_0.gguf",
+          "description": "External one-layer prediction head used by qwen38-27b-vision-mtp; not downloaded by this bundle. The target IQ3_XXS GGUF contains no embedded MTP head."
+        },
+        {
+          "kind": "documentation",
+          "title": "Qwen3.8 base architecture context",
+          "url": "https://huggingface.co/Qwen/Qwen3.8-27B/blob/main/config.json",
+          "description": "Base text_config.max_position_embeddings is 262144; this is architecture capacity, not a disclosed training sequence length or a memory-fit guarantee after quantization."
+        },
+        {
+          "kind": "model-card",
+          "title": "Qwen3.8 context and generation guidance",
+          "url": "https://huggingface.co/Qwen/Qwen3.8-27B",
+          "description": "Publisher's large output guidance requires 1M extended context. Training lengths, separate native recommendations, and independent output ceilings remain unverified (2026-10-07)."
+        }
+      ],
+      "generation_defaults_not_hard_limits": {},
+      "config_source": {
+        "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/raw/main/config.json",
+        "error": "HTTP Error 404: Not Found"
+      },
+      "architecture_source": {
+        "url": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/config.json",
+        "sha256": "191e0af232104ed8b65258cf3fb2b842e288008baca7633c11b82a1ac7203aab",
+        "kind": "referenced-base-architecture",
+        "repository": "Qwen/Qwen3.8-27B"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/raw/main/generation_config.json",
+        "error": "HTTP Error 404: Not Found"
+      }
+    },
+    {
+      "id": "qwen38-27b-text-dflash",
+      "source_repository": "ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF",
+      "native_context_tokens": 262144,
+      "upstream_architecture_context_tokens": 262144,
+      "status": "matches-architecture-config",
+      "architecture": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "rope_scaling": {
+        "mrope_interleaved": true,
+        "mrope_section": [
+          11,
+          11,
+          10
+        ],
+        "partial_rotary_factor": 0.25,
+        "rope_theta": 10000000,
+        "rope_type": "default"
+      },
+      "recommended_context_tokens": null,
+      "max_output_tokens": null,
+      "context_units": "tokens",
+      "references": [
+        {
+          "kind": "model-card",
+          "title": "Qwen3.8 GSQ-RCO target",
+          "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF"
+        },
+        {
+          "kind": "model-card",
+          "title": "DFlash2 GGUF drafter",
+          "url": "https://huggingface.co/z-lab/Qwen3.8-27B-DFlash2-GGUF"
+        },
+        {
+          "kind": "model-card",
+          "title": "Pinned DFlash2 Q4_K_M drafter file",
+          "url": "https://huggingface.co/z-lab/Qwen3.8-27B-DFlash2-GGUF/blob/2d9571f8ce46e151f61c6499c99dee6079e1d610/Qwen3.8-27B-DFlash2-Q4_K_M.gguf",
+          "description": "Separately downloaded drafter included in this text-only bundle; not an embedded target layer."
+        },
+        {
+          "kind": "code",
+          "title": "DFlash2 engine support",
+          "url": "https://github.com/ggml-org/llama.cpp/pull/27342"
+        },
+        {
+          "kind": "documentation",
+          "title": "Qwen3.8 base architecture context",
+          "url": "https://huggingface.co/Qwen/Qwen3.8-27B/blob/main/config.json",
+          "description": "Base text_config.max_position_embeddings is 262144. Adding DFlash does not increase the target's native context or establish a trained-output maximum; the speculative engine must validate its own cache and context support."
+        },
+        {
+          "kind": "model-card",
+          "title": "Qwen3.8 context and generation guidance",
+          "url": "https://huggingface.co/Qwen/Qwen3.8-27B",
+          "description": "Publisher's large output guidance requires 1M extended context. Training lengths, separate native recommendations, and independent output ceilings remain unverified (2026-10-07)."
+        }
+      ],
+      "generation_defaults_not_hard_limits": {},
+      "config_source": {
+        "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/raw/main/config.json",
+        "error": "HTTP Error 404: Not Found"
+      },
+      "architecture_source": {
+        "url": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/config.json",
+        "sha256": "191e0af232104ed8b65258cf3fb2b842e288008baca7633c11b82a1ac7203aab",
+        "kind": "referenced-base-architecture",
+        "repository": "Qwen/Qwen3.8-27B"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/raw/main/generation_config.json",
+        "error": "HTTP Error 404: Not Found"
+      }
+    },
+    {
+      "id": "qwen38-27b-text",
+      "source_repository": "ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF",
+      "native_context_tokens": 262144,
+      "upstream_architecture_context_tokens": 262144,
+      "status": "matches-architecture-config",
+      "architecture": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "rope_scaling": {
+        "mrope_interleaved": true,
+        "mrope_section": [
+          11,
+          11,
+          10
+        ],
+        "partial_rotary_factor": 0.25,
+        "rope_theta": 10000000,
+        "rope_type": "default"
+      },
+      "recommended_context_tokens": null,
+      "max_output_tokens": null,
+      "context_units": "tokens",
+      "references": [
+        {
+          "kind": "model-card",
+          "title": "Qwen3.8 GSQ-RCO target",
+          "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF"
+        },
+        {
+          "kind": "documentation",
+          "title": "Qwen3.8 base architecture context",
+          "url": "https://huggingface.co/Qwen/Qwen3.8-27B/blob/main/config.json",
+          "description": "Base text_config.max_position_embeddings is 262144. The GSQ-RCO artifact inherits the base architecture; this is not a training length or a memory-fit guarantee."
+        },
+        {
+          "kind": "model-card",
+          "title": "Qwen3.8 context and generation guidance",
+          "url": "https://huggingface.co/Qwen/Qwen3.8-27B",
+          "description": "Publisher's large output guidance requires 1M extended context. Training lengths, separate native recommendations, and independent output ceilings remain unverified (2026-10-07)."
+        }
+      ],
+      "generation_defaults_not_hard_limits": {},
+      "config_source": {
+        "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/raw/main/config.json",
+        "error": "HTTP Error 404: Not Found"
+      },
+      "architecture_source": {
+        "url": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/config.json",
+        "sha256": "191e0af232104ed8b65258cf3fb2b842e288008baca7633c11b82a1ac7203aab",
+        "kind": "referenced-base-architecture",
+        "repository": "Qwen/Qwen3.8-27B"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/raw/main/generation_config.json",
+        "error": "HTTP Error 404: Not Found"
+      }
+    },
+    {
+      "id": "qwen38-27b-vision-mtp",
+      "source_repository": "ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF",
+      "native_context_tokens": 262144,
+      "upstream_architecture_context_tokens": 262144,
+      "status": "matches-architecture-config",
+      "architecture": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "rope_scaling": {
+        "mrope_interleaved": true,
+        "mrope_section": [
+          11,
+          11,
+          10
+        ],
+        "partial_rotary_factor": 0.25,
+        "rope_theta": 10000000,
+        "rope_type": "default"
+      },
+      "recommended_context_tokens": null,
+      "max_output_tokens": null,
+      "context_units": "tokens",
+      "references": [
+        {
+          "kind": "model-card",
+          "title": "Qwen3.8 GSQ-RCO target and projector",
+          "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF"
+        },
+        {
+          "kind": "model-card",
+          "title": "Unsloth external MTP heads",
+          "url": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/tree/main/MTP"
+        },
+        {
+          "kind": "model-card",
+          "title": "Pinned BF16 vision projector",
+          "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/blob/d562806dbafae37109975e970aae91b43e73b440/mmproj-Qwen3.8-27B-BF16.gguf",
+          "description": "Separate mmproj file included in this vision bundle."
+        },
+        {
+          "kind": "model-card",
+          "title": "Pinned external Q4_0 MTP head",
+          "url": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/blob/4ca720788d1e01f1bff70c033e0d0028fd02e502/MTP/mtp-Qwen3.8-27B-Q4_0.gguf",
+          "description": "Separate one-layer prediction head included in this bundle. The GSQ-RCO IQ3_XXS target does not embed MTP; speculative-mtp compatibility depends on this external file and the engine."
+        },
+        {
+          "kind": "documentation",
+          "title": "Qwen3.8 base architecture context",
+          "url": "https://huggingface.co/Qwen/Qwen3.8-27B/blob/main/config.json",
+          "description": "Base text_config.max_position_embeddings is 262144. Visual tokens share the target context; the external MTP head does not add context capacity or establish a trained-output maximum."
+        },
+        {
+          "kind": "model-card",
+          "title": "Qwen3.8 context and generation guidance",
+          "url": "https://huggingface.co/Qwen/Qwen3.8-27B",
+          "description": "Publisher's large output guidance requires 1M extended context. Training lengths, separate native recommendations, and independent output ceilings remain unverified (2026-10-07)."
+        }
+      ],
+      "generation_defaults_not_hard_limits": {},
+      "config_source": {
+        "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/raw/main/config.json",
+        "error": "HTTP Error 404: Not Found"
+      },
+      "architecture_source": {
+        "url": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/config.json",
+        "sha256": "191e0af232104ed8b65258cf3fb2b842e288008baca7633c11b82a1ac7203aab",
+        "kind": "referenced-base-architecture",
+        "repository": "Qwen/Qwen3.8-27B"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/raw/main/generation_config.json",
+        "error": "HTTP Error 404: Not Found"
+      }
+    },
+    {
+      "id": "spark-x25-4b",
+      "source_repository": "XHToken/Spark-X2.5-4B",
+      "native_context_tokens": 1048576,
+      "upstream_architecture_context_tokens": 1048576,
+      "status": "matches-architecture-config",
+      "architecture": [
+        "Spark2_5ForCausalLM"
+      ],
+      "rope_scaling": {
+        "full_attention": {
+          "partial_rotary_factor": 0.25,
+          "rope_theta": 5000000
+        },
+        "sliding_attention": {
+          "partial_rotary_factor": 1.0,
+          "rope_theta": 10000
+        }
+      },
+      "recommended_context_tokens": null,
+      "max_output_tokens": null,
+      "context_units": "tokens",
+      "references": [
+        {
+          "kind": "documentation",
+          "title": "Spark upstream architecture configuration",
+          "url": "https://huggingface.co/XHToken/Spark-X2.5-4B/blob/main/config.json",
+          "description": "max_position_embeddings declares 1048576 total positions; this is not a trained-context or quality certification."
+        },
+        {
+          "kind": "model-card",
+          "title": "Spark training context and generation example",
+          "url": "https://huggingface.co/XHToken/Spark-X2.5-4B",
+          "description": "Publisher reports long-context training sequences reaching 1M tokens. The 131072-token output request is an example, not a supported or trained output ceiling. No separate recommended total context or training-output maximum was verified in the 2026-10-07 audit."
+        }
+      ],
+      "generation_defaults_not_hard_limits": {
+        "max_tokens": 1048576,
+        "do_sample": true,
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "top_k": -1,
+        "repetition_penalty": 1.0,
+        "presence_penalty": 0,
+        "eos_token_id": 1
+      },
+      "config_source": {
+        "url": "https://huggingface.co/XHToken/Spark-X2.5-4B/raw/main/config.json",
+        "sha256": "767161ece8ed2891e44345afdf98d29c1cacb964116cb6db7d20dc1c757490ad"
+      },
+      "architecture_source": {
+        "url": "https://huggingface.co/XHToken/Spark-X2.5-4B/raw/main/config.json",
+        "sha256": "767161ece8ed2891e44345afdf98d29c1cacb964116cb6db7d20dc1c757490ad"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/XHToken/Spark-X2.5-4B/raw/main/generation_config.json",
+        "sha256": "804a5276a9d237600688267dd2bf6f9d4129ec21faf417f870d5d52b32ad9e6c"
+      }
+    },
+    {
+      "id": "ternary-bonsai-2-27b",
+      "source_repository": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+      "native_context_tokens": 262144,
+      "upstream_architecture_context_tokens": 262144,
+      "status": "matches-architecture-config",
+      "architecture": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "rope_scaling": {
+        "mrope_interleaved": true,
+        "mrope_section": [
+          11,
+          11,
+          10
+        ],
+        "partial_rotary_factor": 0.25,
+        "rope_theta": 10000000,
+        "rope_type": "default"
+      },
+      "recommended_context_tokens": null,
+      "max_output_tokens": null,
+      "context_units": "tokens",
+      "references": [
+        {
+          "kind": "documentation",
+          "title": "Bonsai base architecture context",
+          "url": "https://huggingface.co/Qwen/Qwen3.8-27B/blob/main/config.json",
+          "description": "Publisher identifies an unchanged Qwen3.8 27B architecture with 262144 native positions. Base architecture metadata does not prove retained long-context quality after compression."
+        },
+        {
+          "kind": "model-card",
+          "title": "Bonsai native context and generation example",
+          "url": "https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf",
+          "description": "Publisher documents a 262K inherited context and a CLI example with 16384 generated tokens to leave room for thinking. The example is not a hard output ceiling. Exact training lengths and a separate recommended total context were not verified in the 2026-10-07 audit."
+        }
+      ],
+      "generation_defaults_not_hard_limits": {},
+      "config_source": {
+        "url": "https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf/raw/main/config.json",
+        "error": "HTTP Error 404: Not Found"
+      },
+      "architecture_source": {
+        "url": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/config.json",
+        "sha256": "191e0af232104ed8b65258cf3fb2b842e288008baca7633c11b82a1ac7203aab",
+        "kind": "referenced-base-architecture",
+        "repository": "Qwen/Qwen3.8-27B"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf/raw/main/generation_config.json",
+        "error": "HTTP Error 404: Not Found"
+      }
+    },
+    {
+      "id": "vllm-qwen3-06b-control",
+      "source_repository": "mlx-community/Qwen3-0.6B-4bit",
+      "native_context_tokens": 40960,
+      "upstream_architecture_context_tokens": 40960,
+      "status": "matches-architecture-config",
+      "architecture": [
+        "Qwen3ForCausalLM"
+      ],
+      "rope_scaling": null,
+      "recommended_context_tokens": 32768,
+      "max_output_tokens": null,
+      "context_units": "tokens",
+      "references": [
+        {
+          "kind": "documentation",
+          "title": "Qwen3 0.6B control artifact architecture",
+          "url": "https://huggingface.co/mlx-community/Qwen3-0.6B-4bit/blob/main/config.json",
+          "description": "The registered control artifact declares 40960 architecture positions. This is not evidence of a 40960-token trained window."
+        },
+        {
+          "kind": "model-card",
+          "title": "Qwen3 0.6B publisher context and output guidance",
+          "url": "https://huggingface.co/Qwen/Qwen3-0.6B",
+          "description": "Publisher lists a 32768-token context, retained here as the conservative recommended total window despite the artifact configuration's 40960 positions. General output guidance is also 32768, but input and output must share the total; it is not a trained or supported output ceiling. The control remains hidden from the public model catalog."
+        }
+      ],
+      "generation_defaults_not_hard_limits": {},
+      "config_source": {
+        "url": "https://huggingface.co/mlx-community/Qwen3-0.6B-4bit/raw/main/config.json",
+        "sha256": "15d3ac26c043ae477273ed5802ee0f0b33bb14f18c9d3dd70910c02d906e3f1f"
+      },
+      "architecture_source": {
+        "url": "https://huggingface.co/mlx-community/Qwen3-0.6B-4bit/raw/main/config.json",
+        "sha256": "15d3ac26c043ae477273ed5802ee0f0b33bb14f18c9d3dd70910c02d906e3f1f"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/mlx-community/Qwen3-0.6B-4bit/raw/main/generation_config.json",
+        "error": "HTTP Error 404: Not Found"
+      }
+    },
+    {
+      "id": "xing4-29b-a4b",
+      "source_repository": "XingChen-AGI/Xing4.0-29B-A4B",
+      "native_context_tokens": 262144,
+      "upstream_architecture_context_tokens": 262144,
+      "status": "matches-architecture-config",
+      "architecture": [
+        "Xing4_0ForCausalLM"
+      ],
+      "rope_scaling": {
+        "beta_fast": 32,
+        "beta_slow": 1,
+        "factor": 64,
+        "mscale": 1.0,
+        "mscale_all_dim": 1.0,
+        "original_max_position_embeddings": 4096,
+        "type": "yarn"
+      },
+      "recommended_context_tokens": null,
+      "max_output_tokens": null,
+      "context_units": "tokens",
+      "references": [
+        {
+          "kind": "documentation",
+          "title": "Xing native architecture context",
+          "url": "https://huggingface.co/XingChen-AGI/Xing4.0-29B-A4B/blob/main/config.json",
+          "description": "max_position_embeddings is 262144. Architecture capacity is not a verified training sequence length."
+        },
+        {
+          "kind": "model-card",
+          "title": "Xing native context and benchmark budgets",
+          "url": "https://huggingface.co/XingChen-AGI/Xing4.0-29B-A4B",
+          "description": "Publisher documents native 256K context with a 512K extension and uses different benchmark output budgets. No single general recommendation, disclosed training-length ceiling, or hard output maximum was verified in the 2026-10-07 audit. Benchmark max_tokens refers to generated output, not total context."
+        }
+      ],
+      "generation_defaults_not_hard_limits": {
+        "do_sample": true,
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "repetition_penalty": 1.05,
+        "eos_token_id": 2
+      },
+      "config_source": {
+        "url": "https://huggingface.co/XingChen-AGI/Xing4.0-29B-A4B/raw/main/config.json",
+        "sha256": "253e6742d5be0094fd03d79d65cead200de11c5962be9220f8117d978bbe3cc8"
+      },
+      "architecture_source": {
+        "url": "https://huggingface.co/XingChen-AGI/Xing4.0-29B-A4B/raw/main/config.json",
+        "sha256": "253e6742d5be0094fd03d79d65cead200de11c5962be9220f8117d978bbe3cc8"
+      },
+      "generation_source": {
+        "url": "https://huggingface.co/XingChen-AGI/Xing4.0-29B-A4B/raw/main/generation_config.json",
+        "sha256": "0c5eb5129e80ecf2eec82930b3c47a8001c8973cb4eaa24ea111319075a9d839"
+      }
+    }
+  ]
+}

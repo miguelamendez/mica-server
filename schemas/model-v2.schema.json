@@ -16,14 +16,7 @@
         "description": {"type": "string"}
       }
     },
-    "tokenClaim": {
-      "type": "object", "additionalProperties": false,
-      "required": ["tokens", "source"],
-      "properties": {
-        "tokens": {"type": "integer", "minimum": 1},
-        "source": {"type": "string", "minLength": 1}
-      }
-    },
+    "tokenLimit": {"type": ["integer", "null"], "minimum": 1, "maximum": 2147483647},
     "file": {
       "type": "object", "additionalProperties": false,
       "required": ["role", "path", "size_bytes"],
@@ -58,6 +51,15 @@
     "description": {"type": "string", "minLength": 1},
     "source_repository": {"type": "string", "minLength": 3},
     "references": {"type": "array", "items": {"$ref": "#/$defs/reference"}},
+    "memory_profile": {
+      "type": "object", "additionalProperties": false,
+      "required": ["profiler", "results"],
+      "description": "Offline measured model-component memory evidence, not workload policy or a reservation override.",
+      "properties": {
+        "profiler": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+        "results": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"}
+      }
+    },
     "license": {"enum": ["apache-2.0", "mit", "bsd-2-clause", "bsd-3-clause", "isc", "openmdw-1.1"]},
     "catalog_visible": {"type": "boolean"},
     "tags": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
@@ -74,7 +76,18 @@
     "tool_call_formats": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
     "thinking_modes": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
     "thinking_budget_supported": {"type": "boolean"},
-    "declared_context_tokens": {"type": "integer", "minimum": 0},
+    "native_context_tokens": {
+      "$ref": "#/$defs/tokenLimit",
+      "description": "Native total token/position capacity including input and output, not a trained input length. Null when unknown or inapplicable. Source belongs in references."
+    },
+    "recommended_context_tokens": {
+      "$ref": "#/$defs/tokenLimit",
+      "description": "One explicitly sourced recommended total context, at most native_context_tokens. Null when unpublished; not inferred from output recommendations or workload budgets."
+    },
+    "max_output_tokens": {
+      "$ref": "#/$defs/tokenLimit",
+      "description": "Explicitly published supported generation ceiling or verified training-output limit. Null when unpublished. Examples, generation defaults and benchmark recommendations are not hard limits."
+    },
     "mlx_converter": {"type": "string"},
     "mlx_quantization_profile": {"type": "string"},
     "gguf_family": {"type": "string"},
@@ -85,10 +98,6 @@
       "type": "object", "propertyNames": {"enum": ["mlx", "gguf", "vllm"]},
       "additionalProperties": {"type": "boolean"}
     },
-    "trained_context_tokens": {"$ref": "#/$defs/tokenClaim"},
-    "useful_context_tokens": {"$ref": "#/$defs/tokenClaim"},
-    "supported_output_tokens": {"$ref": "#/$defs/tokenClaim"},
-    "trained_output_tokens": {"$ref": "#/$defs/tokenClaim"},
     "artifacts": {
       "type": "array", "minItems": 1,
       "items": {

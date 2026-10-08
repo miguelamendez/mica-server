@@ -1,16 +1,26 @@
 schema: 2
 id: qwen38-27b-text
-description: Qwen3.8 27B GSQ-RCO IQ3_XXS text-only target, without projector or drafter, for long-context and partial-CPU-offload workloads.
+description: Qwen3.8 27B GSQ-RCO IQ3_XXS text-only target, without projector or drafter, for long-context and partial-CPU-offload workloads. This target GGUF contains no embedded MTP head.
 source_repository: ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF
 license: apache-2.0
 references:
   - {kind: model-card, title: Qwen3.8 GSQ-RCO target, url: 'https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF'}
+  - kind: documentation
+    title: Qwen3.8 base architecture context
+    url: https://huggingface.co/Qwen/Qwen3.8-27B/blob/main/config.json
+    description: Base text_config.max_position_embeddings is 262144. The GSQ-RCO artifact inherits the base architecture; this is not a training length or a memory-fit guarantee.
+  - kind: model-card
+    title: Qwen3.8 context and generation guidance
+    url: https://huggingface.co/Qwen/Qwen3.8-27B
+    description: Publisher's large output guidance requires 1M extended context. Training lengths, separate native recommendations, and independent output ceilings remain unverified (2026-10-07).
 input_modalities: [text]
 output_modalities: [text]
 abilities: [text_generation, instruction_following, reasoning]
 supported_interactions:
   - {operation: chat.generate, required_inputs: [text], outputs: [text]}
-declared_context_tokens: 262144
+native_context_tokens: 262144
+recommended_context_tokens: null
+max_output_tokens: null
 tags: [coding, reasoning, gsq, rco, long-context, experimental]
 gguf_parallel_slots: 1
 startup_priority: 50

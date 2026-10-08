@@ -7,6 +7,14 @@ supported_interactions:
   - {operation: audio.transcribe, required_inputs: [audio], outputs: [text]}
 description: Granite Speech 5.0 470M TurboCTC automatic speech recognition model.
 source_repository: ibm-granite/granite-speech-5.0-470m-turboctc
+native_context_tokens: null
+recommended_context_tokens: null
+max_output_tokens: null
+references:
+  - kind: model-card
+    title: Granite Speech TurboCTC architecture and training
+    url: https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc
+    description: Non-autoregressive CTC ASR trained on approximately 60000 hours of English audio. Its 16384 BPE units describe vocabulary size, not a context or output ceiling. No LLM-style input-plus-generation window applies; audio duration, chunking, and memory must be validated separately.
 tags: [automatic-speech-recognition, audio, commercial-use]
 license: apache-2.0
 mlx_converter: mlx_audio.convert

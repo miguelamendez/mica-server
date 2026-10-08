@@ -10,12 +10,18 @@ supported_interactions:
   - {operation: chat.generate, required_inputs: [text, image, video], outputs: [text]}
 description: MiniCPM-V 4.6 Thinking for image, video, and rendered document-page analysis.
 source_repository: openbmb/MiniCPM-V-4.6-Thinking
-declared_context_tokens: 262144
+native_context_tokens: 262144
+recommended_context_tokens: null
+max_output_tokens: null
 references:
   - kind: documentation
     title: MiniCPM-V 4.6 Thinking upstream architecture configuration
     url: https://huggingface.co/openbmb/MiniCPM-V-4.6-Thinking/blob/main/config.json
     description: text_config.max_position_embeddings declares 262144 total positions; visual tokens share the budget and long-context quality remains unverified.
+  - kind: model-card
+    title: MiniCPM-V 4.6 Thinking media and generation examples
+    url: https://huggingface.co/openbmb/MiniCPM-V-4.6-Thinking
+    description: Image and video examples request 512 and 2048 output tokens respectively; these are example settings, not model maxima. Processor defaults allow 128 sampled frames with 1 fps short-video sampling, not a text context or fixed duration ceiling. Exact training lengths, recommended total context, and hard output ceiling were not verified in the 2026-10-07 audit.
 tags: [image-text-to-text, video-text-to-text, document-analysis]
 thinking_modes: [none, on]
 thinking_budget_supported: true

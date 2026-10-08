@@ -1,0 +1,99 @@
+{
+  "schema": 1,
+  "model": "qwen35-4b",
+  "artifact": "q4",
+  "weight_quantization": "Q4_K_M",
+  "engine": "llama-cpp",
+  "repository": "unsloth/Qwen3.5-4B-GGUF",
+  "revision": "e87f176479d0855a907a41277aca2f8ee7a09523",
+  "hardware": {
+    "os": "Darwin",
+    "architecture": "arm64",
+    "cpu_threads_available": 10,
+    "detected": {
+      "cpu": {
+        "logical_cores": 10,
+        "model": "Apple M4",
+        "physical_cores": 10,
+        "vendor": "apple"
+      },
+      "accelerators": [
+        {
+          "apis": [
+            "metal"
+          ],
+          "architecture": "",
+          "driver": "",
+          "id": "0",
+          "memory_gib": 24.0,
+          "name": "Apple M4 GPU",
+          "runtime": "metal",
+          "type": "gpu",
+          "unified_memory": true,
+          "vendor": "apple"
+        }
+      ],
+      "system": {
+        "apple_silicon": true,
+        "arch": "arm64",
+        "os": "macos",
+        "version": "26.5.1",
+        "wsl": false
+      },
+      "memory": {
+        "system_ram_gib": 24.0,
+        "unified_memory_gib": 24.0
+      }
+    }
+  },
+  "budget": {
+    "input_tokens": 245760,
+    "output_reserve_tokens": 16384,
+    "total_tokens": 262144,
+    "declared_total_context_tokens": 262144,
+    "output_limit_source": "cli-override"
+  },
+  "memory_limit_gib": 12.0,
+  "concurrent_sequences": 1,
+  "created_utc": "2026-10-07T21:56:05Z",
+  "files": [
+    {
+      "role": "model",
+      "cache_relative_path": "models/gguf/qwen35-4b/Qwen3.5-4B-Q4_K_M.gguf",
+      "declared_bytes": 2740937888,
+      "disk_bytes": 2740937888,
+      "sha256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+      "source": null,
+      "declared_gib": 2.552697,
+      "disk_gib": 2.552697
+    },
+    {
+      "role": "vision-projector",
+      "cache_relative_path": "models/gguf/qwen35-4b/mmproj-F16.gguf",
+      "declared_bytes": 672423616,
+      "disk_bytes": 672423616,
+      "sha256": "cd88edcf8d031894960bb0c9c5b9b7e1fea6ebee02b9f7ce925a00d12891f864",
+      "source": null,
+      "declared_gib": 0.626243,
+      "disk_gib": 0.626243
+    }
+  ],
+  "cases": [
+    {
+      "kv_type_requested": "q4",
+      "status": "guard_stopped",
+      "error": "system memory is already under pressure"
+    },
+    {
+      "kv_type_requested": "q8",
+      "status": "guard_stopped",
+      "error": "system memory is already under pressure"
+    }
+  ],
+  "notes": [
+    "File sizes are disk bytes, not resident memory.",
+    "RSS, physical footprint, MLX active memory and VRAM overlap; do not sum them.",
+    "Capacity-fill uses teacher-forced prefill; maximum autoregressive output peak is not measured.",
+    "No workload totals or automatic reservation changes are produced."
+  ]
+}

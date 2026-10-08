@@ -643,21 +643,13 @@ int main(int argc, char** argv) {
             {"ram_reservation_gib", placement.ram_reservation_gib},
             {"vram_reservation_gib", placement.vram_reservation_gib},
             {"unified_memory", placement.unified_memory}});
-        const auto warn_limit = [&](const char* kind, int requested,
-                                    const std::optional<mica::ModelDefinition::TokenLimitClaim>& claim) {
-          if (claim && requested > claim->tokens) {
-            model_warnings.push_back({{"model", policy.id}, {"kind", kind},
-                                      {"requested_tokens", requested},
-                                      {"reference_tokens", claim->tokens},
-                                      {"source", claim->source}});
-          }
-        };
-        warn_limit("useful_context_exceeded", policy.max_input_tokens,
-                   model.useful_context_tokens);
-        warn_limit("trained_context_exceeded", policy.max_input_tokens,
-                   model.trained_context_tokens);
-        warn_limit("trained_output_exceeded", policy.max_output_tokens,
-                   model.trained_output_tokens);
+        if (model.recommended_context_tokens &&
+            policy.max_total_tokens > *model.recommended_context_tokens) {
+          model_warnings.push_back({{"model", policy.id},
+                                    {"kind", "recommended_context_exceeded"},
+                                    {"requested_tokens", policy.max_total_tokens},
+                                    {"reference_tokens", *model.recommended_context_tokens}});
+        }
       }
       json output = {{"hardware", hardware_json(resolved.hardware)},
                      {"machine_policy", {{"file", resolved.machine_policy_file.string()},

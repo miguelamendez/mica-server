@@ -8,7 +8,18 @@ supported_interactions:
   - {operation: chat.generate, required_inputs: [text, image], outputs: [text]}
 description: Ternary 27B multimodal coding model with a BF16 vision projector; requires Prism llama.cpp.
 source_repository: prism-ml/Ternary-Bonsai-2-27B-gguf
-declared_context_tokens: 262144
+native_context_tokens: 262144
+recommended_context_tokens: null
+max_output_tokens: null
+references:
+  - kind: documentation
+    title: Bonsai base architecture context
+    url: https://huggingface.co/Qwen/Qwen3.8-27B/blob/main/config.json
+    description: Publisher identifies an unchanged Qwen3.8 27B architecture with 262144 native positions. Base architecture metadata does not prove retained long-context quality after compression.
+  - kind: model-card
+    title: Bonsai native context and generation example
+    url: https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf
+    description: Publisher documents a 262K inherited context and a CLI example with 16384 generated tokens to leave room for thinking. The example is not a hard output ceiling. Exact training lengths and a separate recommended total context were not verified in the 2026-10-07 audit.
 tags: [image-text-to-text, coding, ternary, experimental]
 thinking_modes: [none, low, medium, xhigh]
 thinking_budget_supported: true

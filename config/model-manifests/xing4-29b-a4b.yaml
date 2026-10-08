@@ -8,7 +8,18 @@ supported_interactions:
   - {operation: text.generate, required_inputs: [text], outputs: [text]}
 description: Xing4.0 29B-A4B MoE coding and reasoning model with MLA, mHC, and 64 routed experts; experimental on Mica.
 source_repository: XingChen-AGI/Xing4.0-29B-A4B
-declared_context_tokens: 262144
+native_context_tokens: 262144
+recommended_context_tokens: null
+max_output_tokens: null
+references:
+  - kind: documentation
+    title: Xing native architecture context
+    url: https://huggingface.co/XingChen-AGI/Xing4.0-29B-A4B/blob/main/config.json
+    description: max_position_embeddings is 262144. Architecture capacity is not a verified training sequence length.
+  - kind: model-card
+    title: Xing native context and benchmark budgets
+    url: https://huggingface.co/XingChen-AGI/Xing4.0-29B-A4B
+    description: Publisher documents native 256K context with a 512K extension and uses different benchmark output budgets. No single general recommendation, disclosed training-length ceiling, or hard output maximum was verified in the 2026-10-07 audit. Benchmark max_tokens refers to generated output, not total context.
 tags: [text-generation, coding, reasoning, moe, compression-research]
 thinking_modes: [none, on]
 thinking_budget_supported: false

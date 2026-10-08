@@ -8,7 +8,21 @@ supported_interactions:
   - {operation: text.generate, required_inputs: [text], outputs: [text]}
 description: Ling 3.0 Tiny hybrid MoE reasoner and coding assistant, 7.9B total and 1.3B active parameters.
 source_repository: inclusionAI/Ling-3.0-tiny
-declared_context_tokens: 131072
+native_context_tokens: 131072
+recommended_context_tokens: null
+max_output_tokens: null
+references:
+  - kind: documentation
+    title: Ling native architecture context
+    url: https://huggingface.co/inclusionAI/Ling-3.0-tiny/blob/main/config.json
+    description: max_position_embeddings is 131072 without RoPE scaling. This is architecture capacity, not a disclosed training sequence length.
+  - kind: model-card
+    title: Ling deployment extension and evaluation output budget
+    url: https://huggingface.co/inclusionAI/Ling-3.0-tiny
+    description: Publisher evaluates with 32K output at 256K total context using a 2x YaRN extension. This is not the native window, a trained-output maximum, or a recommended native input budget. Training lengths and a separate native recommendation were not verified in the 2026-10-07 audit.
+memory_profile:
+  profiler: scripts/profile_model_memory.py
+  results: artifacts/model-memory/ling-3-tiny
 tags: [text-generation, coding, reasoning, moe]
 thinking_modes: [none, on]
 thinking_budget_supported: false

@@ -9,7 +9,18 @@ supported_interactions:
 catalog_visible: false
 description: Validation-only Qwen3 0.6B MLX Q4 control for vLLM-Metal acceptance; not a production model.
 source_repository: mlx-community/Qwen3-0.6B-4bit
-declared_context_tokens: 40960
+native_context_tokens: 40960
+recommended_context_tokens: 32768
+max_output_tokens: null
+references:
+  - kind: documentation
+    title: Qwen3 0.6B control artifact architecture
+    url: https://huggingface.co/mlx-community/Qwen3-0.6B-4bit/blob/main/config.json
+    description: The registered control artifact declares 40960 architecture positions. This is not evidence of a 40960-token trained window.
+  - kind: model-card
+    title: Qwen3 0.6B publisher context and output guidance
+    url: https://huggingface.co/Qwen/Qwen3-0.6B
+    description: Publisher lists a 32768-token context, retained here as the conservative recommended total window despite the artifact configuration's 40960 positions. General output guidance is also 32768, but input and output must share the total; it is not a trained or supported output ceiling. The control remains hidden from the public model catalog.
 tags: [text-generation, validation-control, vllm-metal]
 license: apache-2.0
 startup_priority: 1

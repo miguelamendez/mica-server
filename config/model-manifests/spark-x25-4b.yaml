@@ -9,12 +9,21 @@ supported_interactions:
   - {operation: text.generate, required_inputs: [text], outputs: [text]}
 description: Spark-X2.5-4B compact reasoning and general text model.
 source_repository: XHToken/Spark-X2.5-4B
-declared_context_tokens: 1048576
+native_context_tokens: 1048576
+recommended_context_tokens: null
+max_output_tokens: null
+memory_profile:
+  profiler: scripts/profile_model_memory.py
+  results: artifacts/model-memory/spark-x25-4b
 references:
   - kind: documentation
     title: Spark upstream architecture configuration
     url: https://huggingface.co/XHToken/Spark-X2.5-4B/blob/main/config.json
     description: max_position_embeddings declares 1048576 total positions; this is not a trained-context or quality certification.
+  - kind: model-card
+    title: Spark training context and generation example
+    url: https://huggingface.co/XHToken/Spark-X2.5-4B
+    description: Publisher reports long-context training sequences reaching 1M tokens. The 131072-token output request is an example, not a supported or trained output ceiling. No separate recommended total context or training-output maximum was verified in the 2026-10-07 audit.
 tags: [text-generation, reasoning]
 thinking_modes: [none, on]
 thinking_budget_supported: true

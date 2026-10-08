@@ -6,7 +6,19 @@ abilities: [speech_synthesis, voice_conditioning]
 supported_interactions:
   - {operation: audio.synthesize_speech, required_inputs: [text], optional_inputs: [audio], outputs: [audio]}
 description: Audio8 TTS Preview 0.6B local text-to-speech model.
-source_repository: Audio8/Audio8-TTS-Preview-0.6b
+source_repository: Edge0/Audio8-TTS-Preview-0.6b
+native_context_tokens: 2048
+recommended_context_tokens: null
+max_output_tokens: null
+references:
+  - kind: model-card
+    title: Audio8 packed text and audio capacity
+    url: https://huggingface.co/Edge0/Audio8-TTS-Preview-0.6b
+    description: Publisher documents up to 2048 packed text/audio positions for the DualAR model, not 2048 words or seconds. Text, voice-reference audio, and generated acoustic frames share this capacity. Exact training lengths and a general output-duration ceiling were not verified in the 2026-10-07 audit. Audio8's former repository URL redirects to Edge0.
+  - kind: documentation
+    title: Audio8 architecture configuration
+    url: https://huggingface.co/Edge0/Audio8-TTS-Preview-0.6b/blob/main/config.json
+    description: max_seq_len is 2048. The 512 max_new_tokens generation default is not a trained or hard output limit and acoustic tokens are not LLM response-text tokens.
 tags: [text-to-speech, audio, commercial-use]
 license: apache-2.0
 mlx_converter: mlx_audio.convert

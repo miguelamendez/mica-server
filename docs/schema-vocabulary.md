@@ -14,6 +14,13 @@ Optional model `references[]` records use `kind` (`paper`, `code`,
 `url`, and optional `description`. They preserve research and provenance
 links in the model ledger without altering runtime selection or downloads.
 
+Context metadata is flat: `native_context_tokens`,
+`recommended_context_tokens`, and `max_output_tokens`, each a positive
+integer or `null`. Recommended context and verified maximum output cannot
+exceed native total capacity. References record evidence; output examples,
+recommendations, and generation defaults must not be encoded as hard limits.
+See [context and generation limits](models.md#context-and-generation-limits).
+
 | Layer | Controlled values | Meaning |
 | --- | --- | --- |
 | Modality | `text`, `image`, `video`, `audio` | Physical input/output data. An interaction lists required and optional inputs separately. |

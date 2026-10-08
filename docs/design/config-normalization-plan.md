@@ -70,11 +70,12 @@ view; do not make a detector rewrite an editable policy file.
    tokenizer, etc.). Optional metadata includes input/output modalities,
    task capabilities, tool-call format, model-specific reasoning mode values
    and budget controls, supported generation methods, and per-task sampling
-   recommendations. Keep `supported_context_tokens`, disclosed
-   `trained_context_tokens`, declared/supported output ceiling, and disclosed
-   `trained_output_tokens` separate. Unknown values remain absent; provenance
-   accompanies claims. Training lengths are quality hints, not hard runtime
-   limits or guarantees.
+   recommendations. Model limits have been simplified to the flat fields
+   `native_context_tokens`, `recommended_context_tokens`, and `max_output_tokens`.
+   Unknown values are null; references preserve training disclosures and
+   publisher output guidance. Recommendations never exceed native context;
+   examples and generation defaults are not hard output ceilings. Training
+   lengths are quality hints, not quality guarantees.
 4. **Workload.** Select model IDs and artifacts, optionally pin an engine, and
    choose task-specific generation/sampling settings. When engine is `auto`,
    choose the first *compatible and certified artifact–engine pair* under a
@@ -85,7 +86,7 @@ view; do not make a detector rewrite an editable policy file.
    only declares relevant capabilities.
 5. **Requests.** Request overrides must remain inside the resolved task and
    model limits. Reject an unsupported context/output or unavailable device;
-   warn when a chosen span exceeds a disclosed trained span. Validate that
+   warn when the total exceeds a known recommended window. Validate that
    input plus reserved output fits the active context. For memory, the
    effective ceiling is the minimum of available physical capacity and
    machine/CLI policy; workload requirements are eligibility checks. Existing

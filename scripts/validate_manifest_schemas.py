@@ -25,6 +25,17 @@ Yaml12Loader.add_implicit_resolver("tag:yaml.org,2002:bool",
     re.compile(r"^(?:true|True|TRUE|false|False|FALSE)$"), list("tTfF"))
 
 
+def validate_model_limits(document):
+    """JSON Schema types first; enforce scalar relationships like the loader."""
+    native = document.get("native_context_tokens")
+    if "text_generation" in document.get("abilities", []) and native is None:
+        raise ValueError("text-generation model needs native_context_tokens")
+    for field in ("recommended_context_tokens", "max_output_tokens"):
+        value = document.get(field)
+        if value is not None and (native is None or value > native):
+            raise ValueError(f"{field} exceeds native_context_tokens")
+
+
 def main():
     root = Path(__file__).resolve().parent.parent
     schemas = {p.name: json.loads(p.read_text()) for p in (root / "schemas").glob("*.json")}
@@ -41,6 +52,8 @@ def main():
             errors = list(validator.iter_errors(document))
             if errors:
                 raise ValueError(f"{path.relative_to(root)}: {errors[0].message}")
+            if folder == "model-manifests":
+                validate_model_limits(document)
             count += 1
     validator = Draft202012Validator(schemas["workload-v5.schema.json"], registry=registry)
     proposals = 0

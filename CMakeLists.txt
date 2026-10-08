@@ -120,6 +120,8 @@ if(MICA_SERVER_BUILD_TESTS)
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mlx_worker_guards.py)
   add_test(NAME mica-server-memory-monitor
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_memory_monitor.py)
+  add_test(NAME mica-server-model-memory-profile
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_model_memory_profile.py)
   add_test(
     NAME mica-server-schema3-gguf-profile
     COMMAND $<TARGET_FILE:mica-server> setup --profile gguf-interactive
@@ -483,7 +485,7 @@ if(MICA_SERVER_BUILD_TESTS)
             --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
   )
   set_tests_properties(mica-server-audio8-quantize-plan PROPERTIES
-    PASS_REGULAR_EXPRESSION "--profile audio8-quality.*mlx_audio_profiles.json.*--source-repo Audio8/Audio8-TTS-Preview-0.6b"
+    PASS_REGULAR_EXPRESSION "--profile audio8-quality.*mlx_audio_profiles.json.*--source-repo Edge0/Audio8-TTS-Preview-0.6b"
   )
   add_test(
     NAME mica-server-minicpm-quantize-plan
@@ -673,7 +675,7 @@ if(MICA_SERVER_BUILD_TESTS)
             --profiles ${CMAKE_CURRENT_SOURCE_DIR}/config/vllm_quantization_profiles.json
             --model-id audio8-tts-06b --capability tts
             --source ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/fake-audio8
-            --source-repo Audio8/Audio8-TTS-Preview-0.6b
+            --source-repo Edge0/Audio8-TTS-Preview-0.6b
             --source-revision f07040f3d151f1ba0253bfb92cb2f5dd38b44594
             --source-license apache-2.0
             --output ${CMAKE_CURRENT_BINARY_DIR}/rejected-audio8-candidate

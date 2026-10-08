@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <limits>
 #include <map>
 #include <regex>
 #include <set>
@@ -83,18 +84,15 @@ void reject_unknown_fields(const json& object,
   }
 }
 
-std::optional<ModelDefinition::TokenLimitClaim> token_claim(
+std::optional<int> optional_token_limit(
     const json& document, const char* field) {
-  if (!document.contains(field)) return std::nullopt;
+  if (!document.contains(field) || document.at(field).is_null()) return std::nullopt;
   const auto& value = document.at(field);
-  reject_unknown_fields(value, {"tokens", "source"}, field);
-  ModelDefinition::TokenLimitClaim result;
-  result.tokens = value.at("tokens").get<int>();
-  result.source = value.at("source").get<std::string>();
-  if (result.tokens < 1 || result.source.empty()) {
-    throw std::invalid_argument(std::string(field) + " needs positive tokens and source");
+  if (!value.is_number_integer() || value < 1 ||
+      value > std::numeric_limits<int>::max()) {
+    throw std::invalid_argument(std::string(field) + " must be a positive integer or null");
   }
-  return result;
+  return value.get<int>();
 }
 
 bool pinned_revision(const std::string& value) {
@@ -645,13 +643,13 @@ void load_model_manifests(Registry& registry,
         document,
         {"schema", "id", "abilities", "supported_interactions",
          "description", "source_repository", "references",
-         "declared_context_tokens", "tags", "thinking_modes",
+         "native_context_tokens", "recommended_context_tokens", "max_output_tokens",
+         "tags", "thinking_modes",
          "thinking_budget_supported", "license", "artifacts", "mlx_converter",
          "mlx_quantization_profile", "gguf_family", "gguf_parallel_slots",
          "startup_priority", "required", "required_by_backend", "catalog_visible",
          "input_modalities", "output_modalities", "tool_call_formats",
-         "trained_context_tokens", "useful_context_tokens",
-         "supported_output_tokens", "trained_output_tokens"},
+         "memory_profile"},
         "model manifest " + path.string());
     const auto id = document.at("id").get<std::string>();
     if (id.empty() || id.size() > 128 ||
@@ -668,7 +666,7 @@ void load_model_manifests(Registry& registry,
       fresh.capability = derived_capability(document);
       fresh.description = document.at("description").get<std::string>();
       fresh.source_repo = document.at("source_repository").get<std::string>();
-      fresh.gguf_context_tokens = document.value("declared_context_tokens", 0);
+      fresh.gguf_context_tokens = optional_token_limit(document, "native_context_tokens").value_or(0);
       fresh.tags = document.value("tags", std::vector<std::string>{});
       if (!safe_repository(fresh.source_repo) || fresh.description.empty() ||
           ((fresh.capability == "text" || fresh.capability == "vision") &&
@@ -686,6 +684,24 @@ void load_model_manifests(Registry& registry,
     model->description = document.at("description").get<std::string>();
     model->source_repo = document.at("source_repository").get<std::string>();
     model->references.clear();
+    model->memory_profile.reset();
+    if (document.contains("memory_profile")) {
+      const auto& entry = document.at("memory_profile");
+      reject_unknown_fields(entry, {"profiler", "results"}, "model memory_profile");
+      ModelDefinition::MemoryProfile metadata;
+      metadata.profiler = entry.at("profiler").get<std::string>();
+      metadata.results = entry.at("results").get<std::string>();
+      for (const auto& value : {metadata.profiler, metadata.results}) {
+        const std::filesystem::path reference(value);
+        if (value.empty() || reference.is_absolute() ||
+            std::any_of(reference.begin(), reference.end(), [](const auto& part) {
+              return part == "..";
+            })) {
+          throw std::invalid_argument("model memory_profile needs relative repository paths: " + id);
+        }
+      }
+      model->memory_profile = std::move(metadata);
+    }
     if (document.contains("references")) {
       const auto& references = document.at("references");
       if (!references.is_array()) {
@@ -709,7 +725,7 @@ void load_model_manifests(Registry& registry,
         model->references.push_back(std::move(reference));
       }
     }
-    model->gguf_context_tokens = document.value("declared_context_tokens", 0);
+    model->gguf_context_tokens = optional_token_limit(document, "native_context_tokens").value_or(0);
     model->tags = document.value("tags", std::vector<std::string>{});
     model->catalog_visible = document.value("catalog_visible", true);
     model->mlx_converter = document.value("mlx_converter", std::string());
@@ -824,10 +840,8 @@ void load_model_manifests(Registry& registry,
     }
     model->tool_call_formats =
         document.value("tool_call_formats", std::vector<std::string>{});
-    model->trained_context_tokens = token_claim(document, "trained_context_tokens");
-    model->useful_context_tokens = token_claim(document, "useful_context_tokens");
-    model->supported_output_tokens = token_claim(document, "supported_output_tokens");
-    model->trained_output_tokens = token_claim(document, "trained_output_tokens");
+    model->recommended_context_tokens = optional_token_limit(document, "recommended_context_tokens");
+    model->max_output_tokens = optional_token_limit(document, "max_output_tokens");
     model->startup_priority = document.value("startup_priority", 100);
     model->required = document.value("required", false);
     model->required_by_backend.clear();
@@ -856,10 +870,10 @@ void load_model_manifests(Registry& registry,
         }
       }
     }
-    if (model->supported_output_tokens &&
-        model->supported_output_tokens->tokens > model->gguf_context_tokens &&
-        (model->capability == "text" || model->capability == "vision")) {
-      throw std::runtime_error("supported output exceeds context for " + id);
+    for (const auto& limit : {model->recommended_context_tokens, model->max_output_tokens}) {
+      if (limit && (model->gguf_context_tokens <= 0 || *limit > model->gguf_context_tokens)) {
+        throw std::runtime_error("recommended context or maximum output exceeds native context for " + id);
+      }
     }
     model->artifacts.clear();
     model->engine_artifacts.clear();

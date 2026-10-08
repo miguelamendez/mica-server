@@ -150,8 +150,8 @@ void validate_policy(const Registry& registry, const Profile& profile,
       policy.max_total_tokens > model.gguf_context_tokens) {
     throw std::invalid_argument("profile exceeds declared context for " + policy.id);
   }
-  if (model.supported_output_tokens &&
-      policy.max_output_tokens > model.supported_output_tokens->tokens) {
+  if (model.max_output_tokens &&
+      policy.max_output_tokens > *model.max_output_tokens) {
     throw std::invalid_argument("profile exceeds supported output for " + policy.id);
   }
   if (policy.max_concurrent_requests < 1 || policy.max_concurrent_requests > 64) {

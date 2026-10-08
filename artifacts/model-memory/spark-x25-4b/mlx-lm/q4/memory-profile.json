@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "model": "spark-x25-4b",
+  "artifact": "q4",
+  "weight_quantization": "mlx-affine-q4-g64",
+  "engine": "mlx-lm",
+  "repository": "miguelamendez/mica-spark-x25-4b",
+  "revision": "6c242d2945f11bb3587c437a1bf1088666ca6e2f",
+  "hardware": {
+    "os": "Darwin",
+    "architecture": "arm64",
+    "cpu_threads_available": 10,
+    "detected": {
+      "cpu": {
+        "logical_cores": 10,
+        "model": "Apple M4",
+        "physical_cores": 10,
+        "vendor": "apple"
+      },
+      "accelerators": [
+        {
+          "apis": [
+            "metal"
+          ],
+          "architecture": "",
+          "driver": "",
+          "id": "0",
+          "memory_gib": 24.0,
+          "name": "Apple M4 GPU",
+          "runtime": "metal",
+          "type": "gpu",
+          "unified_memory": true,
+          "vendor": "apple"
+        }
+      ],
+      "system": {
+        "apple_silicon": true,
+        "arch": "arm64",
+        "os": "macos",
+        "version": "26.5.1",
+        "wsl": false
+      },
+      "memory": {
+        "system_ram_gib": 24.0,
+        "unified_memory_gib": 24.0
+      }
+    }
+  },
+  "budget": {
+    "input_tokens": 1032192,
+    "output_reserve_tokens": 16384,
+    "total_tokens": 1048576,
+    "declared_total_context_tokens": 1048576,
+    "output_limit_source": "cli-override"
+  },
+  "memory_limit_gib": 12.0,
+  "concurrent_sequences": 1,
+  "created_utc": "2026-10-07T21:56:05Z",
+  "files": [
+    {
+      "role": "model",
+      "cache_relative_path": "models/mlx/spark-x25-4b/q4",
+      "declared_bytes": 2327288292,
+      "disk_bytes": 2327281441,
+      "sha256": null,
+      "source": null,
+      "declared_gib": 2.167456,
+      "disk_gib": 2.16745
+    }
+  ],
+  "cases": [
+    {
+      "kv_type_requested": "q4",
+      "status": "guard_stopped",
+      "error": "system memory is already under pressure"
+    },
+    {
+      "kv_type_requested": "q8",
+      "status": "guard_stopped",
+      "error": "system memory is already under pressure"
+    }
+  ],
+  "notes": [
+    "File sizes are disk bytes, not resident memory.",
+    "RSS, physical footprint, MLX active memory and VRAM overlap; do not sum them.",
+    "Capacity-fill uses teacher-forced prefill; maximum autoregressive output peak is not measured.",
+    "No workload totals or automatic reservation changes are produced."
+  ]
+}

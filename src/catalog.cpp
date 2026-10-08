@@ -1137,6 +1137,10 @@ nlohmann::json registry_catalog(const Registry& registry,
                  {"quantizations", quantizations_by_backend},
                  {"variants", variants}};
     item["references"] = json::array();
+    if (model.memory_profile) {
+      item["memory_profile"] = {{"profiler", model.memory_profile->profiler},
+                                {"results", model.memory_profile->results}};
+    }
     for (const auto& reference : model.references) {
       json entry = {{"kind", reference.kind}, {"title", reference.title},
                     {"url", reference.url}};
@@ -1144,16 +1148,14 @@ nlohmann::json registry_catalog(const Registry& registry,
       item["references"].push_back(std::move(entry));
     }
     if (model.gguf_context_tokens > 0) {
-      item["supported_context_tokens"] = model.gguf_context_tokens;
+      item["native_context_tokens"] = model.gguf_context_tokens;
+    } else {
+      item["native_context_tokens"] = nullptr;
     }
-    const auto add_claim = [&](const char* name,
-                               const std::optional<ModelDefinition::TokenLimitClaim>& claim) {
-      if (claim) item[name] = {{"tokens", claim->tokens}, {"source", claim->source}};
-    };
-    add_claim("trained_context_tokens", model.trained_context_tokens);
-    add_claim("useful_context_tokens", model.useful_context_tokens);
-    add_claim("supported_output_tokens", model.supported_output_tokens);
-    add_claim("trained_output_tokens", model.trained_output_tokens);
+    item["recommended_context_tokens"] = model.recommended_context_tokens
+        ? json(*model.recommended_context_tokens) : json(nullptr);
+    item["max_output_tokens"] = model.max_output_tokens
+        ? json(*model.max_output_tokens) : json(nullptr);
     if (check_remote) {
       json availability = json::object();
       for (const auto& [backend_name, repository] : repositories.items()) {

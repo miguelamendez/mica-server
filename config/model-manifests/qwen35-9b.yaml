@@ -11,7 +11,9 @@ supported_interactions:
   - {operation: chat.generate, required_inputs: [text, image], outputs: [text]}
   - {operation: chat.generate, required_inputs: [text, video], outputs: [text]}
   - {operation: chat.generate, required_inputs: [text, image, video], outputs: [text]}
-declared_context_tokens: 262144
+native_context_tokens: 262144
+recommended_context_tokens: null
+max_output_tokens: null
 thinking_modes: [none, on]
 tags: [coding, image-text-to-text, video-text-to-text, document-analysis]
 gguf_parallel_slots: 1
@@ -21,7 +23,7 @@ references:
   - kind: model-card
     title: Qwen3.5 9B upstream model card
     url: https://huggingface.co/Qwen/Qwen3.5-9B
-    description: Native 262144-position context and enable_thinking chat-template switch. Trained input/output ceilings and quality at long context are not independently certified here.
+    description: Native total context is 262144 including input and output. Publisher recommends 32768 generated tokens for most queries; this is not a supported or trained-output ceiling. Exact training lengths and a separate recommended total window were not verified in the 2026-10-07 audit. enable_thinking controls thinking per request.
   - kind: documentation
     title: Qwen3.5 9B architecture configuration
     url: https://huggingface.co/Qwen/Qwen3.5-9B/blob/main/config.json

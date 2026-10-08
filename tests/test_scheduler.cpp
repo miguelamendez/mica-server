@@ -114,17 +114,40 @@ int main() {
   assert(yaml_bonsai_artifact.files.at(1).sha256 ==
          "e287342d92332fa3577ed1d42e921dac9370c08da58ba9337fa450f6cc76cfd7");
   const auto& gsq = registry.model("qwen38-27b-gsq-rco");
-  assert(gsq.references.size() == 7);
+  assert(gsq.references.size() >= 7);
   assert(gsq.references.at(1).kind == "code");
   assert(gsq.references.at(1).url == "https://github.com/IST-DASLab/GSQ");
   assert(gsq.references.at(3).url == "https://github.com/IST-DASLab/RCO");
   assert(gsq.references.at(5).kind == "reproducibility");
   assert(!gsq.references.at(5).description.empty());
-  assert(spark.references.size() == 1);
+  const auto has_gsq_reference = [&gsq](const std::string& url) {
+    return std::any_of(gsq.references.begin(), gsq.references.end(),
+                       [&url](const auto& reference) {
+                         return reference.url == url && !reference.description.empty();
+                       });
+  };
+  assert(has_gsq_reference("https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/blob/d562806dbafae37109975e970aae91b43e73b440/mmproj-Qwen3.8-27B-BF16.gguf"));
+  assert(has_gsq_reference("https://huggingface.co/z-lab/Qwen3.8-27B-DFlash2-GGUF/blob/2d9571f8ce46e151f61c6499c99dee6079e1d610/Qwen3.8-27B-DFlash2-Q4_K_M.gguf"));
+  assert(has_gsq_reference("https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/blob/4ca720788d1e01f1bff70c033e0d0028fd02e502/MTP/mtp-Qwen3.8-27B-Q4_0.gguf"));
+  // Reference links must not silently add optional drafters to this bundle.
+  const auto& gsq_files = gsq.artifact_for(mica::Backend::gguf,
+                                         mica::parse_quantization("iq3_xxs"),
+                                         "llama-cpp").files;
+  assert(gsq_files.size() == 2);
+  assert(gsq_files.at(0).role == "model");
+  assert(gsq_files.at(1).role == "vision-projector");
+  assert(spark.references.size() == 2);
+  assert(spark.memory_profile);
+  assert(spark.memory_profile->profiler == "scripts/profile_model_memory.py");
+  assert(spark.memory_profile->results == "artifacts/model-memory/spark-x25-4b");
   assert(spark.references.front().kind == "documentation");
   assert(spark.references.front().url ==
          "https://huggingface.co/XHToken/Spark-X2.5-4B/blob/main/config.json");
-  assert(registry.model("audio8-tts-06b").references.empty());
+  assert(!registry.model("audio8-tts-06b").references.empty());
+  assert(registry.model("audio8-tts-06b").gguf_context_tokens == 2048);
+  assert(registry.model("granite-speech-5").gguf_context_tokens == 0);
+  assert(!spark.recommended_context_tokens && !spark.max_output_tokens);
+  assert(registry.model("vllm-qwen3-06b-control").recommended_context_tokens == 32768);
   {
     char temporary[] = "/tmp/mica-reference-tests-XXXXXX";
     const auto created = mkdtemp(temporary);
@@ -149,6 +172,57 @@ int main() {
       document["references"] = references;
       // JSON is valid YAML syntax; this fixture remains a .yaml manifest.
       { std::ofstream output(manifest); output << document.dump(2) << '\n'; }
+      bool rejected = false;
+      try { (void)mica::load_registry(copied_config); }
+      catch (const std::exception&) { rejected = true; }
+      assert(rejected);
+    }
+    mica::write_profile_file(manifest, original);
+    for (const auto& field : {"native_context_tokens", "recommended_context_tokens", "max_output_tokens"}) {
+      for (const auto& value : {nlohmann::json(0), nlohmann::json(-1),
+                               nlohmann::json(true), nlohmann::json(1024.5),
+                               nlohmann::json(2147483648LL),
+                               nlohmann::json::object({{"tokens", 1024}})}) {
+        auto document = original;
+        document[field] = value;
+        mica::write_profile_file(manifest, document);
+        bool rejected = false;
+        try { (void)mica::load_registry(copied_config); }
+        catch (const std::exception&) { rejected = true; }
+        assert(rejected);
+      }
+    }
+    for (const auto& field : {"recommended_context_tokens", "max_output_tokens"}) {
+      auto document = original;
+      document[field] = original.at("native_context_tokens").get<int>() + 1;
+      mica::write_profile_file(manifest, document);
+      bool rejected = false;
+      try { (void)mica::load_registry(copied_config); }
+      catch (const std::exception&) { rejected = true; }
+      assert(rejected);
+      document[field] = nullptr;
+      mica::write_profile_file(manifest, document);
+      (void)mica::load_registry(copied_config);
+    }
+    {
+      auto document = original;
+      document["declared_context_tokens"] = 262144;
+      mica::write_profile_file(manifest, document);
+      bool rejected = false;
+      try { (void)mica::load_registry(copied_config); }
+      catch (const std::exception&) { rejected = true; }
+      assert(rejected);  // No silently accepted legacy model-manifest fields.
+    }
+    mica::write_profile_file(manifest, original);
+    for (const auto& metadata : std::vector<nlohmann::json>{
+        {{"profiler", "/tmp/script.py"}, {"results", "artifacts/report"}},
+        {{"profiler", "scripts/tool.py"}, {"results", "../outside"}},
+        {{"profiler", "scripts/tool.py"}, {"results", ""}},
+        {{"profiler", "scripts/tool.py"}},
+        {{"profiler", "scripts/tool.py"}, {"results", "artifacts/report"}, {"execute", true}}}) {
+      auto document = original;
+      document["memory_profile"] = metadata;
+      mica::write_profile_file(manifest, document);
       bool rejected = false;
       try { (void)mica::load_registry(copied_config); }
       catch (const std::exception&) { rejected = true; }
@@ -411,8 +485,7 @@ int main() {
                               validation_registry.models.end(), [](const auto& entry) {
       return entry.id == "spark-x25-4b";
     });
-    model->supported_output_tokens =
-        mica::ModelDefinition::TokenLimitClaim{512, "test-fixture"};
+    model->max_output_tokens = 512;
     rejected = false;
     try {
       (void)mica::profile_from_document(validation_registry, document);
@@ -582,7 +655,12 @@ int main() {
     assert(spark_entry->at("supported_interactions").at(0).at("operation") ==
            "chat.generate");
     assert(spark_entry->at("license") == "apache-2.0");
-  assert(spark_entry->at("references").size() == 1);
+  assert(spark_entry->at("references").size() == spark.references.size());
+  assert(spark_entry->at("native_context_tokens") == 1048576);
+  assert(spark_entry->at("recommended_context_tokens").is_null());
+  assert(spark_entry->at("max_output_tokens").is_null());
+  assert(!spark_entry->contains("supported_context_tokens"));
+  assert(spark_entry->at("memory_profile").at("results") == spark.memory_profile->results);
   assert(spark_entry->at("references").at(0).at("url") ==
          spark.references.front().url);
     const auto gsq_entry = std::find_if(
@@ -590,7 +668,7 @@ int main() {
           return item.value("id", "") == "qwen38-27b-gsq-rco";
         });
     assert(gsq_entry != ledger.at("data").end());
-    assert(gsq_entry->at("references").size() == 7);
+    assert(gsq_entry->at("references").size() == gsq.references.size());
     assert(gsq_entry->at("references").at(3).at("url") ==
            "https://github.com/IST-DASLab/RCO");
     assert(gsq_entry->at("references").at(5).at("description") ==
@@ -633,8 +711,10 @@ int main() {
     const auto video_only = mica::registry_catalog(
         registry, std::nullopt, std::nullopt, false, std::nullopt,
         std::string("video-text-to-text"));
-    assert(video_only.at("data").size() == 2);
+    assert(video_only.at("data").size() == 3);
     assert(video_only.at("data").at(0).at("id") == "minicpm-v46-thinking");
+    assert(std::any_of(video_only.at("data").begin(), video_only.at("data").end(),
+                      [](const auto& item) { return item.value("id", "") == "qwen35-4b"; }));
   }
   {
     const auto audio_ledger = mica::registry_catalog(

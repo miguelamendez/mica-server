@@ -139,9 +139,11 @@ certification.
    and each discrete accelerator's memory are
    independent pools; unified memory is one RAM pool.
 5. Validate generation: active `input + reserved output` must fit the
-   supported context and any supported output limit. A disclosed trained
-   context/output span produces a warning when exceeded, not a hard error.
-   Unknown training spans produce no invented threshold. Task generation
+   native context and any verified `max_output_tokens` limit. A disclosed
+   `recommended_context_tokens` total produces a warning when exceeded,
+   not a hard error. Unknown values produce no invented threshold. Training
+   disclosures and output recommendations are preserved in model references,
+   not conflated with maximum supported values. Task generation
    settings override model recommendations; permitted request settings may
    narrow or override task defaults without escaping hard constraints.
 6. Persist a resolved snapshot with selected revisions and settings before

@@ -14,7 +14,7 @@ language:
 library_name: transformers
 pipeline_tag: text-to-speech
 license: apache-2.0
-base_model: Audio8/Audio8-TTS-Preview-0.6b
+base_model: Edge0/Audio8-TTS-Preview-0.6b
 tags:
 - mica-server
 - text-to-speech
@@ -27,7 +27,7 @@ mica:
   model_id: audio8-tts-06b
   mica_server_repo: https://github.com/miguelamendez/mica-server
   curated_repo: https://huggingface.co/miguelamendez/mica-audio8-tts-06b
-  source_repo: Audio8/Audio8-TTS-Preview-0.6b
+  source_repo: Edge0/Audio8-TTS-Preview-0.6b
   source_revision: f07040f3d151f1ba0253bfb92cb2f5dd38b44594
   parameters: 601159424
   context:
@@ -45,9 +45,12 @@ mica:
 # Audio8 TTS Preview 0.6B — Mica Q4/Q8
 
 Mica runtime artifacts for
-[`Audio8/Audio8-TTS-Preview-0.6b`](https://huggingface.co/Audio8/Audio8-TTS-Preview-0.6b),
+[`Edge0/Audio8-TTS-Preview-0.6b`](https://huggingface.co/Edge0/Audio8-TTS-Preview-0.6b),
 pinned to revision `f07040f3d151f1ba0253bfb92cb2f5dd38b44594`.
 The model and derivatives are Apache-2.0 licensed.
+The former `Audio8` repository URL redirects to `Edge0`; the source revision
+and artifact pins are unchanged. See the [2026-10-07 limits audit](../models.md#upstream-audit-2026-10-07)
+for the distinction between packed capacity, generation defaults and training limits.
 
 The runtime configuration, conversion policy, and validation evidence are
 maintained in the [Mica Server repository](https://github.com/miguelamendez/mica-server).

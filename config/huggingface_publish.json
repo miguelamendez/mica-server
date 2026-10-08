@@ -51,7 +51,7 @@
       "repository": "mica-audio8-tts-06b",
       "card": "docs/model-cards/audio8-tts-06b.md",
       "source": {
-        "repository": "Audio8/Audio8-TTS-Preview-0.6b",
+        "repository": "Edge0/Audio8-TTS-Preview-0.6b",
         "revision": "f07040f3d151f1ba0253bfb92cb2f5dd38b44594",
         "license": "apache-2.0"
       },

@@ -59,6 +59,9 @@ four-model assistant. Internal route fixtures are not presented as supported
 models. Provenance, context/training limits, protected quantization layers, and
 quality evidence live in the [model cards](docs/model-cards/).
 
+For measured weight, KV-cache and component memory rather than disk-size
+guesses, see [Model memory profiling](docs/model-memory-profiling.md).
+
 ## Profiling architecture
 
 Profiling and resolution are the core of Mica. Four separate layers answer four

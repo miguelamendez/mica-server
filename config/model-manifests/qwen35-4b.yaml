@@ -1,0 +1,57 @@
+schema: 2
+id: qwen35-4b
+description: Qwen3.5 4B for text, image, video, and rendered document analysis, using trusted Q4_K_M weights and the matching F16 vision projector.
+source_repository: Qwen/Qwen3.5-4B
+license: apache-2.0
+input_modalities: [text, image, video]
+output_modalities: [text]
+abilities: [text_generation, instruction_following, reasoning, image_understanding, video_understanding]
+supported_interactions:
+  - {operation: chat.generate, required_inputs: [text], outputs: [text]}
+  - {operation: chat.generate, required_inputs: [text, image], outputs: [text]}
+  - {operation: chat.generate, required_inputs: [text, video], outputs: [text]}
+  - {operation: chat.generate, required_inputs: [text, image, video], outputs: [text]}
+native_context_tokens: 262144
+recommended_context_tokens: null
+max_output_tokens: null
+memory_profile:
+  profiler: scripts/profile_model_memory.py
+  results: artifacts/model-memory/qwen35-4b
+thinking_modes: [none, on]
+tags: [coding, image-text-to-text, video-text-to-text, document-analysis]
+gguf_parallel_slots: 1
+startup_priority: 70
+required: false
+references:
+  - kind: model-card
+    title: Qwen3.5 4B upstream model card
+    url: https://huggingface.co/Qwen/Qwen3.5-4B
+    description: Native total context is 262144 including input and output. Publisher recommends 32768 generated tokens for most queries; this is not a hard or trained-output ceiling. Exact training lengths and a separate recommended total window were not verified in the 2026-10-07 audit. Media and reasoning consume their respective token budgets.
+  - kind: documentation
+    title: Qwen3.5 4B architecture configuration
+    url: https://huggingface.co/Qwen/Qwen3.5-4B/blob/main/config.json
+    description: Eight full-attention layers, four KV heads, and head width 256 imply 32768 bytes of F16 K/V per token. The base reservation also covers recurrent state, vision processing, and workspace.
+  - kind: model-card
+    title: Trusted Unsloth Q4_K_M and F16 projector
+    url: https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/tree/e87f176479d0855a907a41277aca2f8ee7a09523
+    description: Reuse the published quantization with its matching projector; no local requantization.
+artifacts:
+  - id: q4
+    compatible_engines: [llama-cpp]
+    format: gguf
+    quantization_type: Q4_K_M
+    repository: unsloth/Qwen3.5-4B-GGUF
+    revision: e87f176479d0855a907a41277aca2f8ee7a09523
+    reservation_gib: 5.0
+    kv_bytes_per_token_f16: 32768
+    image_min_tokens: 1024
+    required_compatibility: [text-generation, vision-projector]
+    files:
+      - role: model
+        path: Qwen3.5-4B-Q4_K_M.gguf
+        size_bytes: 2740937888
+        sha256: 00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4
+      - role: vision-projector
+        path: mmproj-F16.gguf
+        size_bytes: 672423616
+        sha256: cd88edcf8d031894960bb0c9c5b9b7e1fea6ebee02b9f7ce925a00d12891f864

@@ -166,9 +166,9 @@ struct ModelDefinition {
     std::vector<std::string> optional_inputs;
     std::vector<std::string> outputs;
   };
-  struct TokenLimitClaim {
-    int tokens{0};
-    std::string source;
+  struct MemoryProfile {
+    std::string profiler;
+    std::string results;
   };
   std::string id;
   std::string capability;
@@ -177,14 +177,13 @@ struct ModelDefinition {
   std::vector<std::string> tags;
   std::string source_repo;
   std::vector<Reference> references;
+  std::optional<MemoryProfile> memory_profile;
   std::string mlx_converter;
   std::string mlx_quantization_profile;
   std::string gguf_family;
   int gguf_context_tokens{8192};
-  std::optional<TokenLimitClaim> trained_context_tokens;
-  std::optional<TokenLimitClaim> useful_context_tokens;
-  std::optional<TokenLimitClaim> supported_output_tokens;
-  std::optional<TokenLimitClaim> trained_output_tokens;
+  std::optional<int> recommended_context_tokens;
+  std::optional<int> max_output_tokens;
   std::vector<std::string> input_modalities;
   std::vector<std::string> output_modalities;
   std::vector<std::string> abilities;

@@ -1,6 +1,6 @@
 schema: 2
 id: qwen38-27b-gsq-rco
-description: Qwen3.8 27B with GSQ scalar quantization and RCO mixed-precision allocation; standard GGUF candidate for comparison with ternary Bonsai.
+description: Qwen3.8 27B GSQ-RCO IQ3_XXS target with a separate BF16 vision projector. This target GGUF does not embed MTP; external MTP and text-only DFlash2 are available in separately registered bundles.
 source_repository: ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF
 license: apache-2.0
 references:
@@ -32,13 +32,35 @@ references:
     title: Qwen3.8 27B calibration importance matrix
     url: https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/blob/d562806dbafae37109975e970aae91b43e73b440/imatrix-qwen3.8-27b.gguf
     description: Publisher-provided importance matrix; not the raw calibration dataset.
+  - kind: model-card
+    title: Pinned BF16 vision projector
+    url: https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/blob/d562806dbafae37109975e970aae91b43e73b440/mmproj-Qwen3.8-27B-BF16.gguf
+    description: Separate mmproj file included in this bundle; not embedded in the target GGUF.
+  - kind: model-card
+    title: Pinned DFlash2 Q4_K_M drafter
+    url: https://huggingface.co/z-lab/Qwen3.8-27B-DFlash2-GGUF/blob/2d9571f8ce46e151f61c6499c99dee6079e1d610/Qwen3.8-27B-DFlash2-Q4_K_M.gguf
+    description: External text-only drafter used by qwen38-27b-text-dflash; not downloaded by this bundle. An alternative to MTP, not stacked with it.
+  - kind: model-card
+    title: Pinned external Q4_0 MTP head
+    url: https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/blob/4ca720788d1e01f1bff70c033e0d0028fd02e502/MTP/mtp-Qwen3.8-27B-Q4_0.gguf
+    description: External one-layer prediction head used by qwen38-27b-vision-mtp; not downloaded by this bundle. The target IQ3_XXS GGUF contains no embedded MTP head.
+  - kind: documentation
+    title: Qwen3.8 base architecture context
+    url: https://huggingface.co/Qwen/Qwen3.8-27B/blob/main/config.json
+    description: Base text_config.max_position_embeddings is 262144; this is architecture capacity, not a disclosed training sequence length or a memory-fit guarantee after quantization.
+  - kind: model-card
+    title: Qwen3.8 context and generation guidance
+    url: https://huggingface.co/Qwen/Qwen3.8-27B
+    description: Publisher's large output guidance requires 1M extended context. Training lengths, separate native recommendations, and independent output ceilings remain unverified (2026-10-07).
 input_modalities: [text, image]
 output_modalities: [text]
 abilities: [text_generation, instruction_following, reasoning, image_understanding]
 supported_interactions:
   - {operation: chat.generate, required_inputs: [text], outputs: [text]}
   - {operation: chat.generate, required_inputs: [text, image], outputs: [text]}
-declared_context_tokens: 262144
+native_context_tokens: 262144
+recommended_context_tokens: null
+max_output_tokens: null
 tags: [coding, reasoning, mixed-precision, gsq, rco, experimental]
 gguf_parallel_slots: 1
 startup_priority: 50

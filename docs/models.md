@@ -42,6 +42,72 @@ the IQ3_XXS tensor allocation, and the calibration importance matrix.
 Internal route-validation fixtures are excluded from the public ledger and
 normal profile listings.
 
+## Context and generation limits
+
+Model manifests use three flat, nullable values. Sources and training
+disclosures belong in `references[]`; there are no per-task context options.
+
+| Field | Meaning |
+| --- | --- |
+| `native_context_tokens` | Native total input-plus-output capacity. For Audio8 these are packed text/audio positions, not response-text tokens. Null when unknown or inapplicable. |
+| `recommended_context_tokens` | One explicitly sourced recommended total window, no larger than native capacity. Null when no separate recommendation was verified. |
+| `max_output_tokens` | A published supported generation ceiling or verified training-output limit, with provenance in references. Null when unpublished; recommendations, benchmark budgets, and examples do not establish this ceiling. |
+
+The loader rejects zero/negative, fractional, boolean, or oversized limits,
+and rejects recommendations/output ceilings above the native total. Workload
+input plus reserved output must fit native capacity, unless the explicit
+context-limit override is used. A published output ceiling remains enforced.
+`setup --dry-run` warns when a workload's **total** exceeds a known recommended
+window. Unknown values are not zero and do not impose an invented limit.
+
+The model-manifest field `declared_context_tokens` and the previous nested
+training/useful/output claims are no longer accepted in the active model
+schema. Upgrade the binary and packaged manifests together. The separate
+external-model shorthand in workload files still uses its existing
+`declared_context_tokens` contract; it is not a model manifest.
+
+### Upstream audit: 2026-10-07
+
+All 15 packaged manifests were reviewed, including the hidden control and
+the four component-specific Qwen27B bundles. No workload budgets or memory
+reservations were increased. These are publisher/configuration observations,
+not certification that maximum context fits a machine or retains quality.
+
+| Model(s) | Native total | Training or publisher generation evidence |
+| --- | ---: | --- |
+| [Spark-X2.5-4B](https://huggingface.co/XHToken/Spark-X2.5-4B) | 1,048,576 | Publisher reports long-context training reaching 1M tokens. The 131,072 output request is an example, not a maximum. |
+| [Ling-3.0-Tiny](https://huggingface.co/inclusionAI/Ling-3.0-tiny) | 131,072 | Publisher benchmark uses 32K output with a 256K **YaRN extension**; exact training lengths are unverified. |
+| [Qwen3.5-4B](https://huggingface.co/Qwen/Qwen3.5-4B) and [9B](https://huggingface.co/Qwen/Qwen3.5-9B) | 262,144 | General recommendation is 32,768 generated tokens, not a hard or trained-output ceiling. Exact training lengths are unverified. |
+| [Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B), GSQ-RCO / text / DFlash / vision-MTP | 262,144 | Base architecture capacity is inherited. Large separate reasoning/final-output recommendations assume extended 1M context; they are not defaults for the native bundles. Training lengths and a hard output maximum are unverified. |
+| [Ternary Bonsai 2 27B](https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf) | 262,144 | Unchanged Qwen3.8 architecture according to publisher. CLI example requests 16,384 generated tokens, not a hard ceiling. Training lengths are unverified. |
+| [MiniCPM-V 4.6 Thinking](https://huggingface.co/openbmb/MiniCPM-V-4.6-Thinking) | 262,144 | Architecture positions verified. Image/video examples request 512/2,048 generated tokens; neither establishes a ceiling or training length. |
+| [Xing4.0-29B-A4B](https://huggingface.co/XingChen-AGI/Xing4.0-29B-A4B) | 262,144 | Native 256K, extensible to 512K. Output budgets vary by benchmark; no single general recommendation or exact training-length ceiling was verified. |
+| [Qwen3 0.6B control](https://huggingface.co/Qwen/Qwen3-0.6B) (hidden) | 40,960 config positions | Publisher lists 32,768 context, retained as the conservative recommended total. Its general output recommendation cannot be reserved in full alongside nonempty input at that total. |
+| [Audio8](https://huggingface.co/Edge0/Audio8-TTS-Preview-0.6b) | 2,048 packed text/audio positions | Text, reference audio, and acoustic output share capacity. Generation-config default 512 is not a maximum. Canonical upstream moved from Audio8 to Edge0; artifact pins are unchanged. |
+| [Granite Speech TurboCTC](https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc) | Not applicable | Non-autoregressive CTC ASR. The 16,384 BPE units are vocabulary size, not context. Training uses about 60,000 hours of English audio. |
+| [Nemotron 3 Diarization](https://huggingface.co/nvidia/Nemotron-3-Diarization) | Not applicable | Audio-frame speaker classification. Publisher allows recordings without fixed duration when chunked; eight speaker channels are not tokens. Adapter and memory constraints still apply. |
+
+Except for the control's documented 32,768 total window, separate recommended
+totals remain `null`. All independent hard output ceilings remain `null` in
+this audit. References preserve guidance without mislabeling it as a maximum.
+For any chosen output reserve, available input is `total - reserve`, including
+system prompts, history, tool definitions and media positions. Reasoning and
+visible response share the generated-output budget. Subtraction does not
+create a training-backed input recommendation.
+
+Reproduce the metadata-only check with:
+
+```sh
+uv run --with pyyaml scripts/audit_model_limits.py --output audit.json
+```
+
+The [audit report](../artifacts/model-limits-audit-2026-10-07.json) records source
+URLs, configuration hashes, reference descriptions, architecture comparisons,
+and generation defaults explicitly labeled as **not hard limits**. GGUF-only
+repositories are compared with an explicitly referenced base configuration;
+this is not a check of every tensor or the cached GGUF header. No weights are
+downloaded, no inference is run, and no server is restarted by this audit.
+
 ## Nemotron 3 diarization
 
 `nemotron-3-diarization` is a 99.3M-parameter speaker diarization model, not ASR.
