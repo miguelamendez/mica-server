@@ -136,6 +136,65 @@ their first request.
 
 ## Run the server
 
+Use the native CLI or terminal UI:
+
+```sh
+mica-server tui
+mica-server workload list
+mica-server workload show mica-spark-small-gguf
+mica-server workload install mica-spark-small-gguf
+mica-server start --host 0.0.0.0 --port 8092
+mica-server status
+mica-server endpoints
+mica-server workload activate ANOTHER_PREPARED_WORKLOAD
+mica-server stop
+```
+
+`workload install` detects hardware, installs or verifies required engines, and
+downloads missing model bundles immediately. It inherits the RAM allocation
+from `machine.yaml` unless `--ram-gib` narrows it. Stop before installation:
+setup changes the saved runtime selection. For a fresh installation,
+`start --workload mica-spark-small-gguf` combines setup, download and background
+launch. Closing the terminal or TUI does not stop that server; this command
+does not enable reboot autostart. Logs are in `~/.mica/logs/server.log`.
+
+`workload activate` hot-swaps a prepared workload without restarting. Compatible
+workers are retained. Missing engines require stopping and installing first.
+`workload edit ID` uses `$EDITOR`, validates YAML, and retains a failed edit as a
+draft. Edited definitions are read after restart; the running registry is not
+silently replaced. The older `profile` commands remain available for managing
+YAML definitions; `profile install` installs a definition only, not its engines
+and weights.
+
+The TUI has Server, Workloads, Models, Engines, Machine, Endpoints and Settings
+views. Arrows select, Tab switches navigation/list focus, numbers select a
+section, `/` filters, and `?` shows actions. Installs, starts, stops, swaps and
+settings writes require confirmation. Long operations run outside the UI thread.
+API keys are hidden. Memory reservations are estimates, not universal hard
+process/GPU caps.
+
+Configure a stopped server using Settings or the CLI:
+
+```sh
+mica-server config show
+mica-server config set --host 0.0.0.0 --port 8092 --default-workload mica-spark-small-gguf
+mica-server config set --ram-gib 16 --vram-gib 15.5
+mica-server config set --rotate-api-key
+# Alternatively: config set --api-key-file /path/to/private/key
+mica-server start
+```
+
+Dedicated GPU limits are separate from host RAM. Apple unified memory uses
+`--ram-gib`, not `--vram-gib`. `start` reconciles the selected workload with the
+new limits. Key rotation never prints the new key; it is stored with mode 0600.
+The control CLI reads the server's configured API-key file, so prefer a file
+instead of an inline `serve --api-key` argument.
+
+`--host 0.0.0.0` binds all IPv4 interfaces. Use a trusted network and firewall;
+protected routes still require the API key, but Mica does not add HTTPS.
+
+`serve` remains the foreground command for systemd/launchd supervision:
+
 ```sh
 mica-server serve --port 8080
 ```

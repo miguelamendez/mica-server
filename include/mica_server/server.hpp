@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include <nlohmann/json_fwd.hpp>
+
 #include "mica_server/types.hpp"
 
 namespace mica {
@@ -22,5 +24,7 @@ struct ServerOptions {
 };
 
 int run_server(const Registry& registry, const ServerOptions& options);
+nlohmann::json server_endpoints();
+void download_workload_models(const Registry& registry, const std::filesystem::path& root);
 
 }  // namespace mica

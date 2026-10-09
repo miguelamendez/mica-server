@@ -23,6 +23,12 @@ profile, the engine registry, and the model/artifact registry. Switch from an
 assistant profile to a coding profile without reinstalling Mica or deleting
 cached artifacts.
 
+Use `mica-server tui` to inspect the machine, engines, models, workloads,
+server status and endpoints. Or use `workload list`, `workload install ID`,
+`start --workload ID`, `status`, `workload activate ID`, and `stop`. The native
+C++/Lua interface confirms changes and hides API keys. See the
+[run and configuration guide](docs/getting-started.md#run-the-server).
+
 The included local chat client supports text, voice, images, video, PDFs,
 streaming ASR/TTS, safe Markdown, voice references, custom system prompts,
 themes and branding, session history, and ZIP import/export.

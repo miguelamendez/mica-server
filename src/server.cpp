@@ -29,6 +29,9 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/file.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -1125,6 +1128,24 @@ class WorkerManager {
         sweep_idle();
       }
     });
+  }
+
+  void download_selected() {
+    const auto& profile = registry_.profile(state_.profile);
+    if (profile.schema < 3) throw std::runtime_error("workload install requires a YAML workload");
+    for (const auto& policy : profile.model_policies) {
+      const auto& model = registry_.model(policy.id);
+      Worker candidate;
+      candidate.model = &model;
+      candidate.engine = &registry_.engine(policy.engine);
+      candidate.profile_policy = &policy;
+      candidate.backend = policy.backend;
+      candidate.quantization = policy.quantization;
+      candidate.artifact = model.artifact_for(policy.backend, policy.quantization, policy.engine);
+      candidate.artifact_path = model_cache_directory(root_, model, policy.backend,
+                                                      policy.engine) / candidate.artifact.pattern;
+      ensure_artifact(candidate);
+    }
   }
 
   void prewarm() {
@@ -2797,7 +2818,58 @@ json load_session(const std::filesystem::path& path, const std::string& id) {
 
 }  // namespace
 
+nlohmann::json server_endpoints() {
+  using nlohmann::json;
+  json endpoints = json::array();
+  const auto add = [&](const char* method, const char* path,
+                       const char* description, bool authenticated = true) {
+    endpoints.push_back({{"method", method}, {"path", path},
+                         {"description", description},
+                         {"authentication_required", authenticated}});
+  };
+  add("GET", "/health", "Process liveness", false);
+  add("GET", "/ready", "Startup model readiness", false);
+  add("GET", "/v1/endpoints", "Public API route discovery");
+  add("GET", "/v1/models", "Active workload models and engine capabilities");
+  add("GET", "/v1/catalog", "Curated model registry");
+  add("GET", "/admin/models", "Active workload, memory policy and resident workers");
+  add("POST", "/admin/profile/activate", "Hot-swap an installed workload");
+  add("POST", "/admin/server/stop", "Gracefully stop the server and its model workers");
+  add("POST", "/v1/chat/completions", "Chat, tools and supported multimodal inputs");
+  add("POST", "/v1/completions", "Single-prompt text completion adapter");
+  add("POST", "/v1/audio/transcriptions", "Speech transcription");
+  add("POST", "/v1/audio/diarizations", "Speaker diarization");
+  add("POST", "/v1/audio/speech", "Speech synthesis");
+  add("GET", "/v1/agent/tools", "Agent tool definitions");
+  add("POST", "/v1/agent/chat", "Agent chat with optional media and speech");
+  add("POST", "/v1/agent/chat/stream", "Streaming agent chat");
+  add("GET", "/v1/agent/sessions/{session_id}", "Read a saved session");
+  add("GET", "/v1/agent/sessions/{session_id}/export", "Export session and media ZIP");
+  add("POST", "/v1/agent/sessions/import", "Import session and media ZIP");
+  add("GET", "/v1/agent/sessions/{session_id}/media/{message_index}/{media_index}",
+      "Read session media");
+  return {{"endpoints", endpoints},
+          {"note", "Routes are registered globally. Inference requires an eligible model in the active workload; inspect /v1/models for capabilities."}};
+}
+
+void download_workload_models(const Registry& source, const std::filesystem::path& root) {
+  auto registry = source;
+  const auto state = load_runtime_state(root);
+  const auto hardware = detect_hardware();
+  auto& profile = registry.profiles.at(state.profile);
+  resolve_profile_engines(registry, profile, hardware, root);
+  WorkerManager manager(registry, state, root, state.installed_backends);
+  manager.download_selected();
+}
+
 int run_server(const Registry& source_registry, const ServerOptions& options) {
+  std::filesystem::create_directories(options.root / "run");
+  const int lock_fd = open((options.root / "run/server.lock").c_str(),
+                           O_CREAT | O_RDWR | O_CLOEXEC, 0600);
+  if (lock_fd < 0) throw std::runtime_error("cannot open server lock");
+  struct Lock { int fd; ~Lock() { close(fd); } } server_lock{lock_fd};
+  if (flock(lock_fd, LOCK_EX | LOCK_NB) != 0)
+    throw std::runtime_error("a Mica server already owns this application home");
   auto registry = source_registry;
   const auto state = load_runtime_state(options.root);
   const auto hardware = detect_hardware();
@@ -2878,7 +2950,8 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
 
   httplib::Server server;
   server.Get("/health", [](const auto&, auto& response) {
-    response.set_content(json({{"status", "ok"}}).dump(), "application/json");
+    response.set_content(json({{"status", "ok"}, {"version", MICA_SERVER_VERSION},
+                               {"revision", MICA_SERVER_REVISION}}).dump(), "application/json");
   });
   server.Get("/ready", [manager](const auto&, auto& response) {
     if (manager->ready()) {
@@ -2894,6 +2967,16 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
     json_error(response, 401, "invalid_api_key", "Bearer API key required");
     return false;
   };
+
+  server.Get("/v1/endpoints", [require_auth](const auto& request, auto& response) {
+    if (!require_auth(request, response)) return;
+    response.set_content(server_endpoints().dump(), "application/json");
+  });
+  server.Post("/admin/server/stop", [require_auth, &server](const auto& request, auto& response) {
+    if (!require_auth(request, response)) return;
+    response.set_content(json{{"status", "stopping"}}.dump(), "application/json");
+    server.stop();
+  });
 
   server.Get("/v1/models", [manager, require_auth](const auto& request, auto& response) {
     if (!require_auth(request, response)) return;
@@ -4246,9 +4329,17 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
   active_http_server.store(&server);
   const auto previous_sigint = std::signal(SIGINT, stop_http_server);
   const auto previous_sigterm = std::signal(SIGTERM, stop_http_server);
-  std::clog << "Mica API listening on http://" << options.host << ':'
-            << options.port << '\n';
-  const bool listened = server.listen(options.host, options.port);
+  const bool bound = server.bind_to_port(options.host, options.port);
+  if (bound) {
+    const auto control_path = options.root / "run/server.json";
+    write_json_atomic(control_path, {{"pid", getpid()}, {"host", options.host},
+                                    {"port", options.port},
+                                    {"api_key_file", options.api_key.empty() ? api_key_path.string() : ""}});
+    chmod(control_path.c_str(), 0600);
+    std::clog << "Mica API listening on http://" << options.host << ':'
+              << options.port << '\n';
+  }
+  const bool listened = bound && server.listen_after_bind();
   active_http_server.store(nullptr);
   std::signal(SIGINT, previous_sigint);
   std::signal(SIGTERM, previous_sigterm);
@@ -4256,6 +4347,7 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
   for (auto& warmup : profile_warmups) {
     if (warmup.joinable()) warmup.join();
   }
+  if (bound) std::filesystem::remove(options.root / "run/server.json");
   return listened ? 0 : 1;
 }
 

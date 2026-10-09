@@ -65,6 +65,17 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(cpp_httplib)
 
+# Same lightweight native terminal library used by Questlog. No Python UI stack.
+set(FTXUI_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(FTXUI_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(FTXUI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(FTXUI_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(ftxui
+  GIT_REPOSITORY https://github.com/ArthurSonzogni/FTXUI.git
+  GIT_TAG v7.0.3
+  GIT_SHALLOW TRUE)
+FetchContent_MakeAvailable(ftxui)
+
 add_library(mica_server_core
   src/catalog.cpp
   src/command.cpp
@@ -103,10 +114,18 @@ endif()
 
 target_compile_options(mica_server_core PRIVATE -Wall -Wextra -Wpedantic)
 
-add_executable(mica-server src/main.cpp src/server.cpp)
-target_link_libraries(mica-server PRIVATE mica_server_core)
+add_executable(mica-server src/main.cpp src/server.cpp src/service.cpp src/tui.cpp)
+target_include_directories(mica-server PRIVATE ${MICA_LUA_INCLUDE_DIR})
+target_link_libraries(mica-server PRIVATE mica_server_core ftxui::component ftxui::dom ftxui::screen)
+execute_process(COMMAND git describe --always --dirty --abbrev=12
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  OUTPUT_VARIABLE MICA_SERVER_REVISION OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+if(NOT MICA_SERVER_REVISION)
+  set(MICA_SERVER_REVISION "unknown")
+endif()
 target_compile_definitions(mica-server PRIVATE
-  MICA_SERVER_VERSION="${PROJECT_VERSION}")
+  MICA_SERVER_VERSION="${PROJECT_VERSION}"
+  MICA_SERVER_REVISION="${MICA_SERVER_REVISION}")
 
 include(GNUInstallDirs)
 
@@ -116,6 +135,9 @@ if(MICA_SERVER_BUILD_TESTS)
   add_executable(mica-server-tests tests/test_scheduler.cpp)
   target_link_libraries(mica-server-tests PRIVATE mica_server_core)
   add_test(NAME mica-server-tests COMMAND mica-server-tests)
+  add_test(NAME mica-server-native-lifecycle
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_lifecycle.py
+            $<TARGET_FILE:mica-server> ${CMAKE_CURRENT_SOURCE_DIR}/config)
   add_test(NAME mica-server-mlx-worker-guards
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mlx_worker_guards.py)
   add_test(NAME mica-server-memory-monitor
@@ -855,6 +877,8 @@ if(MICA_SERVER_BUILD_TESTS)
 endif()
 
 install(TARGETS mica-server RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES ${ftxui_SOURCE_DIR}/LICENSE
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/licenses RENAME FTXUI.txt)
 install(DIRECTORY config/
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/config
         FILES_MATCHING PATTERN "*.lua" PATTERN "*.json" PATTERN "*.yaml")

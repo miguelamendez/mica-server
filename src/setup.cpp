@@ -885,8 +885,17 @@ ResolvedSetup resolve_setup(Registry& registry, SetupOptions options) {
   }
   resolved.machine = resolve_machine_policy(resolved.hardware,
                                             resolved.source_machine_policy);
+  // Automatic placement must honor a CPU-only machine policy even when a GPU
+  // is physically present. Keep detected accelerator facts; narrow runtime targets.
+  if (resolved.machine.allowed_devices == std::set<std::string>{"cpu"}) {
+    resolved.hardware.gguf_target = "cpu";
+    resolved.hardware.audio_target = "cpu";
+    resolved.hardware.vllm_target = "cpu";
+    registry.resolution_hardware = resolved.hardware;
+  }
   if (options.profile == "auto") {
-    options.profile = resolved.hardware.supports_mlx()
+    options.profile = resolved.hardware.supports_mlx() &&
+                              resolved.machine.allowed_devices.contains("metal:0")
                           ? "mica-assistant-mlx"
                           : "mica-assistant-gguf";
   }

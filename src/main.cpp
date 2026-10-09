@@ -20,6 +20,8 @@
 #include "mica_server/scheduler.hpp"
 #include "mica_server/server.hpp"
 #include "mica_server/setup.hpp"
+#include "mica_server/service.hpp"
+#include "mica_server/tui.hpp"
 
 namespace {
 
@@ -31,6 +33,16 @@ void usage() {
   std::cout << R"(mica-server
 
 Usage:
+  mica-server tui [--root PATH] [--config-dir PATH]
+  mica-server start [--workload ID] [--host HOST] [--port PORT]
+  mica-server stop|status [--root PATH]
+  mica-server workload list|show|edit|create|validate|install-file [profile options]
+  mica-server workload install ID [setup options]
+  mica-server workload activate ID [--root PATH]
+  mica-server config show [--root PATH]
+  mica-server config set [--host HOST] [--port PORT] [--default-workload ID]
+                         [--ram-gib N] [--vram-gib N] [--rotate-api-key] [--root PATH]
+  mica-server endpoints     List public API routes; no running server required
   mica-server detect [--output PATH]
   mica-server registry list|ping [--modality VALUE] [--engine VALUE] [--backend VALUE]
   mica-server profile list [--remote] [--root PATH] [--catalog-url URL]
@@ -68,6 +80,8 @@ Setup options:
   --dry-run                 Print actions without changing the machine
 
 Serve options:
+  --host HOST               Bind address (default 127.0.0.1; 0.0.0.0 exposes IPv4 LAN)
+  --port PORT               API listening port (default 8080)
   --backend mlx|gguf|vllm   Legacy-profile backend selection; workloads resolve engines
   --server-config PATH      Server JSON (default ~/.mica/config/server.json)
   --api-key TOKEN           Override API token (prefer a file; arguments are visible)
@@ -331,13 +345,60 @@ int main(int argc, char** argv) {
   try {
     executable_directory = locate_executable(argv[0]).parent_path();
     std::vector<std::string> args(argv, argv + argc);
+    bool install_workload_models = false;
+    if (args.size() >= 2 && args[1] == "workload") {
+      if (args.size() < 3) throw std::invalid_argument("workload requires an action");
+      const auto action = args[2];
+      if (action == "activate") {
+        if (args.size() < 4) throw std::invalid_argument("workload activate requires an ID");
+        auto root = default_root();
+        for (std::size_t i = 4; i < args.size(); ++i) {
+          if (args[i] == "--root") root = value_after(args, i);
+          else throw std::invalid_argument("unknown activate option: " + args[i]);
+        }
+        std::cout << mica::local_server_request(root, "POST", "/admin/profile/activate",
+                                               json{{"profile", args[3]}}).dump(2) << '\n';
+        return 0;
+      }
+      if (action == "install") {
+        if (args.size() < 4) throw std::invalid_argument("workload install requires an ID");
+        std::vector<std::string> setup{args[0], "setup", "--profile", args[3]};
+        setup.insert(setup.end(), args.begin() + 4, args.end());
+        args = std::move(setup);
+        install_workload_models = true;
+      } else {
+        args[1] = "profile";
+      }
+    }
+    if (args.size() >= 2 && (args[1] == "start" || args[1] == "stop" || args[1] == "status"))
+      return mica::service_command(args[1], {args.begin() + 2, args.end()},
+                                    locate_executable(args[0]), default_root());
+    if (args.size() >= 2 && args[1] == "config")
+      return mica::configuration_command({args.begin() + 2, args.end()}, default_root());
+    if (args.size() >= 2 && args[1] == "tui") {
+      auto root = default_root();
+      auto config = default_config();
+      bool snapshot = false;
+      for (std::size_t i = 2; i < args.size(); ++i) {
+        if (args[i] == "--root") root = value_after(args, i);
+        else if (args[i] == "--config-dir") config = value_after(args, i);
+        else if (args[i] == "--snapshot") snapshot = true;
+        else throw std::invalid_argument("unknown tui option: " + args[i]);
+      }
+      return mica::run_tui(locate_executable(args[0]), root, config, snapshot);
+    }
     if (args.size() == 2 && args[1] == "--version") {
-      std::cout << "mica-server " << MICA_SERVER_VERSION << '\n';
+      std::cout << "mica-server " << MICA_SERVER_VERSION << " (" << MICA_SERVER_REVISION << ")\n";
       return 0;
     }
     if (args.size() < 2 || args[1] == "--help" || args[1] == "-h") {
       usage();
       return args.size() < 2 ? 1 : 0;
+    }
+    if (args[1] == "endpoints") {
+      if (args.size() != 2) throw std::invalid_argument("endpoints takes no options");
+      std::cout << std::setw(2) << mica::server_endpoints() << '\n';
+      return 0;
     }
     if (args[1] == "detect") {
       std::filesystem::path output_path;
@@ -581,6 +642,17 @@ int main(int argc, char** argv) {
     }
     if (args[1] == "plan" || args[1] == "setup") {
       auto options = parse_setup(args);
+      if (install_workload_models) {
+        if (mica::local_server_running(options.root))
+          throw std::runtime_error("stop Mica before installing a workload; activate uses hot-swap instead");
+        const auto machine_file = options.machine_policy_file.empty()
+                                      ? options.root / "config/machine.yaml" : options.machine_policy_file;
+        if (std::find(args.begin(), args.end(), "--ram-gib") == args.end() &&
+            std::filesystem::exists(machine_file)) {
+          const auto policy = mica::load_machine_policy(machine_file);
+          if (policy.inference_ram_gib) options.max_ram_gib = *policy.inference_ram_gib;
+        }
+      }
       auto registry = mica::load_registry(options.config_directory, options.ignore_context_limit,
                                           options.allow_partial_workload);
       if (options.ignore_context_limit) {
@@ -674,6 +746,10 @@ int main(int argc, char** argv) {
       std::cout << std::setw(2) << output << '\n';
       if (args[1] == "plan") return has_error ? 2 : 0;
       mica::execute_setup(registry, resolved);
+      if (install_workload_models && !resolved.options.dry_run) {
+        mica::download_workload_models(registry, resolved.options.root);
+        std::cout << "Workload installed: engines verified and model artifacts cached. Run mica-server start.\n";
+      }
       return 0;
     }
     if (args[1] == "add-model") {

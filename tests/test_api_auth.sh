@@ -133,6 +133,24 @@ assert any(c["operation"] == "chat.generate" and c["supports_tools"]
 PY
 
 status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+  "http://127.0.0.1:$port/v1/endpoints")
+[[ "$status" == "401" ]]
+"$server_binary" endpoints > "$test_root/endpoints-cli.json"
+curl --silent --fail \
+  -H 'Authorization: Bearer mica_test_token_0123456789abcdef' \
+  "http://127.0.0.1:$port/v1/endpoints" > "$test_root/endpoints-api.json"
+python3 - "$test_root/endpoints-cli.json" "$test_root/endpoints-api.json" <<'PY'
+import json, sys
+cli, api = [json.load(open(path)) for path in sys.argv[1:]]
+assert cli == api
+routes = {(r["method"], r["path"]): r for r in cli["endpoints"]}
+assert len(routes) == len(cli["endpoints"])
+assert routes[("POST", "/admin/profile/activate")]["authentication_required"]
+assert routes[("POST", "/v1/chat/completions")]["authentication_required"]
+assert not routes[("GET", "/health")]["authentication_required"]
+PY
+
+status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
   -H 'Content-Type: application/json' \
   -d '{"profile":"gguf-low-memory"}' \
   "http://127.0.0.1:$port/admin/profile/activate")

@@ -30,9 +30,16 @@ The same `api_key` or `api_key_file` fields may be set in
 | `GET /health` | No | Process liveness. |
 | `GET /ready` | No | Warmup/readiness; returns 503 while required startup work fails. |
 | `GET /v1/models` | Yes | Models and variants enabled by the active profile, plus its ID and per-category defaults. |
+| `GET /v1/endpoints` | Yes | Registered methods, paths and authentication requirements; also available offline with `mica-server endpoints`. |
 | `GET /v1/catalog` | Yes | Complete curated registry, filterable by modality, capability, engine, or artifact family. |
 | `GET /admin/models` | Yes | Active profile, memory budget, policies, and resident workers. |
 | `POST /admin/profile/activate` | Yes | Switch to an installed workload profile while retaining compatible workers. |
+| `POST /admin/server/stop` | Yes | Gracefully stop the server and workers; used by `mica-server stop`. A service supervisor may have its own restart policy. |
+
+Endpoint discovery lists the route contract, not a claim that all modalities
+are available. Inspect `/v1/models` for the active models' usable capabilities.
+`serve --host 0.0.0.0 --port 8092` listens on all IPv4 interfaces with the same
+authentication rules. Use a trusted LAN and firewall; HTTP is not TLS.
 
 Activate an already-installed schema-5 workload without restarting the proxy:
 

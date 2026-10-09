@@ -1,5 +1,27 @@
 profiles:
   - schema: 5
+    id: mica-spark-small-gguf
+    description: Lightweight text-only Spark Q4 inference on llama.cpp with hardware-aware placement and Q8 KV cache.
+    available: true
+    selection:
+      engine_policy: explicit-only
+      defaults:
+        - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
+    mode: interactive
+    memory: {required_ram_gib: 6, required_vram_gib: 0, maximum_resident_workers: 1, safety_reserve_gib: 0.5}
+    models:
+      - id: spark-x25-4b
+        engine: llama-cpp
+        artifact: {id: q4}
+        context: {max_input_tokens: 8192, max_output_tokens: 4096, max_total_tokens: 12288}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: q8}
+        placement: {device: auto, mode: auto}
+        priority: 100
+        residency: warm
+        startup: true
+        idle_seconds: 300
+  - schema: 5
     id: diarization
     description: Nemotron Q8 speaker turns without transcription; automatically selects an installed compatible engine or the hardware-compatible manifest default.
     available: true
