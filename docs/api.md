@@ -30,6 +30,7 @@ The same `api_key` or `api_key_file` fields may be set in
 | `GET /health` | No | Process liveness. |
 | `GET /ready` | No | Warmup/readiness; returns 503 while required startup work fails. |
 | `GET /v1/models` | Yes | Models and variants enabled by the active profile, plus its ID and per-category defaults. |
+| `GET /v1/workloads` | Yes | Workload IDs/descriptions, selected models/quants, active workload, memory requirements and known activation blockers. |
 | `GET /v1/endpoints` | Yes | Registered methods, paths and authentication requirements; also available offline with `mica-server endpoints`. |
 | `GET /v1/catalog` | Yes | Complete curated registry, filterable by modality, capability, engine, or artifact family. |
 | `GET /admin/models` | Yes | Active profile, memory budget, policies, and resident workers. |
@@ -57,6 +58,22 @@ allocation or it needs a backend that setup has not installed. Run `setup`
 and restart to install a missing engine or enlarge the allocation. Requests
 already running on incompatible workers drain before those workers unload;
 the switch waits up to 30 seconds, then returns HTTP 409 without switching.
+
+The chat Settings workload picker uses authenticated discovery and the same
+activation route. It confirms server-wide changes, preserves conversation
+history, waits for warmup, and refreshes the model/media controls. Discovery's
+`can_activate` is a prerequisite check, not a guarantee: activation performs
+the final per-device placement and memory validation. Missing engines require
+installation while stopped; uncached weights may download during warmup.
+
+Agent chat replies, their final streaming `done` event, and saved assistant
+messages include `generation_metrics`. When available, these contain
+engine-reported `decode_tokens_per_second`, completion tokens, and decode
+seconds. This covers final-answer generation (including reasoning tokens),
+not prefill, prior tool calls, loading, or TTS. Engines without decode timing
+return `available: false`; Mica does not invent a rate from text length or
+whole-request latency. Enable **Show generation speed** in Chat Settings to
+display the metric beside replies; the browser saves this preference.
 
 Registry examples:
 

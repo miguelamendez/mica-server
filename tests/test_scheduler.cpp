@@ -16,11 +16,27 @@
 #include "mica_server/base64.hpp"
 #include "mica_server/config.hpp"
 #include "mica_server/hardware.hpp"
+#include "mica_server/generation_metrics.hpp"
 #include "mica_server/machine.hpp"
 #include "mica_server/profiles.hpp"
 #include "mica_server/scheduler.hpp"
 
 int main() {
+  {
+    using nlohmann::json;
+    const auto metrics = mica::generation_metrics(json{{"timings", {
+        {"predicted_n", 100}, {"predicted_ms", 500}, {"prompt_ms", 9000}}}});
+    assert(metrics.at("decode_tokens_per_second") == 200);
+    assert(metrics.at("decode_seconds") == 0.5);
+    assert(metrics.at("completion_tokens") == 100);
+    const auto direct = mica::generation_metrics(json{{"timings", {{"predicted_per_second", 25.5}}}});
+    assert(direct.at("decode_tokens_per_second") == 25.5);
+    for (const auto& response : {json::object(), json{{"usage", {{"completion_tokens", 100}}}},
+        json{{"timings", {{"predicted_n", 0}, {"predicted_ms", 0}}}},
+        json{{"timings", {{"predicted_per_second", "invalid"}}}}}) {
+      assert(!mica::generation_metrics(response).at("available").get<bool>());
+    }
+  }
   assert(mica::base64_encode("").empty());
   assert(mica::base64_encode("f") == "Zg==");
   assert(mica::base64_encode("fo") == "Zm8=");

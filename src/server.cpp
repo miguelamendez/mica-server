@@ -1,4 +1,5 @@
 #include "mica_server/server.hpp"
+#include "mica_server/generation_metrics.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -1767,6 +1768,46 @@ class WorkerManager {
             {"defaults", profile.default_models}};
   }
 
+  json workloads_json() const {
+    std::lock_guard lock(mutex_);
+    json data = json::array();
+    for (const auto& [id, profile] : registry_.profiles) {
+      if (profile.schema < 4) continue;
+      json blockers = json::array();
+      if (state_.schema < 6) blockers.push_back("Refresh runtime with workload install before live switching.");
+      if (!registry_.allow_partial_workload &&
+          (profile.required_ram_gib > state_.max_ram_gib + 1e-9 ||
+           profile.required_vram_gib > state_.max_vram_gib + 1e-9))
+        blockers.push_back("Workload requirements exceed the current RAM/VRAM allocation.");
+      json models = json::array();
+      for (const auto& policy : profile.model_policies) {
+        models.push_back({{"id", policy.id}, {"engine", policy.engine},
+                          {"quantization", to_string(policy.quantization)}});
+        const auto& engine = registry_.engine(policy.engine);
+        const auto launcher = policy.backend == Backend::gguf
+            ? root_ / "runtimes" / engine.runtime_directory / engine.server_executable
+            : root_ / "environments" / (policy.backend == Backend::mlx ? "mlx/bin/python" : "vllm/bin/vllm");
+        if (std::find(state_.installed_backends.begin(), state_.installed_backends.end(),
+                      policy.backend) == state_.installed_backends.end() ||
+            !std::filesystem::exists(launcher)) {
+          const auto message = "Engine needs installation: " + policy.engine;
+          if (std::find(blockers.begin(), blockers.end(), message) == blockers.end())
+            blockers.push_back(message);
+        }
+      }
+      data.push_back({{"id", id}, {"description", profile.description},
+                      {"active", id == state_.profile}, {"models", models},
+                      {"required_ram_gib", profile.required_ram_gib},
+                      {"required_vram_gib", profile.required_vram_gib},
+                      {"activation_blockers", blockers},
+                      {"can_activate", blockers.empty() && ready_.load() && !swapping_}});
+    }
+    return {{"object", "list"}, {"data", data}, {"active_workload", state_.profile},
+            {"ready", ready_.load()}, {"max_ram_gib", state_.max_ram_gib},
+            {"max_vram_gib", state_.max_vram_gib},
+            {"note", "Activation performs final placement and memory validation; missing weights download during warmup."}};
+  }
+
   json admin_json() const {
     std::lock_guard lock(mutex_);
     json workers = json::array();
@@ -2831,6 +2872,7 @@ nlohmann::json server_endpoints() {
   add("GET", "/ready", "Startup model readiness", false);
   add("GET", "/v1/endpoints", "Public API route discovery");
   add("GET", "/v1/models", "Active workload models and engine capabilities");
+  add("GET", "/v1/workloads", "Workload descriptions and hot-swap prerequisites");
   add("GET", "/v1/catalog", "Curated model registry");
   add("GET", "/admin/models", "Active workload, memory policy and resident workers");
   add("POST", "/admin/profile/activate", "Hot-swap an installed workload");
@@ -2982,6 +3024,10 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
     if (!require_auth(request, response)) return;
     response.set_content(manager->models_json().dump(), "application/json");
   });
+  server.Get("/v1/workloads", [manager, require_auth](const auto& request, auto& response) {
+    if (!require_auth(request, response)) return;
+    response.set_content(manager->workloads_json().dump(), "application/json");
+  });
   server.Get("/v1/catalog", [require_auth, &registry](const auto& request,
                                                        auto& response) {
     if (!require_auth(request, response)) return;
@@ -3124,8 +3170,10 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
     httplib::Client client("127.0.0.1", worker->port);
     client.set_read_timeout(3600, 0);
     public_body["stream"] = true;
+    public_body["stream_options"] = {{"include_usage", true}};
     std::string pending;
     std::string answer;
+    json metrics = generation_metrics(json::object());
     httplib::Result result;
     try {
       const auto body = rewrite_json_model(public_body.dump(), *worker, state);
@@ -3144,6 +3192,8 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
               while (!payload.empty() && payload.front() == ' ') payload.erase(0, 1);
               if (payload.empty() || payload == "[DONE]") continue;
               const auto chunk = json::parse(payload);
+              const auto reported = generation_metrics(chunk);
+              if (reported.value("available", false)) metrics = reported;
               if (!chunk.contains("choices") || chunk["choices"].empty()) continue;
               const auto& delta = chunk["choices"][0]["delta"];
               const auto text = optional_json_string(delta, "content");
@@ -3163,7 +3213,7 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
       throw std::runtime_error("streaming worker returned " +
                                std::to_string(result->status) + ": " + result->body);
     }
-    return answer;
+    return json{{"content", answer}, {"generation_metrics", metrics}};
   };
 
   auto invoke_asr_stream = [manager, state, active_backends, invoke_asr](
@@ -3787,6 +3837,7 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
       const auto tool_schema = vlm_tool_schema(registry.vlm_tool);
       bool tool_was_called = turn["attachments"].empty();
       std::string answer;
+      json answer_metrics = generation_metrics(json::object());
       for (int step = 0; step < registry.vlm_tool.max_agent_steps; ++step) {
         transition("agent_planning");
         json body = {{"model", llm_model}, {"messages", messages},
@@ -3794,10 +3845,12 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
         apply_thinking(body, llm_reasoning_effort, llm_thinking_budget);
         if (emit && tool_was_called) {
           transition("llm_final");
-          answer = invoke_chat_stream(
+          const auto completion = invoke_chat_stream(
               llm_model, body, [&](const std::string& delta) {
                 emit("text_delta", {{"delta", delta}});
               });
+          answer = completion.at("content").get<std::string>();
+          answer_metrics = completion.at("generation_metrics");
           if (answer.empty()) throw std::runtime_error("agent returned an empty answer");
           messages.push_back({{"role", "assistant"}, {"content", answer}});
           emit("text_end", {{"text", answer}});
@@ -3812,6 +3865,7 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
         auto assistant = completion.at("choices").at(0).at("message");
         const auto calls = assistant.value("tool_calls", json::array());
         if (calls.empty()) {
+          answer_metrics = generation_metrics(completion);
           answer = optional_json_string(assistant, "content");
           if (answer.empty()) throw std::runtime_error("agent returned an empty answer");
           messages.push_back({{"role", "assistant"}, {"content", answer}});
@@ -3988,7 +4042,8 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
                           {"attachments", turn["attachments"]},
                           {"media", user_media}};
       if (voice_path) stored_user["voice"] = input_voice;
-      json stored_assistant = {{"role", "assistant"}, {"content", answer}};
+      json stored_assistant = {{"role", "assistant"}, {"content", answer},
+                               {"generation_metrics", answer_metrics}};
       json assistant_media = json::array();
       if (!audio_path.empty()) {
         stored_assistant["audio_path"] = audio_path;
@@ -4005,6 +4060,7 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
         session["agent_messages"].push_back(messages[index]);
       }
       turn["answer"] = answer;
+      turn["generation_metrics"] = answer_metrics;
       if (!audio_path.empty()) turn["audio_path"] = audio_path;
       turn["state_history"].push_back("persisting_session");
       if (emit) emit("state", {{"state", "persisting_session"}});
@@ -4019,6 +4075,7 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
                      {"input_mode", turn["input_mode"]},
                      {"instruction", instruction}, {"voice_context", voice_context},
                      {"transcription", transcription}, {"answer", answer},
+                     {"generation_metrics", answer_metrics},
                      {"attachments", turn["attachments"]},
                      {"tool_results", turn["tool_results"]},
                      {"state_history", turn["state_history"]}};

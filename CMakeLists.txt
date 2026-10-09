@@ -863,6 +863,8 @@ if(MICA_SERVER_BUILD_TESTS)
     NAME mica-server-playground-auth
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_playground_auth.py
   )
+  add_test(NAME mica-server-chat-settings
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_chat_settings.py)
   add_test(
     NAME mica-server-api-auth
     COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_api_auth.sh
@@ -896,7 +898,7 @@ install(FILES schemas/profile-v3.schema.json
               schemas/model-v2.schema.json
               schemas/workload-v5.schema.json
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/schemas)
-install(FILES apps/mica_playground.py apps/mica-logo.svg apps/mica-readme-header.svg apps/mica-capabilities.js
+install(FILES apps/mica_playground.py apps/mica-logo.svg apps/mica-readme-header.svg apps/mica-capabilities.js apps/mica-chat-settings.js
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps)
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/docs
         FILES_MATCHING PATTERN "*.md")

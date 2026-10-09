@@ -58,6 +58,19 @@ class LifecycleTests(unittest.TestCase):
                 state = json.loads(run("status").stdout)
                 self.assertIn(state["status"], ("ready", "warming"))
                 pid = state["pid"]
+                def workloads(key=token):
+                    request = urllib.request.Request(f"http://127.0.0.1:{port}/v1/workloads",
+                        headers={"Authorization": "Bearer " + key})
+                    return json.load(urllib.request.urlopen(request, timeout=3))
+                with self.assertRaises(urllib.error.HTTPError) as rejected_workloads:
+                    workloads("invalid-token")
+                self.assertEqual(rejected_workloads.exception.code, 401)
+                catalog = workloads()
+                self.assertEqual(catalog["active_workload"], "swap-a")
+                swap_b = next(item for item in catalog["data"] if item["id"] == "swap-b")
+                self.assertTrue(swap_b["can_activate"])
+                self.assertTrue(swap_b["description"])
+                self.assertNotIn(token, json.dumps(catalog))
                 self.assertEqual(json.loads(run("start").stdout)["pid"], pid)
                 run("config", "set", "--port", "8099", success=False)
                 run("workload", "install", "swap-b", "--config-dir", str(CONFIG), success=False)
@@ -67,6 +80,7 @@ class LifecycleTests(unittest.TestCase):
                 self.assertEqual(rejected.exception.code, 401)
                 run("workload", "activate", "swap-b")
                 self.assertEqual(json.loads(run("status").stdout)["profile"]["name"], "swap-b")
+                self.assertEqual(workloads()["active_workload"], "swap-b")
                 snap = run("tui", "--snapshot", "--config-dir", str(CONFIG)).stdout
                 document = json.loads(snap)
                 self.assertEqual(len(document["sections"]), 7)

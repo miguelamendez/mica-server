@@ -212,6 +212,12 @@ routes.
 
 ## Run the chat client
 
+Chat Settings lists server workloads with their descriptions, selected models,
+memory requirements, and known installation blockers. Choose one and select
+**Switch workload** to hot-swap without discarding the conversation. Swaps are
+server-wide, require the API key, and wait for startup warmup. Enable **Show
+generation speed** for engine-reported decode tokens/s on each reply.
+
 From a source checkout:
 
 ```sh

@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -23,6 +25,34 @@ SPEC.loader.exec_module(PLAYGROUND)
 
 
 class PlaygroundAuthTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("node"), "Node is optional; required only for frontend tests")
+    def test_session_ids_work_on_http_lan_without_random_uuid(self) -> None:
+        page = PLAYGROUND.CHAT_HTML
+        helper = re.search(r"function newSessionId\(\)\{.*?\n\}", page, re.S)
+        self.assertIsNotNone(helper)
+        script = r"""
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+const {webcrypto} = require('node:crypto');
+const helper = HELPER;
+const lan = vm.createContext({crypto: {getRandomValues: array => webcrypto.getRandomValues(array)}});
+vm.runInContext(helper, lan);
+const ids = new Set();
+for (let i = 0; i < 100; i++) {
+  const id = vm.runInContext('newSessionId()', lan);
+  assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  ids.add(id);
+}
+assert.equal(ids.size, 100);
+const secure = vm.createContext({crypto: {randomUUID: () => 'native-uuid'}});
+vm.runInContext(helper, secure);
+assert.equal(vm.runInContext('newSessionId()', secure), 'native-uuid');
+""".replace("HELPER", json.dumps(helper.group(0)))
+        subprocess.run(["node", "-e", script], check=True)
+        self.assertIn("localStorage.micaSessionId||newSessionId()", page)
+        self.assertIn("sessionId=newSessionId();localStorage", page)
+        self.assertEqual(page.count("crypto.randomUUID()"), 1)
+
     @unittest.skipUnless(shutil.which("node"), "Node is optional; required only for frontend tests")
     def test_frontend_capability_matrix(self) -> None:
         subprocess.run(["node", str(ROOT / "tests/test_playground_capabilities.js")], check=True)
