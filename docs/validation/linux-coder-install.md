@@ -1,5 +1,33 @@
 # Linux coding-workload installation
 
+## Native CLI and TUI validation (2026-10-08)
+
+The native C++/Lua terminal interface now exposes server status, workloads,
+models, engines, machine facts/policy, endpoints, and settings. Both macOS and
+Linux passed all 79 CTest checks. API keys remain hidden in diagnostic snapshots.
+The CLI can install a workload, start a detached server, inspect status, activate
+another prepared workload, and stop it without a Python service manager.
+
+An isolated Linux test started with an empty model cache and reused the existing
+CUDA llama.cpp build. `workload install mica-spark-small-gguf` downloaded the
+2,600,223,552-byte Spark Q4 artifact in 64.542 seconds. Actual CUDA inference
+returned `42` for six times seven in 0.584 seconds; the worker reported roughly
+107 decoded tokens/s, including reasoning tokens. This short smoke request is
+not a long-context benchmark. Activating a cloned workload retained the same
+worker PID, demonstrating live reuse rather than unloading/reloading weights.
+Endpoint discovery matched the CLI, and the isolated server stopped cleanly.
+
+The test also confirmed that `reasoning_effort: none` is rejected for this
+Spark/engine combination, which does not advertise that selectable mode.
+The successful inference omitted the unsupported override. No new engine
+compilation or universal memory-cap certification is claimed by this test.
+
+See [native control commands](../getting-started.md#run-the-server). Changes to
+settings require stop/start; edits to workload definitions require a restart.
+Hot-swapping already prepared workloads does not require a restart. The older
+installation record below describes its earlier service configuration, not
+the current native CLI lifecycle.
+
 ## Chat interface validation (2026-10-06)
 
 The loopback-only API and optional stdlib chat UI run as separate user services,

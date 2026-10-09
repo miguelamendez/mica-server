@@ -237,7 +237,9 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       const auto& profile = data.registry.profile(selected);
       heading(selected); row("Purpose", profile.description);
       row("RAM required (GiB)", profile.required_ram_gib); row("VRAM required (GiB)", profile.required_vram_gib);
-      row("Active", data.runtime.value("profile", "") == selected);
+      const auto active = data.server.value("profile", json::object()).value("name", "");
+      row("Active", active == selected);
+      row("Prepared selection", data.runtime.value("profile", "") == selected);
       row("Source", std::filesystem::exists(root / "config/profiles" / (selected + ".yaml")) ? "installed / user-owned" : "packaged example");
       row("Resident worker limit", profile.maximum_resident_workers);
       const auto inference = data.machine.value("limits", json::object()).value("inference", json::object());
