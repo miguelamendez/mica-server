@@ -25,6 +25,6 @@ install:
     common: {CMAKE_BUILD_TYPE: Release, AUDIOCPP_MODEL_SET: custom}
     cpu: {}
     metal: {ENGINE_ENABLE_METAL: ON}
-    cuda: {ENGINE_ENABLE_CUDA: ON}
+    cuda: {ENGINE_ENABLE_CUDA: ON, CMAKE_CUDA_ARCHITECTURES: native}
     rocm: {ENGINE_ENABLE_HIP: ON}
     vulkan: {ENGINE_ENABLE_VULKAN: ON}
