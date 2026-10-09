@@ -172,7 +172,9 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     const auto command = pending;
     message = "Running " + display_command(command) + " — wait for completion";
     worker = std::thread([&, command] {
-      auto result = run_command(command, true);
+      CommandResult result;
+      try { result = run_command(command, true); }
+      catch (const std::exception& e) { result = {1, e.what()}; }
       screen.Post([&, result = std::move(result)] {
         busy = false;
         message = (result.exit_code == 0 ? "Completed. " : "Failed. ") + result.output;
@@ -313,7 +315,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     auto details = detail(values.empty() ? "" : values[row_index]);
     scroll = std::clamp(scroll, 0, std::max(0, static_cast<int>(details.size()) - 1));
     if (scroll > 0) details.erase(details.begin(), details.begin() + scroll);
-    auto right = vbox(details) | flex | border;
+    auto right = vbox(details) | yframe | flex | border;
     if (!values.empty())
       left = vbox({vbox(navigation), separator(), rows | flex}) | size(WIDTH, EQUAL, 26) | border;
     auto body = hbox({left, right});
