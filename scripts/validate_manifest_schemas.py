@@ -39,10 +39,31 @@ def validate_model_limits(document):
 def main():
     root = Path(__file__).resolve().parent.parent
     schemas = {p.name: json.loads(p.read_text()) for p in (root / "schemas").glob("*.json")}
+    for name, schema in schemas.items():
+        Draft202012Validator.check_schema(schema)
+        assert schema["$id"] == f"https://raw.githubusercontent.com/miguelamendez/mica-server/main/schemas/{name}"
     registry = Registry().with_resources(
         (s["$id"], Resource.from_contents(s)) for s in schemas.values() if "$id" in s
     )
     count = 0
+    # Machine observations, user allocations, and service settings are separate
+    # contracts, not engine/model/workload fields.
+    for directory, schema_name in (("hardware", "hardware-v1.schema.json"),
+                                    ("machine", "machine-policy-v1.schema.json")):
+        validator = Draft202012Validator(schemas[schema_name], registry=registry)
+        for path in sorted((root / "tests/fixtures" / directory).glob("*")):
+            document = json.loads(path.read_text()) if path.suffix == ".json" else yaml.load(path.read_text(), Loader=Yaml12Loader)
+            validator.validate(document)
+            if directory == "hardware":
+                if document["memory"].get("unified_memory_gib", 0) > document["memory"]["system_ram_gib"]:
+                    raise ValueError("unified memory exceeds physical memory")
+                ids = [item["id"] for item in document.get("accelerators", [])]
+                if len(ids) != len(set(ids)):
+                    raise ValueError("duplicate accelerator IDs")
+            count += 1
+    validator = Draft202012Validator(schemas["server-config-v1.schema.json"], registry=registry)
+    validator.validate(json.loads((root / "config/server.example.json").read_text()))
+    count += 1
     for folder, name in (("engines", "engine-v2.schema.json"),
                          ("model-manifests", "model-v2.schema.json"),
                          ("workloads", "workload-v5.schema.json")):
@@ -66,7 +87,7 @@ def main():
         document = {key: value for key, value in document.items() if key not in {"reason", "status"}}
         validator.validate(document)
         count += 1
-    print(f"Validated {count} engine, model, workload, and catalog documents against their schemas; "
+    print(f"Validated {count} hardware, machine, server, engine, model, workload, and catalog documents against their schemas; "
           f"{proposals} non-installable catalog proposals excluded.")
 
 

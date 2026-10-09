@@ -9,8 +9,10 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cctype>
 #include <fstream>
 #include <iostream>
+#include <set>
 #include <thread>
 #include <fcntl.h>
 #include <sys/file.h>
@@ -45,6 +47,61 @@ std::string next_value(const std::vector<std::string>& args, std::size_t& i) {
   if (++i >= args.size()) throw std::invalid_argument("missing option value");
   return args[i];
 }
+}
+
+void validate_server_configuration(const json& document) {
+  const auto check = [](const json& object, const std::set<std::string>& allowed) {
+    if (!object.is_object()) throw std::invalid_argument("server configuration must be an object");
+    for (const auto& item : object.items()) if (!allowed.contains(item.key()))
+      throw std::invalid_argument("unknown server configuration field: " + item.key());
+  };
+  check(document, {"schema", "host", "port", "default_workload", "api_key", "api_key_file", "ui"});
+  if (document.contains("schema") && (!document["schema"].is_number_integer() || document["schema"] != 1))
+    throw std::invalid_argument("server configuration must use schema 1");
+  const auto fields = [](const json& object) {
+    for (const auto* key : {"host", "api_key", "api_key_file", "mica_url"}) if (object.contains(key)) {
+      if (!object[key].is_string() || object[key].get<std::string>().empty())
+        throw std::invalid_argument(std::string("server configuration field must be nonempty text: ") + key);
+      const auto value = object[key].get<std::string>();
+      if (std::any_of(value.begin(), value.end(), [&](unsigned char c) {
+            return c < 32 || (std::string(key) == "host" && (std::isspace(c) || c > 126)) ||
+                   (std::string(key) == "api_key" && c > 126);
+          }) || (std::string(key) == "api_key" && value.size() > 512))
+        throw std::invalid_argument(std::string("invalid server configuration field: ") + key);
+      if (std::string(key) == "mica_url" && !value.starts_with("http://") && !value.starts_with("https://"))
+        throw std::invalid_argument("ui.mica_url must use http or https");
+    }
+    if (object.contains("port") && (!object["port"].is_number_integer() || object["port"] < 1 || object["port"] > 65535))
+      throw std::invalid_argument("server port must be an integer in 1..65535");
+  };
+  fields(document);
+  if (document.contains("default_workload")) {
+    if (!document["default_workload"].is_string()) throw std::invalid_argument("default_workload must be a workload ID");
+    const auto id = document["default_workload"].get<std::string>();
+    if (id.empty() || !std::isalnum(static_cast<unsigned char>(id.front())) ||
+        std::any_of(id.begin(), id.end(), [](unsigned char c) { return !std::isalnum(c) && c != '.' && c != '_' && c != '-'; }))
+      throw std::invalid_argument("default_workload must be a workload ID");
+  }
+  if (document.contains("ui")) {
+    check(document["ui"], {"host", "port", "mica_url", "api_key", "api_key_file"});
+    fields(document["ui"]);
+  }
+}
+
+json load_server_configuration(const std::filesystem::path& path) {
+  auto document = std::filesystem::exists(path) ? read_json(path) : json::object();
+  validate_server_configuration(document);
+  return document;
+}
+
+json redact_server_configuration(json document) {
+  const bool key = document.contains("api_key") || document.contains("api_key_file");
+  document.erase("api_key"); document["api_key_configured"] = key;
+  if (document.contains("ui")) {
+    const bool ui_key = document["ui"].contains("api_key") || document["ui"].contains("api_key_file");
+    document["ui"].erase("api_key"); document["ui"]["api_key_configured"] = ui_key;
+  }
+  return document;
 }
 
 bool local_server_running(const std::filesystem::path& root) {
@@ -138,7 +195,7 @@ int service_command(const std::string& action, const std::vector<std::string>& a
     return 0;
   }
   if (workload.empty() && std::filesystem::exists(root / "config/server.json"))
-    workload = read_json(root / "config/server.json").value("default_workload", "");
+    workload = load_server_configuration(root / "config/server.json").value("default_workload", "");
   if (workload.empty() && std::filesystem::exists(root / "state/runtime.json"))
     workload = read_json(root / "state/runtime.json").value("profile", "");
   if (!workload.empty()) {
@@ -205,13 +262,12 @@ int configuration_command(const std::vector<std::string>& args,
   }
   const auto server_path = root / "config/server.json";
   const auto machine_path = root / "config/machine.yaml";
-  auto server = std::filesystem::exists(server_path) ? read_json(server_path) : json::object();
+  auto server = load_server_configuration(server_path);
   auto machine = std::filesystem::exists(machine_path) ? read_profile_file(machine_path)
                                                        : json{{"schema", 1}, {"limits", json::object()}};
   if (args[0] == "show") {
-    const bool key = server.contains("api_key") || std::filesystem::exists(root / "secrets/api-key");
-    server.erase("api_key");
-    server["api_key_configured"] = key;
+    server = redact_server_configuration(server);
+    server["api_key_configured"] = server["api_key_configured"].get<bool>() || std::filesystem::exists(root / "secrets/api-key");
     std::cout << json{{"server", server}, {"machine", machine}}.dump(2) << '\n';
     return 0;
   }
@@ -219,6 +275,8 @@ int configuration_command(const std::vector<std::string>& args,
   if (local_server_running(root)) throw std::runtime_error("stop Mica before changing server settings");
   for (const auto* key : {"host", "port", "default_workload"})
     if (changes.contains(key)) server[key] = changes[key];
+  server["schema"] = 1;
+  validate_server_configuration(server);
   if (server.contains("port") && (server["port"].get<int>() < 1 || server["port"].get<int>() > 65535))
     throw std::invalid_argument("port must be 1..65535");
   if (changes.contains("ram-gib")) machine["limits"]["inference"]["ram_gib"] = changes["ram-gib"];

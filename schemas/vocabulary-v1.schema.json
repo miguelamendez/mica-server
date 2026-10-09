@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/miguelamendez/mica-server/schemas/vocabulary-v1.schema.json",
+  "$id": "https://raw.githubusercontent.com/miguelamendez/mica-server/main/schemas/vocabulary-v1.schema.json",
   "title": "Mica model and operation vocabulary v1",
   "description": "Shared identifiers for the next-generation manifests. Listing an identifier here does not mean Mica can serve it yet.",
   "$defs": {

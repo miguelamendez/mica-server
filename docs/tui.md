@@ -106,4 +106,5 @@ on the next start. Key contents are never displayed. Use a trusted LAN/firewall
 for `0.0.0.0`; Mica's HTTP service does not provide TLS.
 
 See [installation](getting-started.md), [workload design](profiles.md),
-[memory estimation](memory-estimation.md) and [API reference](api.md).
+[memory estimation](memory-estimation.md), [configuration schemas](configuration-schemas.md)
+and [API reference](api.md).

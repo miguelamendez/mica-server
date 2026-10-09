@@ -14,6 +14,16 @@ int main() {
   auto registry = mica::load_registry(repo / "config");
   const auto mac = mica::load_hardware_profile(repo / "tests/fixtures/hardware/mac-metal.json");
   const auto cpu = mica::load_hardware_profile(repo / "tests/fixtures/hardware/linux-cpu.json");
+  const auto rejects_hardware = [&](nlohmann::json document) {
+    bool rejected = false;
+    try { (void)mica::hardware_from_json(document); } catch (const std::exception&) { rejected = true; }
+    assert(rejected);
+  };
+  auto invalid = mica::hardware_to_json(mac); invalid["ram_limit_gib"] = 8; rejects_hardware(invalid);
+  invalid = mica::hardware_to_json(mac); invalid["memory"]["system_ram_gib"] = -1; rejects_hardware(invalid);
+  invalid = mica::hardware_to_json(mac); invalid["memory"]["unified_memory_gib"] = 100; rejects_hardware(invalid);
+  invalid = mica::hardware_to_json(mac); invalid["cpu"]["physical_cores"] = 2.5; rejects_hardware(invalid);
+  invalid = mica::hardware_to_json(mac); invalid["accelerators"].push_back(invalid["accelerators"][0]); rejects_hardware(invalid);
   const auto root = fs::temp_directory_path() / ("mica-inventory-test-" + std::to_string(getpid()));
   assert(!fs::exists(root)); fs::create_directory(root);
   struct Cleanup { fs::path path; ~Cleanup() { fs::remove_all(path); } } cleanup{root};

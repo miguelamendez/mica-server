@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/miguelamendez/mica-server/schemas/engine-v2.schema.json",
+  "$id": "https://raw.githubusercontent.com/miguelamendez/mica-server/main/schemas/engine-v2.schema.json",
   "title": "Mica engine manifest v2",
   "description": "Endpoint contracts describe callable adapter surfaces; compatibility tags only gate artifact loading and do not imply an operation.",
   "type": "object",

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/miguelamendez/mica-server/schemas/workload-v5.schema.json",
+  "$id": "https://raw.githubusercontent.com/miguelamendez/mica-server/main/schemas/workload-v5.schema.json",
   "title": "Mica workload profile v5",
   "description": "A workload profile is an ordered collection of models, not a set of fixed roles or modality groups.",
   "type": "object",

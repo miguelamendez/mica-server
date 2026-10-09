@@ -1,7 +1,7 @@
 # Mica configuration contract
 
 Status: Machine policy, schema-2 engine/model manifests, schema-5 workload YAML, automatic engine/artifact selection, and synthetic per-device reservation accounting are implemented. Strict process-memory enforcement and Linux vLLM/multi-GPU certification remain open.
-Updated: 2026-10-05
+Updated: 2026-10-09
 
 This contract defines **four layers**, not four interchangeable meanings of
 "profile": machine, engine, model, and workload. The catalog is an index of workload
@@ -17,6 +17,10 @@ configuration.
 | Engine manifest | `config/engines/<id>.yaml` | Mica package/trusted registry | `schema: 2` |
 | Model manifest | `config/model-manifests/<id>.yaml` | Mica package/trusted registry | `schema: 2` |
 | Workload profile | `config/workloads/<id>.yaml`, or a user-selected YAML file | Mica/user | `schema: 5` |
+| Server settings | `~/.mica/config/server.json` | User/TUI/CLI | `schema: 1` (old unversioned files readable) |
+
+See the [configuration schema index](../configuration-schemas.md) for the exact
+schema files, native validation and version rules for all six contracts.
 
 The machine layer has two physical files because rediscovery may rewrite facts
 but **must never rewrite user policy**. The resolver combines them into one

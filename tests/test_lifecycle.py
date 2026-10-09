@@ -15,6 +15,35 @@ sys.argv = sys.argv[:1]
 
 
 class LifecycleTests(unittest.TestCase):
+    def test_server_configuration_contract_and_nested_key_redaction(self):
+        with tempfile.TemporaryDirectory(prefix="mica-config-contract-") as temporary:
+            root = Path(temporary)
+            path = root / "config/server.json"
+            path.parent.mkdir(parents=True)
+            secret, ui_secret = "fixture-secret-not-a-real-key", "fixture-ui-secret-not-a-real-key"
+            valid = {"host": "127.0.0.1", "port": 8092, "default_workload": "mac_coder",
+                     "api_key": secret, "ui": {"port": 8090, "mica_url": "http://127.0.0.1:8092", "api_key": ui_secret}}
+            path.write_text(json.dumps(valid))
+            def run(*args):
+                return subprocess.run([str(BINARY), *args, "--root", str(root)], capture_output=True, text=True, timeout=15)
+            for args in (("config", "show"), ("tui", "--snapshot", "--config-dir", str(CONFIG))):
+                result = run(*args)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertNotIn(secret, result.stdout)
+                self.assertNotIn(ui_secret, result.stdout)
+            result = run("config", "set", "--port", "8093")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(path.read_text())["schema"], 1)
+            for invalid in ({"schema": 2}, {"schema": 1.0}, {"port": 65536}, {"port": 1.5},
+                            {"port": "8080"}, {"host": ""}, {"host": "local host"},
+                            {"ram_gib": 8}, {"default_workload": "../bad"},
+                            {"ui": {"mica_url": "file:///tmp/private"}}, {"ui": {"unknown": True}}):
+                path.write_text(json.dumps(invalid))
+                result = run("config", "show")
+                self.assertNotEqual(result.returncode, 0, invalid)
+                self.assertEqual(json.loads(path.read_text()), invalid)
+            self.assertFalse((root / "state/runtime.json").exists())
+
     def test_lifecycle_settings_and_workload_aliases(self):
         with tempfile.TemporaryDirectory(prefix="mica-lifecycle-") as temporary:
             root = Path(temporary)

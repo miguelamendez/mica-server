@@ -119,6 +119,7 @@ overrides it).
 - [TUI walkthrough](docs/tui.md)
 - [Workloads](docs/profiles.md) and [engines/artifacts](docs/engines-and-profiles.md)
 - [API reference](docs/api.md) and [schema vocabulary](docs/schema-vocabulary.md)
+- [Configuration schema index](docs/configuration-schemas.md) for all six file contracts
 - [Models and quantization](docs/models.md), [model cards](docs/model-cards/)
 - [Memory estimation](docs/memory-estimation.md) and [measured profiling](docs/model-memory-profiling.md)
 - [Validation evidence](docs/validation/), [researcher checks](docs/researcher-validation.md)

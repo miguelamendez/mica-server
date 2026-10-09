@@ -4,6 +4,9 @@
 #include <vector>
 #include <nlohmann/json_fwd.hpp>
 namespace mica {
+void validate_server_configuration(const nlohmann::json& document);
+nlohmann::json load_server_configuration(const std::filesystem::path& path);
+nlohmann::json redact_server_configuration(nlohmann::json document);
 nlohmann::json local_server_request(const std::filesystem::path& root,
                                    const std::string& method, const std::string& path,
                                    const nlohmann::json& body);

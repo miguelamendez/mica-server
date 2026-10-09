@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/miguelamendez/mica-server/main/schemas/hardware-v1.schema.json",
+  "title": "Mica detected hardware facts schema 1",
+  "description": "Observations only. Budgets and allowed devices belong in machine policy. Backend targets are optional derived data in older JSON fixtures; canonical hardware YAML omits them.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "system", "cpu", "memory"],
+  "$defs": {
+    "target": {"type": "object", "additionalProperties": false, "required": ["device"], "properties": {"device": {"type": "string", "minLength": 1}}}
+  },
+  "properties": {
+    "schema": {"const": 1},
+    "system": {
+      "type": "object", "additionalProperties": false, "required": ["os", "arch"],
+      "properties": {
+        "os": {"type": "string", "minLength": 1}, "arch": {"type": "string", "minLength": 1},
+        "version": {"type": "string"}, "wsl": {"type": "boolean"}, "apple_silicon": {"type": "boolean"}
+      }
+    },
+    "cpu": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "vendor": {"type": "string"}, "model": {"type": "string"},
+        "physical_cores": {"type": "integer", "minimum": 0}, "logical_cores": {"type": "integer", "minimum": 0}
+      }
+    },
+    "memory": {
+      "type": "object", "additionalProperties": false, "required": ["system_ram_gib"],
+      "properties": {"system_ram_gib": {"type": "number", "exclusiveMinimum": 0}, "unified_memory_gib": {"type": "number", "minimum": 0}}
+    },
+    "accelerators": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "runtime"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[0-9]+$"}, "type": {"type": "string"},
+          "vendor": {"type": "string"}, "name": {"type": "string"}, "runtime": {"type": "string", "minLength": 1},
+          "architecture": {"type": "string"}, "driver": {"type": "string"},
+          "memory_gib": {"type": "number", "minimum": 0}, "unified_memory": {"type": "boolean"},
+          "apis": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "toolchains": {"type": "object", "additionalProperties": {"type": "boolean"}},
+    "backend_targets": {
+      "type": "object", "additionalProperties": false,
+      "properties": {"mlx": {"$ref": "#/$defs/target"}, "gguf": {"$ref": "#/$defs/target"}, "audio": {"$ref": "#/$defs/target"}, "vllm": {"$ref": "#/$defs/target"}}
+    }
+  }
+}

@@ -130,8 +130,8 @@ ViewData refresh_data(const std::filesystem::path& root, const std::filesystem::
   data.machine = std::filesystem::exists(root / "config/machine.yaml")
                      ? read_profile_file(root / "config/machine.yaml") : json::object();
   data.server = local_server_status(root);
-  data.settings = read_optional(root / "config/server.json");
-  const bool configured = data.settings.contains("api_key") ||
+  data.settings = redact_server_configuration(load_server_configuration(root / "config/server.json"));
+  const bool configured = data.settings.value("api_key_configured", false) ||
                           std::filesystem::exists(root / "secrets/api-key");
   data.settings.erase("api_key");
   data.settings["api_key"] = configured ? "configured (hidden)" : "not configured";

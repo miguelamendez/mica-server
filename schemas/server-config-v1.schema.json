@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/miguelamendez/mica-server/main/schemas/server-config-v1.schema.json",
+  "title": "Mica server configuration schema 1",
+  "description": "Network, default workload and credential references, with optional browser-client settings. New writes include schema: 1; existing unversioned server JSON remains readable. No model or memory policy lives here.",
+  "type": "object", "additionalProperties": false,
+  "$defs": {
+    "host": {"type": "string", "minLength": 1, "pattern": "^[!-~]+$"},
+    "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+    "key": {"type": "string", "minLength": 1, "maxLength": 512, "pattern": "^[\\u0020-\\u007e]+$"},
+    "file": {"type": "string", "minLength": 1, "pattern": "^[^\\u0000-\\u001f]+$"}
+  },
+  "properties": {
+    "schema": {"const": 1},
+    "host": {"$ref": "#/$defs/host", "default": "127.0.0.1"},
+    "port": {"$ref": "#/$defs/port", "default": 8080},
+    "default_workload": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "api_key": {"$ref": "#/$defs/key", "description": "Discouraged inline secret. Prefer a private api_key_file."},
+    "api_key_file": {"$ref": "#/$defs/file"},
+    "ui": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "host": {"$ref": "#/$defs/host"}, "port": {"$ref": "#/$defs/port"},
+        "mica_url": {"type": "string", "pattern": "^https?://", "minLength": 1},
+        "api_key": {"$ref": "#/$defs/key"}, "api_key_file": {"$ref": "#/$defs/file"}
+      }
+    }
+  }
+}

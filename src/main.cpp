@@ -190,13 +190,7 @@ std::filesystem::path expand_user_path(const std::filesystem::path& input) {
 void apply_server_config(mica::ServerOptions& options,
                          const std::filesystem::path& path) {
   if (!std::filesystem::exists(path)) return;
-  std::ifstream stream(path);
-  if (!stream) throw std::runtime_error("cannot read server config: " + path.string());
-  json document;
-  stream >> document;
-  if (!document.is_object()) {
-    throw std::runtime_error("server config must contain a JSON object: " + path.string());
-  }
+  const auto document = mica::load_server_configuration(path);
   if (document.contains("host")) options.host = document.at("host").get<std::string>();
   if (document.contains("port")) options.port = document.at("port").get<int>();
   if (document.contains("api_key")) {

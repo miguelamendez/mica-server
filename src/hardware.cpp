@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cmath>
 #include <cstdio>
 #include <fstream>
 #include <iomanip>
@@ -275,25 +276,44 @@ HardwareInfo detect_hardware() {
 }
 
 HardwareInfo hardware_from_json(const json& profile) {
-  if (profile.value("schema", 0) != 1) {
+  const auto check_fields = [](const json& object, const std::set<std::string>& allowed) {
+    if (!object.is_object()) throw std::invalid_argument("hardware profile section must be an object");
+    for (const auto& item : object.items()) if (!allowed.contains(item.key()))
+      throw std::invalid_argument("unknown hardware fact: " + item.key() + "; budgets belong in machine.yaml");
+  };
+  check_fields(profile, {"schema", "system", "cpu", "memory", "accelerators", "toolchains", "backend_targets"});
+  if (!profile.contains("schema") || !profile["schema"].is_number_integer() || profile["schema"] != 1) {
     throw std::runtime_error("unsupported hardware profile schema");
   }
   HardwareInfo info;
   const auto& system = profile.at("system");
+  check_fields(system, {"os", "version", "arch", "wsl", "apple_silicon"});
   info.os = system.at("os").get<std::string>();
   info.os_version = system.value("version", std::string());
   info.arch = system.at("arch").get<std::string>();
   info.wsl = system.value("wsl", false);
   info.apple_silicon = system.value("apple_silicon", false);
   const auto& cpu = profile.at("cpu");
+  check_fields(cpu, {"vendor", "model", "physical_cores", "logical_cores"});
   info.cpu_vendor = cpu.value("vendor", std::string());
   info.cpu_model = cpu.value("model", std::string());
+  for (const auto* key : {"physical_cores", "logical_cores"})
+    if (cpu.contains(key) && !cpu[key].is_number_integer()) throw std::invalid_argument("hardware core counts must be integers");
   info.physical_cpu_cores = cpu.value("physical_cores", 0);
   info.logical_cpu_cores = cpu.value("logical_cores", 0);
   const auto& memory = profile.at("memory");
+  check_fields(memory, {"system_ram_gib", "unified_memory_gib"});
   info.ram_gib = memory.at("system_ram_gib").get<double>();
   info.unified_memory_gib = memory.value("unified_memory_gib", 0.0);
+  if (info.os.empty() || info.arch.empty() || info.physical_cpu_cores < 0 || info.logical_cpu_cores < 0 ||
+      !std::isfinite(info.ram_gib) || info.ram_gib <= 0 || !std::isfinite(info.unified_memory_gib) ||
+      info.unified_memory_gib < 0 || info.unified_memory_gib > info.ram_gib)
+    throw std::invalid_argument("invalid hardware identity, core count or physical/unified memory");
+  std::set<std::string> device_ids;
+  if (profile.contains("accelerators") && !profile["accelerators"].is_array())
+    throw std::invalid_argument("hardware accelerators must be an array");
   for (const auto& value : profile.value("accelerators", json::array())) {
+    check_fields(value, {"id", "type", "vendor", "name", "runtime", "architecture", "driver", "memory_gib", "unified_memory", "apis"});
     HardwareInfo::Accelerator device;
     device.id = value.value("id", std::string());
     device.type = value.value("type", std::string());
@@ -305,10 +325,19 @@ HardwareInfo hardware_from_json(const json& profile) {
     device.memory_gib = value.value("memory_gib", 0.0);
     device.unified_memory = value.value("unified_memory", false);
     device.apis = value.value("apis", std::vector<std::string>{});
+    if (device.id.empty() || !std::all_of(device.id.begin(), device.id.end(), [](unsigned char c) { return c >= '0' && c <= '9'; }) ||
+        !device_ids.insert(device.id).second || device.runtime.empty() || !std::isfinite(device.memory_gib) || device.memory_gib < 0)
+      throw std::invalid_argument("invalid or duplicate accelerator facts");
     info.accelerators.push_back(std::move(device));
   }
   if (profile.contains("backend_targets")) {
     const auto& targets = profile.at("backend_targets");
+    check_fields(targets, {"mlx", "gguf", "audio", "vllm"});
+    for (const auto& target : targets.items()) {
+      check_fields(target.value(), {"device"});
+      if (!target.value().contains("device") || !target.value()["device"].is_string() || target.value()["device"].get<std::string>().empty())
+        throw std::invalid_argument("backend target requires a device");
+    }
     info.mlx_target = targets.value("mlx", json::object()).value("device", "unsupported");
     info.gguf_target = targets.value("gguf", json::object()).value("device", "cpu");
     info.audio_target = targets.value("audio", json::object()).value("device", "cpu");

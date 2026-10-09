@@ -924,6 +924,8 @@ install(DIRECTORY scripts/ DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/scri
 install(FILES profiles/catalog.yaml
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/profiles)
 install(FILES schemas/profile-v3.schema.json
+              schemas/hardware-v1.schema.json
+              schemas/server-config-v1.schema.json
               schemas/machine-policy-v1.schema.json
               schemas/engine-v1.schema.json
               schemas/model-v1.schema.json

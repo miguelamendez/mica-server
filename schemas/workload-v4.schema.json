@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/miguelamendez/mica-server/schemas/workload-v4.schema.json",
+  "$id": "https://raw.githubusercontent.com/miguelamendez/mica-server/main/schemas/workload-v4.schema.json",
   "title": "Mica workload profile v4",
   "type": "object",
   "additionalProperties": false,
