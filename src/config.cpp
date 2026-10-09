@@ -1,6 +1,7 @@
 #include "mica_server/config.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cctype>
 #include <limits>
 #include <map>
@@ -24,15 +25,16 @@ namespace {
 
 using json = nlohmann::json;
 
-const std::set<std::string> kModalities = {"text", "image", "video", "audio"};
+const std::set<std::string> kModalities = {"text", "image", "video", "audio", "embedding"};
+const std::set<std::string> kInputModalities = {"text", "image", "video", "audio"};
 const std::set<std::string> kOperations = {
-    "text.generate", "chat.generate", "decisions.score", "audio.transcribe",
+    "text.generate", "chat.generate", "embedding.generate", "decisions.score", "audio.transcribe",
     "audio.translate", "audio.diarize", "audio.synthesize_speech",
     "audio.generate", "audio.transform", "image.generate", "image.edit",
     "video.generate", "video.edit"};
 const std::set<std::string> kAbilities = {
     "text_generation", "instruction_following", "tool_calling", "reasoning",
-    "structured_output", "image_understanding", "video_understanding",
+    "structured_output", "embedding_generation", "image_understanding", "video_understanding",
     "audio_understanding", "speech_recognition", "speech_translation",
     "speaker_diarization", "speech_synthesis", "voice_conditioning",
     "general_audio_generation", "music_generation", "audio_transformation",
@@ -62,6 +64,7 @@ std::vector<std::string> checked_values(const json& object, const char* field,
 std::string derived_capability(const json& document) {
   const auto abilities = checked_values(document, "abilities", kAbilities);
   const std::set<std::string> ability_set(abilities.begin(), abilities.end());
+  if (ability_set.contains("embedding_generation")) return "embedding";
   if (ability_set.contains("speech_recognition")) return "asr";
   if (ability_set.contains("speech_synthesis")) return "tts";
   if (ability_set.contains("speaker_diarization")) return "diar";
@@ -547,6 +550,7 @@ void load_engine_manifests(Registry& registry,
       contract.path = endpoint.value("path", std::string());
       const std::map<std::string, std::string> adapters = {
           {"chat.generate", "openai_chat"}, {"text.generate", "mica_completion_adapter"},
+          {"embedding.generate", "openai_embeddings"},
           {"audio.transcribe", "openai_audio_transcriptions"},
           {"audio.synthesize_speech", "openai_audio_speech"},
           {"audio.diarize", "audio_diarization"}};
@@ -555,8 +559,8 @@ void load_engine_manifests(Registry& registry,
         throw std::runtime_error("endpoint has no implemented adapter: " + id + "/" + endpoint_id);
       }
       contract.operation = operation;
-      contract.required_inputs = checked_values(endpoint, "required_inputs", kModalities);
-      contract.optional_inputs = checked_values(endpoint, "optional_inputs", kModalities, false);
+      contract.required_inputs = checked_values(endpoint, "required_inputs", kInputModalities);
+      contract.optional_inputs = checked_values(endpoint, "optional_inputs", kInputModalities, false);
       contract.outputs = checked_values(endpoint, "outputs", kModalities);
       contract.streaming = endpoint.value("streaming", false);
       contract.supports_tools = endpoint.value("supports_tools", false);
@@ -672,7 +676,8 @@ void load_model_manifests(Registry& registry,
           ((fresh.capability == "text" || fresh.capability == "vision") &&
            fresh.gguf_context_tokens < 512) ||
           (fresh.capability != "text" && fresh.capability != "vision" &&
-           fresh.capability != "asr" && fresh.capability != "tts" && fresh.capability != "diar")) {
+           fresh.capability != "asr" && fresh.capability != "tts" && fresh.capability != "diar" &&
+           fresh.capability != "embedding")) {
         throw std::runtime_error("incomplete logical model manifest: " + id);
       }
       registry.models.push_back(std::move(fresh));
@@ -734,7 +739,7 @@ void load_model_manifests(Registry& registry,
     model->gguf_family = document.value("gguf_family", std::string());
     model->gguf_parallel_slots = document.value("gguf_parallel_slots", 1);
     model->input_modalities =
-        document.value("input_modalities", std::vector<std::string>{});
+        checked_values(document, "input_modalities", kInputModalities);
     model->output_modalities =
         document.value("output_modalities", std::vector<std::string>{});
     model->abilities = checked_values(document, "abilities", kAbilities);
@@ -756,6 +761,7 @@ void load_model_manifests(Registry& registry,
       static const std::map<std::string, std::string> required_abilities = {
           {"text.generate", "text_generation"},
           {"chat.generate", "text_generation"},
+          {"embedding.generate", "embedding_generation"},
           {"decisions.score", "text_generation"},
           {"audio.transcribe", "speech_recognition"},
           {"audio.translate", "speech_translation"},
@@ -780,6 +786,7 @@ void load_model_manifests(Registry& registry,
         throw std::runtime_error("audio generation lacks an audio ability: " + id);
       }
       if (interaction.operation != "chat.generate" &&
+          interaction.operation != "embedding.generate" &&
           interaction.operation != "text.generate" &&
           interaction.operation != "audio.transcribe" &&
           interaction.operation != "audio.diarize" &&
@@ -787,8 +794,8 @@ void load_model_manifests(Registry& registry,
         throw std::runtime_error("model operation has no Mica serving route yet: " +
                                  interaction.operation);
       }
-      interaction.required_inputs = checked_values(item, "required_inputs", kModalities);
-      interaction.optional_inputs = checked_values(item, "optional_inputs", kModalities, false);
+      interaction.required_inputs = checked_values(item, "required_inputs", kInputModalities);
+      interaction.optional_inputs = checked_values(item, "optional_inputs", kInputModalities, false);
       interaction.outputs = checked_values(item, "outputs", kModalities);
       const auto is_exact = [](const std::vector<std::string>& values,
                                const std::string& expected) {
@@ -800,13 +807,9 @@ void load_model_manifests(Registry& registry,
            (!is_exact(interaction.outputs, "text") ||
             std::find(interaction.required_inputs.begin(),
                       interaction.required_inputs.end(), "text") ==
-                interaction.required_inputs.end() ||
-            std::find(interaction.required_inputs.begin(),
-                      interaction.required_inputs.end(), "audio") !=
-                interaction.required_inputs.end() ||
-            std::find(interaction.optional_inputs.begin(),
-                      interaction.optional_inputs.end(), "audio") !=
-                interaction.optional_inputs.end())) ||
+                interaction.required_inputs.end())) ||
+          (interaction.operation == "embedding.generate" &&
+           !is_exact(interaction.outputs, "embedding")) ||
           (interaction.operation == "audio.transcribe" &&
            (!is_exact(interaction.required_inputs, "audio") ||
             !is_exact(interaction.outputs, "text"))) ||
@@ -858,7 +861,7 @@ void load_model_manifests(Registry& registry,
         model->startup_priority < 0) {
       throw std::runtime_error("invalid logical model manifest: " + id);
     }
-    const std::set<std::string> known_modalities = {"text", "image", "video", "audio"};
+    const std::set<std::string> known_modalities = {"text", "image", "video", "audio", "embedding"};
     for (const auto& modalities : {model->input_modalities, model->output_modalities}) {
       if (modalities.empty()) {
         throw std::runtime_error("model manifest lacks input/output modalities: " + id);
@@ -913,7 +916,7 @@ void load_model_manifests(Registry& registry,
       reject_unknown_fields(variant,
           {"id", "compatible_engines", "format", "quantization_type",
            "repository", "revision", "reservation_gib", "required_compatibility",
-           "minimum_engine_commit", "kv_bytes_per_token_f16", "gguf_block_count", "image_min_tokens", "image_max_tokens", "load_path", "files"}, "model artifact");
+           "minimum_engine_commit", "kv_bytes_per_token_f16", "memory_estimate", "gguf_block_count", "image_min_tokens", "image_max_tokens", "load_path", "files"}, "model artifact");
       const auto compatible_engines =
           variant.at("compatible_engines").get<std::vector<std::string>>();
       if (compatible_engines.empty()) {
@@ -941,6 +944,36 @@ void load_model_manifests(Registry& registry,
       artifact.format = format;
       artifact.quantization_type = variant.at("quantization_type").get<std::string>();
       artifact.reservation_gib = variant.at("reservation_gib").get<double>();
+      if (variant.contains("memory_estimate")) {
+        artifact.memory_estimate = variant.at("memory_estimate");
+        const auto& estimate = artifact.memory_estimate;
+        reject_unknown_fields(estimate, {"basis", "kv_status", "kv_groups", "fixed_state_mb", "runtime_overhead_mb", "notes", "checkpoints"}, "artifact memory estimate");
+        const auto status = estimate.value("kv_status", std::string("unknown"));
+        if (status != "verified" && status != "unknown" && status != "not-applicable")
+          throw std::runtime_error("invalid KV estimate status: " + id);
+        for (const auto field : {"fixed_state_mb", "runtime_overhead_mb"}) {
+          const double amount = estimate.value(field, 0.0);
+          if (!std::isfinite(amount) || amount < 0) throw std::runtime_error("invalid memory estimate: " + id);
+        }
+        if (estimate.contains("kv_groups")) for (const auto& group : estimate.at("kv_groups")) {
+          reject_unknown_fields(group, {"component_role", "layers", "key_width", "value_width", "capacity_tokens", "sliding_window_tokens", "key_precision", "value_precision"}, "KV group");
+          for (const auto field : {"layers", "key_width", "value_width"}) {
+            if (!group.at(field).is_number_integer() || group.at(field).get<long long>() < 0 || group.at(field).get<long long>() > 1048576)
+              throw std::runtime_error("invalid KV group dimension: " + id);
+          }
+          if (group.value("capacity_tokens", 0) < 0) throw std::runtime_error("invalid KV capacity: " + id);
+          if (group.contains("sliding_window_tokens") &&
+              (!group.at("sliding_window_tokens").is_number_integer() ||
+               group.at("sliding_window_tokens").get<long long>() <= 0 ||
+               group.at("sliding_window_tokens").get<long long>() > 1048576))
+            throw std::runtime_error("invalid sliding KV window: " + id);
+          for (const auto field : {"key_precision", "value_precision"}) if (group.contains(field)) {
+            const auto precision = group.at(field).get<std::string>();
+            if (precision != "q4" && precision != "q8" && precision != "f16" && precision != "bf16")
+              throw std::runtime_error("invalid KV precision: " + id);
+          }
+        }
+      }
       artifact.kv_bytes_per_token_f16 = variant.value("kv_bytes_per_token_f16",
           (model->capability == "text" || model->capability == "vision") ? 65536ULL : 0ULL);
       if (variant.contains("gguf_block_count") &&
@@ -1023,7 +1056,7 @@ void load_model_manifests(Registry& registry,
       std::set<std::string> roles;
       for (const auto& entry : variant.at("files")) {
         reject_unknown_fields(entry,
-            {"role", "path", "repository_path", "source", "size_bytes", "sha256"},
+            {"role", "path", "repository_path", "source", "size_bytes", "estimated_memory_mb", "sha256"},
             "model artifact file");
         Artifact::File file;
         file.role = entry.at("role").get<std::string>();
@@ -1042,6 +1075,9 @@ void load_model_manifests(Registry& registry,
           file.revision = source.at("revision").get<std::string>();
         }
         file.size_bytes = entry.at("size_bytes").get<std::uint64_t>();
+        file.estimated_memory_mb = entry.value("estimated_memory_mb", -1.0);
+        if (entry.contains("estimated_memory_mb") && (!std::isfinite(file.estimated_memory_mb) || file.estimated_memory_mb < 0))
+          throw std::runtime_error("invalid component memory estimate: " + id);
         file.sha256 = entry.value("sha256", std::string());
         static const std::set<std::string> allowed_roles = {
             "model", "vision-projector", "mtp-drafter", "dflash-drafter",

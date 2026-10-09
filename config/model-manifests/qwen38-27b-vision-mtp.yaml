@@ -43,6 +43,61 @@ artifacts:
     repository: ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF
     revision: d562806dbafae37109975e970aae91b43e73b440
     reservation_gib: 13.1
+    memory_estimate:
+      basis: cached-GGUF-metadata-and-engine-layout
+      kv_status: verified
+      kv_groups:
+      - layers: 16
+        key_width: 1024
+        value_width: 1024
+      - layers: 1
+        key_width: 1024
+        value_width: 1024
+        component_role: mtp-drafter
+      fixed_state_mb: 156.893184
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 160.432128
+          q4_k_q8_v: 231.735296
+          q8_k_q4_v: 231.735296
+          q8_k_q8_v: 303.038464
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 320.864256
+          q4_k_q8_v: 463.470592
+          q8_k_q4_v: 463.470592
+          q8_k_q8_v: 606.076928
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 641.728512
+          q4_k_q8_v: 926.941184
+          q8_k_q4_v: 926.941184
+          q8_k_q8_v: 1212.153856
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 1363.673088
+          q4_k_q8_v: 1969.750016
+          q8_k_q4_v: 1969.750016
+          q8_k_q8_v: 2575.826944
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 2566.914048
+          q4_k_q8_v: 3707.764736
+          q8_k_q4_v: 3707.764736
+          q8_k_q8_v: 4848.615424
+        layout_verified: true
     kv_bytes_per_token_f16: 69632
     gguf_block_count: 64
     image_min_tokens: 1024
@@ -53,14 +108,17 @@ artifacts:
       - role: model
         path: Qwen3.8-27B-GSQ-RCO-IQ3_XXS.gguf
         size_bytes: 10094357632
+        estimated_memory_mb: 10094.357632
         sha256: fdfcb6a29b11188956dfbfd904223588a6c1b77eb250c3e8a36e1bd269df91f7
       - role: vision-projector
         path: mmproj-Qwen3.8-27B-BF16.gguf
         size_bytes: 931146528
+        estimated_memory_mb: 931.146528
         sha256: 13cb7bebccbd04afc8f4090cb949ecf8937cdf7377c5799b1a0c594e7c0d3e16
       - role: mtp-drafter
         path: mtp-Qwen3.8-27B-Q4_0.gguf
         repository_path: MTP/mtp-Qwen3.8-27B-Q4_0.gguf
         source: {repository: unsloth/Qwen3.8-27B-GGUF, revision: 4ca720788d1e01f1bff70c033e0d0028fd02e502, license: apache-2.0}
         size_bytes: 1369590656
+        estimated_memory_mb: 1369.590656
         sha256: 50d9ce5a6da381bbcfb31061cf73df94a90e6faf8efeddee379a9cb8f1501c6e

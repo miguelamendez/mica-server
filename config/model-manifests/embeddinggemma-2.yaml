@@ -1,0 +1,98 @@
+schema: 2
+id: embeddinggemma-2
+description: Google's multimodal retrieval model. Text, images, sampled video and audio produce normalized 768-dimensional
+  embeddings, not generated chat replies. Use retrieval task prefixes for text.
+source_repository: google/embeddinggemma-2
+license: apache-2.0
+input_modalities:
+- text
+- image
+- video
+- audio
+output_modalities:
+- embedding
+abilities:
+- embedding_generation
+- image_understanding
+- video_understanding
+- audio_understanding
+supported_interactions:
+- operation: embedding.generate
+  required_inputs:
+  - text
+  optional_inputs:
+  - image
+  - video
+  - audio
+  outputs:
+  - embedding
+native_context_tokens: 8192
+recommended_context_tokens: 8192
+max_output_tokens: null
+thinking_modes: []
+tags:
+- embedding
+- retrieval
+- multimodal
+- researcher
+references:
+- kind: model-card
+  title: EmbeddingGemma 2 model card
+  url: https://huggingface.co/google/embeddinggemma-2
+  description: 8192 shared input tokens; 768 output dimensions. BF16 or F32 activations only, never FP16. Supports
+    text, image, audio and video. Text task prefixes and normalization matter for retrieval.
+- kind: code
+  title: Native llama.cpp multimodal embedding support
+  url: https://github.com/ggml-org/llama.cpp/commit/4fbc76dec51d0add466f0210855c0596589b60d4
+- kind: model-card
+  title: Official ggml-org GGUF conversion
+  url: https://huggingface.co/ggml-org/embeddinggemma-2-GGUF
+artifacts:
+- id: q8
+  compatible_engines:
+  - llama-cpp
+  format: gguf
+  quantization_type: Q8_0
+  repository: ggml-org/embeddinggemma-2-GGUF
+  revision: bfcd298762cc34d0357ece5ebdd31791a3a374d8
+  minimum_engine_commit: 4fbc76dec51d0add466f0210855c0596589b60d4
+  reservation_gib: 2.5
+  kv_bytes_per_token_f16: 0
+  gguf_block_count: 24
+  memory_estimate:
+    basis: publisher-and-native-noncausal-implementation
+    kv_status: not-applicable
+    kv_groups: []
+    notes:
+    - Bidirectional embedding inference has no persistent autoregressive KV cache. Input-dependent attention, projector
+      and batching workspace still consume memory; 2.5 GiB is provisional, not an 8192-token measured peak.
+    - The main GGUF is the text backbone; its matching projector contains the image and audio encoders. Do not treat
+      270M as the full multimodal model size.
+    checkpoints:
+    - total_tokens: 8192
+      supported: true
+      kv_mb:
+        q4_k_q4_v: 0.0
+        q4_k_q8_v: 0.0
+        q8_k_q4_v: 0.0
+        q8_k_q8_v: 0.0
+      layout_verified: true
+    - total_tokens: 16384
+      supported: false
+    - total_tokens: 32768
+      supported: false
+    - total_tokens: 69632
+      supported: false
+    - total_tokens: 131072
+      supported: false
+  files:
+  - role: model
+    path: embeddinggemma-2-Q8_0.gguf
+    size_bytes: 309855456
+    estimated_memory_mb: 309.855456
+    sha256: 2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135
+  - role: vision-projector
+    path: mmproj-embeddinggemma-2-Q8_0.gguf
+    size_bytes: 554821024
+    estimated_memory_mb: 554.821024
+    sha256: c4a8a52691ecef40618438928bdf9e68379b854e24166f292592353db0aab64f

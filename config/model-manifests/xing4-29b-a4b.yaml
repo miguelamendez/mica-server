@@ -32,10 +32,60 @@ artifacts:
     repository: XingChen-AGI/Xing4.0-29B-A4B-GGUF
     revision: b8cd0a75f3d3dfa992bd8423ee22041b987eaf44
     reservation_gib: 19.0
+    memory_estimate:
+      basis: artifact-size-and-legacy-reservation-only
+      kv_status: unknown
+      kv_groups: []
+      fixed_state_mb: 0
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - Attention metadata not verified; no fabricated cache geometry.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 150.994944
+          q4_k_q8_v: 218.103808
+          q8_k_q4_v: 218.103808
+          q8_k_q8_v: 285.212672
+        layout_verified: false
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 301.989888
+          q4_k_q8_v: 436.207616
+          q8_k_q4_v: 436.207616
+          q8_k_q8_v: 570.425344
+        layout_verified: false
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 603.979776
+          q4_k_q8_v: 872.415232
+          q8_k_q4_v: 872.415232
+          q8_k_q8_v: 1140.850688
+        layout_verified: false
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 1283.457024
+          q4_k_q8_v: 1853.882368
+          q8_k_q4_v: 1853.882368
+          q8_k_q8_v: 2424.307712
+        layout_verified: false
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 2415.919104
+          q4_k_q8_v: 3489.660928
+          q8_k_q4_v: 3489.660928
+          q8_k_q8_v: 4563.402752
+        layout_verified: false
     required_compatibility: [text-generation, xing4-architecture]
     minimum_engine_commit: 63c16fb9797d00f13d70b5a618b4deb08953aef3
     files:
       - role: model
         path: xing4_0-29b-IQ4_NL.gguf
         size_bytes: 20104012544
+        estimated_memory_mb: 20104.012544
         sha256: 9c9c81cf83b6ce974d3440088318de83b727c0064124ca6c3c919289adadb4dd

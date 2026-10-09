@@ -1,5 +1,6 @@
 schema: 5
 id: qwen38-gsq-bonsai-comparison
+catalog_visible: false
 description: Single-worker Apple Silicon comparison of Qwen3.8 GSQ-RCO IQ3_XXS and cached Bonsai PQ2_0, using identical context and Q8 KV-cache limits; not a production coding default.
 selection:
   engine_policy: explicit-only

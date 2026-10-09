@@ -75,6 +75,27 @@ int main() {
                    "text_generation") != spark.abilities.end());
   assert(!spark.supported_interactions.empty());
   assert(spark.supported_interactions.front().operation == "chat.generate");
+  {
+    const auto& researcher = registry.profile("local-researcher-gguf");
+    assert(researcher.residency_strategy == "sequential");
+    assert(researcher.maximum_resident_workers == 1);
+    assert(mica::select_profile_model(registry, researcher, "embeddings", {"text"}, "") == "embeddinggemma-2");
+    assert(mica::select_profile_model(registry, researcher, "embeddings", {"text", "image"}, "") == "embeddinggemma-2");
+    assert(mica::select_profile_model(registry, researcher, "chat", {"text", "audio"}, "gemma4-12b") == "gemma4-12b");
+    bool rejected = false;
+    try { (void)mica::select_profile_model(registry, researcher, "chat", {"text"}, "embeddinggemma-2"); }
+    catch (const std::invalid_argument&) { rejected = true; }
+    assert(rejected);
+    auto document = mica::profile_to_document(researcher);
+    auto working = registry;
+    auto roundtrip = mica::profile_from_document(working, document);
+    assert(roundtrip.default_models.at("embeddings") == "embeddinggemma-2");
+    document["models"][1]["context"] = {{"max_input_tokens", 8193}, {"max_output_tokens", 0}, {"max_total_tokens", 8193}};
+    rejected = false;
+    try { (void)mica::profile_from_document(working, document); }
+    catch (const std::invalid_argument&) { rejected = true; }
+    assert(rejected);
+  }
   const auto& qwen_vision = registry.model("qwen35-9b");
   assert(qwen_vision.gguf_context_tokens == 262144);
   assert(qwen_vision.artifact_for(mica::Backend::gguf, mica::Quantization::q4,
@@ -628,11 +649,46 @@ int main() {
     const auto document = mica::read_profile_file(
         config.parent_path() / "profiles/catalog.yaml");
     const auto& profiles = document.at("profiles");
-    const auto gptq = std::find_if(profiles.begin(), profiles.end(), [](const auto& item) {
-      return item.value("id", "") == "mica-assistant-gptq";
-    });
-    assert(gptq != profiles.end());
-    assert(!gptq->value("available", true));
+    const std::set<std::string> expected = {"mac_assistant", "mac_coder", "mac_meetings",
+        "mac_visual_extraction", "gpu_16g_assistant", "gpu_16g_coder",
+        "gpu_16g_meetings", "gpu_16g_visual_extraction"};
+    std::set<std::string> visible;
+    for (const auto& [id, profile] : registry.profiles)
+      if (profile.catalog_visible) visible.insert(id);
+    auto local_expected = expected;
+    local_expected.insert("local-researcher-gguf");
+    assert(visible == local_expected);
+    assert(profiles.size() == expected.size());
+    for (auto item : profiles) {
+      const auto id = item.at("id").get<std::string>();
+      assert(expected.contains(id));
+      item.erase("available");
+      auto working = registry;
+      const auto parsed = mica::profile_from_document(working, item);
+      assert(mica::profile_to_document(parsed) ==
+             mica::profile_to_document(registry.profile(id)));
+    }
+    const auto& coder = registry.profile("gpu_16g_coder");
+    assert(coder.maximum_resident_workers == 1);
+    assert(coder.default_chat_model == "qwen38-27b-text-dflash");
+    assert(coder.policy_for("qwen38-27b-text-dflash")->speculative_method == "dflash");
+    assert(coder.policy_for("qwen38-27b-vision-mtp")->speculative_method == "mtp");
+    assert(!registry.profile("mac_coder").policy_for("qwen38-27b-text-dflash"));
+    const auto& visual = registry.profile("mac_visual_extraction");
+    assert(visual.model_policies.size() == 3);
+    assert(visual.policy_for("minicpm-v46-thinking"));
+    assert(visual.policy_for("qwen35-4b"));
+    assert(visual.policy_for("qwen35-9b"));
+    for (const auto& id : {"mac_meetings", "gpu_16g_meetings"}) {
+      const auto& meeting = registry.profile(id);
+      assert(meeting.policy_for("granite-speech-5"));
+      assert(meeting.policy_for("nemotron-3-diarization"));
+      assert(meeting.policy_for("spark-x25-4b"));
+      assert(!meeting.policy_for("audio8-tts-06b"));
+    }
+    const auto& gpu_visual = registry.profile("gpu_16g_visual_extraction");
+    assert(gpu_visual.default_models.at("image") == "qwen38-27b-vision-mtp");
+    assert(gpu_visual.default_models.at("video") == "qwen35-9b");
   }
   const auto schema3_startup = mica::plan_profile_startup(
       registry, gguf_interactive, mica::Backend::gguf,
@@ -727,8 +783,9 @@ int main() {
     const auto video_only = mica::registry_catalog(
         registry, std::nullopt, std::nullopt, false, std::nullopt,
         std::string("video-text-to-text"));
-    assert(video_only.at("data").size() == 3);
-    assert(video_only.at("data").at(0).at("id") == "minicpm-v46-thinking");
+    assert(video_only.at("data").size() == 4);
+    assert(std::any_of(video_only.at("data").begin(), video_only.at("data").end(),
+                      [](const auto& item) { return item.value("id", "") == "minicpm-v46-thinking"; }));
     assert(std::any_of(video_only.at("data").begin(), video_only.at("data").end(),
                       [](const auto& item) { return item.value("id", "") == "qwen35-4b"; }));
   }
@@ -840,7 +897,9 @@ int main() {
     assert(automatic.model_policies.front().engine == "mlx-audio-diarization");
     const auto binary = test_root / "runtimes/audio.cpp/build-mica/bin/audiocpp_server";
     std::filesystem::create_directories(binary.parent_path());
-    std::ofstream(binary).close();
+    std::ofstream(binary) << "#!/bin/sh\nexit 0\n";
+    std::filesystem::permissions(binary, std::filesystem::perms::owner_exec,
+                                 std::filesystem::perm_options::add);
     mica::resolve_profile_engines(copy, automatic, metal_fixture, test_root);
     assert(automatic.model_policies.front().engine == "audio-cpp");
     automatic.engine_policy = "manifest-order";
@@ -976,7 +1035,7 @@ int main() {
         15.5, 0.0, cuda_fixture);
     assert(!plan.error);
     assert(plan.admitted.size() == 3);
-    assert(plan.reserved_ram_gib > 7.58 && plan.reserved_ram_gib < 7.59);
+    assert(plan.reserved_ram_gib > 7.92 && plan.reserved_ram_gib < 7.93);
     assert(plan.reserved_vram_gib == 0.0);
   }
   {
@@ -986,7 +1045,7 @@ int main() {
     assert(!plan.error);
     assert(plan.admitted.size() == 3);
     assert(plan.reserved_ram_gib == 1.5);
-    assert(plan.reserved_vram_gib > 7.58 && plan.reserved_vram_gib < 7.59);
+    assert(plan.reserved_vram_gib > 7.92 && plan.reserved_vram_gib < 7.93);
   }
   {
     const auto plan = mica::plan_profile_startup_resources(
@@ -994,8 +1053,8 @@ int main() {
         7.5, 11.5, cuda_fixture);
     assert(!plan.error);
     assert(plan.admitted.size() == 3);
-    assert(plan.reserved_ram_gib > 2.99 && plan.reserved_ram_gib < 3.01);
-    assert(plan.reserved_vram_gib > 5.08 && plan.reserved_vram_gib < 5.09);
+    assert(plan.reserved_ram_gib > 3.02 && plan.reserved_ram_gib < 3.03);
+    assert(plan.reserved_vram_gib > 5.39 && plan.reserved_vram_gib < 5.40);
   }
   {
     const std::map<std::string, double> limits{{"cuda:0", 12.0},
@@ -1048,7 +1107,7 @@ int main() {
     assert(cuda.device == "cuda:0");
     assert(!cuda.unified_memory);
     assert(cuda.ram_reservation_gib == 0.5);
-    assert(cuda.vram_reservation_gib > 5.08 && cuda.vram_reservation_gib < 5.09);
+    assert(cuda.vram_reservation_gib > 5.39 && cuda.vram_reservation_gib < 5.40);
     const auto rocm = mica::resolve_model_placement(policy, artifact,
                                                      rocm_fixture);
     assert(rocm.device == "hip:0");
@@ -1074,7 +1133,7 @@ int main() {
     assert(metal.device == "metal:0");
     assert(metal.unified_memory);
     assert(metal.vram_reservation_gib == 0.0);
-    assert(metal.ram_reservation_gib > 5.08 && metal.ram_reservation_gib < 5.09);
+    assert(metal.ram_reservation_gib > 5.39 && metal.ram_reservation_gib < 5.40);
     assert(metal.gpu_layers == 99);
     auto batched = policy;
     batched.max_concurrent_requests = 4;

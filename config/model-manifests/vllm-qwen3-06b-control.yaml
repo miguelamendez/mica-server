@@ -34,6 +34,47 @@ artifacts:
     repository: mlx-community/Qwen3-0.6B-4bit
     revision: 73e3e38d981303bc594367cd910ea6eb48349da8
     reservation_gib: 1.5
+    memory_estimate:
+      basis: artifact-size-and-legacy-reservation-only
+      kv_status: unknown
+      kv_groups: []
+      fixed_state_mb: 0
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - Attention metadata not verified; no fabricated cache geometry.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 150.994944
+          q4_k_q8_v: 218.103808
+          q8_k_q4_v: 218.103808
+          q8_k_q8_v: 285.212672
+        layout_verified: false
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 301.989888
+          q4_k_q8_v: 436.207616
+          q8_k_q4_v: 436.207616
+          q8_k_q8_v: 570.425344
+        layout_verified: false
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 603.979776
+          q4_k_q8_v: 872.415232
+          q8_k_q4_v: 872.415232
+          q8_k_q8_v: 1140.850688
+        layout_verified: false
+      - total_tokens: 69632
+        supported: false
+        kv_mb: {}
+        layout_verified: false
+      - total_tokens: 131072
+        supported: false
+        kv_mb: {}
+        layout_verified: false
     required_compatibility: [text-generation]
     files:
-      - {role: model, path: q4, repository_path: q4, size_bytes: 351388974}
+      - {role: model, path: q4, repository_path: q4, size_bytes: 351388974, estimated_memory_mb: 351.388974}

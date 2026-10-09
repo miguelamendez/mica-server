@@ -6,18 +6,21 @@ mica.settings {
 
 mica.profile {
   name = "all",
+  catalog_visible = false,
   quantization = "q4",
   models = {"spark-x25-4b", "granite-speech-5", "audio8-tts-06b", "minicpm-v46-thinking"},
 }
 
 mica.profile {
   name = "core",
+  catalog_visible = false,
   quantization = "q4",
   models = {"spark-x25-4b", "granite-speech-5"},
 }
 
 mica.profile {
   name = "quality",
+  catalog_visible = false,
   quantization = "q8",
   models = {"spark-x25-4b", "granite-speech-5", "audio8-tts-06b", "minicpm-v46-thinking"},
 }
@@ -28,6 +31,7 @@ mica.profile {
 -- continue to use `all`; these profiles isolate text context and batching.
 mica.profile {
   name = "mlx-small",
+  catalog_visible = false,
   backend = "mlx",
   quantization = "q4",
   models = {"spark-x25-4b"},
@@ -40,6 +44,7 @@ mica.profile {
 
 mica.profile {
   name = "mlx-medium",
+  catalog_visible = false,
   backend = "mlx",
   quantization = "q4",
   models = {"spark-x25-4b"},
@@ -52,6 +57,7 @@ mica.profile {
 
 mica.profile {
   name = "mlx-long",
+  catalog_visible = false,
   backend = "mlx",
   quantization = "q4",
   models = {"spark-x25-4b"},
@@ -64,6 +70,7 @@ mica.profile {
 
 mica.profile {
   name = "gguf-small",
+  catalog_visible = false,
   backend = "gguf",
   quantization = "q4",
   models = {"spark-x25-4b"},
@@ -76,6 +83,7 @@ mica.profile {
 
 mica.profile {
   name = "gguf-medium",
+  catalog_visible = false,
   backend = "gguf",
   quantization = "q4",
   models = {"spark-x25-4b"},
@@ -88,6 +96,7 @@ mica.profile {
 
 mica.profile {
   name = "gguf-long",
+  catalog_visible = false,
   backend = "gguf",
   quantization = "q4",
   models = {"spark-x25-4b"},

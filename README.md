@@ -4,274 +4,133 @@
 
 # Mica Server
 
+Mica is a small local AI server, proxy, and memory-aware model load balancer.
+Choose a **workload**—the collection of models you need for a task—and Mica
+resolves compatible engines, installs dependencies, downloads artifacts, and
+loads or swaps models behind one authenticated API.
+
+Switch between an assistant, coding, transcription, or visual-analysis workload
+without deleting cached models. Compatible model workers are retained during
+hot-swaps; only workers whose configuration changes need to reload.
+
 > [!WARNING]
-> **Active deslopification and ongoing testing.** I am actively simplifying
-> Mica, removing experimental clutter, and validating it across models and
-> hardware. Be mindful that profiles, engine integrations, and APIs may change
-> before the first stable release. Do not expose this prototype directly to an
-> untrusted network.
+> **Alpha: active deslopification and ongoing tests.** Engine integrations,
+> configuration, and APIs may change. Hardware compatibility is not inference
+> certification, and memory reservations are estimates, not a universal hard
+> RSS/VRAM cap. Do not expose Mica directly to an untrusted network.
 
-Mica is a small local AI model server: an OpenAI-compatible proxy, model loader,
-and memory-aware load balancer for multiple inference engines. It makes a team
-of specialized models practical on consumer hardware without keeping every
-model resident at once.
+## Start with the terminal interface
 
-A workload profile defines a collection of models, optional artifact and
-engine pins, context/KV-cache policy, memory requirements, warmup
-priority, and eviction behavior. Mica combines it with a generated system
-profile, the engine registry, and the model/artifact registry. Switch from an
-assistant profile to a coding profile without reinstalling Mica or deleting
-cached artifacts.
+After [installing Mica](docs/getting-started.md), run:
 
-Use `mica-server tui` to inspect the machine, engines, models, workloads,
-server status and endpoints. Or use `workload list`, `workload install ID`,
-`start --workload ID`, `status`, `workload activate ID`, and `stop`. The native
-C++/Lua interface confirms changes and hides API keys. See the
-[run and configuration guide](docs/getting-started.md#run-the-server).
+```sh
+mica-server tui
+```
 
-The included local chat client supports text, voice, images, video, PDFs,
-streaming ASR/TTS, safe Markdown, voice references, custom system prompts,
-themes and branding, session history, and ZIP import/export.
-
-## Why Mica
-
-- One authenticated URL for text, ASR, TTS, vision, and agent routes.
-- MLX on Apple Silicon; GGUF through native runtimes on macOS/Linux/WSL2.
-- Hardware-aware setup for Apple, NVIDIA, AMD, Intel, CPU, and TPU paths.
-- Deterministic RAM admission, warmup, lazy loading, idle eviction, and model
-  swapping.
-- Workloads define which models run, optionally pin engines and quantization,
-  their memory/context limits, and when Mica loads or unloads them.
-- Q4/Q8 model variants with provenance, sizes, memory reservations, and model
-  cards in a filterable registry.
-- Native C++20 control plane and embedded Lua policy. GGUF-only serving does
-  not create a Python environment; MLX/vLLM engines, the optional browser
-  playground, and offline development tools use Python where appropriate.
-
-## Current model set
-
-| Model | Capability | MLX | GGUF | vLLM |
-| --- | --- | --- | --- | --- |
-| Spark-X2.5-4B | Text generation | Q4, Q8 | Q4_K_M, Q8_0 | Not certified |
-| Granite Speech 5.0 470M TurboCTC | ASR | Q4, Q8 | Q4_K, Q8_0 | Not certified |
-| Audio8 TTS Preview 0.6B | TTS and voice cloning | Q4, Q8 | Q4_0, Q8_0 | Future adapter |
-| MiniCPM-V 4.6 Thinking | Image/video to text | Q4, Q8 | Q4_K_M, Q8_0 | Not certified |
-| Ternary Bonsai 2 27B | Image/text to text | — | PQ2_0 via Prism fork | — |
-| Ling 3.0 Tiny | Text reasoning/coding | Community Q4 needs `rapid-mlx` (not installed by Mica) | Publisher Q4_K_M, Q8_0; inference certification pending | Not certified |
-
-The public models use permissive commercial-use licenses. Bonsai is an
-experimental engine-extension candidate rather than part of the default
-four-model assistant. Internal route fixtures are not presented as supported
-models. Provenance, context/training limits, protected quantization layers, and
-quality evidence live in the [model cards](docs/model-cards/).
-
-For measured weight, KV-cache and component memory rather than disk-size
-guesses, see [Model memory profiling](docs/model-memory-profiling.md).
-
-## Profiling architecture
-
-Profiling and resolution are the core of Mica. Four separate layers answer four
-different questions:
-
-| Layer | Question |
+| View | What you can do |
 | --- | --- |
-| Machine facts and policy | What hardware exists, and what fraction may Mica use? Detected facts and user limits are separate files. |
-| Engine manifest | How can a concrete runtime be installed, built, verified, and launched on supported hardware? |
-| Model manifest and artifacts | What can this logical model do, and which immutable weight bundles and engines can run it? |
-| Workload profile | Which models should this task use, with what context, batching, placement, priority, and residency? |
+| **Server** | See status, active/default workload, loaded model names and stored data. Choose a workload to start or hot-swap; stop the server. Inspect hardware and resource limits in **Machine**. |
+| **Workloads** | Browse curated collections, check compatibility and installation, install/start/swap, edit or clone YAML, and open their models. |
+| **Models** | Filter LLM, VLM, ASR, TTS, embeddings and other categories. Inspect modalities, abilities, context, quantizations, cache status, projectors/drafters, and supported engines. |
+| **Engines** | Inspect compatible runtimes, installed files, build recipes, and endpoint contracts. |
+| **Endpoints** | Read the registered API routes, descriptions, authentication requirements and example calls. |
+| **Settings** | Set address, port, default workload, RAM/VRAM allocations and a private API-key file, or rotate the key. |
 
-Artifacts are verified bundles rather than assumed single files. A vision GGUF
-artifact can include primary weights plus an `mmproj`; an artifact may also
-include a tokenizer, processor, codec, MTP drafter, or DFlash drafter. A
-component may come from a different pinned repository than the primary
-weights. The target resolver treats the bundle as usable only after every
-required file passes its declared revision, size, and checksum checks. MLX
-directory artifacts currently pin a repository revision but do not have
-per-file checksums.
+Use **1–6** to select a view, **Tab** to switch focus, **↑/↓** to select,
+**Enter** to explore, and **Esc** to go back. **g** cycles model categories;
+**u** reveals hardware-incompatible entries. Changes require confirmation.
+Closing the TUI leaves the server running.
 
-The workload profile is the root composition:
+The normal lists show hardware-compatible entries. Hidden legacy examples do
+not crowd the workload list; your active/default workload and locally installed
+YAML definitions remain accessible. Cached, installed, compatible and
+memory-eligible are separate states. See the [TUI guide](docs/tui.md).
 
-```text
-hardware discovery ──► state/hardware.yaml (machine facts)
-                            │
-config/machine.yaml ────────┼──► global RAM/VRAM allocation
- (user limits)              │              │
-                            ▼              ▼
-engine manifests ──────► workload profile ◄── model + artifact manifests
- (install/launch)      (requirements, selected engines/artifacts,
-                        context, priority, residency, placement)
-                            │
-                            ▼
-                    authenticated Mica proxy
-                   (admit · warm · route · evict)
-                            │
-                            ▼
-                   resident engine workers
-
-Workload A ── activate Workload B: retain matching workers; drain and unload
-only incompatible workers; warm Workload B's missing startup workers.
-```
-
-Engine manifests own typed installation recipes and hardware-specific options;
-the system profile selects compatible platform and accelerator features. An
-engine manifest never owns model weights, and a downloaded profile cannot
-inject arbitrary shell commands.
-
-The current alpha writes YAML machine facts and user policy, loads packaged
-YAML engine and model manifests, and accepts self-contained schema-5 YAML workload
-profiles. The
-[`mica-coder-bonsai-macos`](config/workloads/mica-coder-bonsai-macos.yaml)
-profile demonstrates the complete chain. A small set of older Lua acceptance
-profiles remains for test reproduction; speculative-drafter launching and strict
-observed-memory enforcement remain open. See [Machine, engine, model, and workload
-profiles](docs/engines-and-profiles.md) for the contract and current status.
-Machine policy has a separate user-owned YAML file. Workload RAM/VRAM values are
-requirements checked against that global allocation, not another ceiling.
-The [four-layer contract](docs/design/configuration-contract.md) describes
-the resolver. Reservations are admission estimates, not strict OS memory
-enforcement.
-The [Apple M4 validation record](docs/validation/bonsai-macos-metal.md) covers
-real Bonsai, Spark, and MiniCPM inference plus the profile's swap cycle.
-
-## Runtime architecture
+## How configuration fits together
 
 ```text
-OpenAI client / Mica chat
-          │
-          ▼
-  mica-server :8080
-  auth · routing · profiles
-  warmup · admission · eviction
-          │
-          ▼
- profile-selected engine workers
-  ├─ MLX: mlx-lm / mlx-vlm / mlx-audio
-  ├─ native: llama.cpp / Prism llama.cpp / audio.cpp
-  └─ vLLM: hardware-specific runtime (certification in progress)
+Discover hardware ───► state/hardware.yaml
+                              │
+User allocations ────► config/machine.yaml
+                              │
+                              ▼
+Engine manifests ───► compatible install/build/launch recipes
+                              │
+Model manifests ────► modalities, abilities, context + artifact bundles
+                              │
+Workload YAML ──────► model selections + optional engine/artifact pins
+                      context, KV cache, placement and residency
+                              │
+                              ▼
+                       Mica server
+                  admit · load · route · swap
+                              │
+                              ▼
+                    resident engine workers
 ```
 
-One profile may use several engines simultaneously. Each model resolves to one
-compatible engine and artifact; explicit pins are optional for known models.
-Engines, environments, models,
-caches, state, logs, and secrets live under `~/.mica` by default. `MICA_HOME`
-changes that home, and `--root PATH` is the highest-priority override.
+Models declare the engines and artifacts that can run them. Workloads can pin
+a particular choice or let Mica select an installed compatible engine, then
+fall back to the model's manifest order. Projectors, codecs and drafters belong
+to artifact bundles; runtime/context/residency choices belong to workloads.
+Machine policy is the global allocation. A workload's memory requirement must
+fit it; its optional memory limit cannot exceed it.
 
-## Install
+The same workload can use `all`, `sequential`, or `balanced` residency when its
+budget and model policies permit. Inspect estimates before loading: component
+sizes and KV-cache estimates are not measurements of peak process memory.
+[Configuration contract](docs/design/configuration-contract.md) ·
+[Workload design](docs/profiles.md) · [Memory planning](docs/memory-estimation.md)
 
-Tagged releases provide static-Lua binaries and SHA-256 files for macOS ARM64,
-Linux x86-64, and Linux ARM64:
-
-- [Download GitHub Releases](https://github.com/miguelamendez/mica-server/releases)
-- [Release and source-install instructions](docs/getting-started.md)
-
-The tested Apple Silicon release binary is about 2.2 MiB; its compressed package
-is under 1 MiB. Engines are installed for the selected profile; its model
-artifacts are downloaded on the first server start.
-
-Source build:
+## Terminal commands and chat
 
 ```sh
-brew install cmake lua uv git curl libomp
-git clone https://github.com/miguelamendez/mica-server.git
-cd mica-server
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel 2
-ctest --test-dir build --output-on-failure -j2
+mica-server workload list
+mica-server workload install WORKLOAD_ID --ram-gib 16
+mica-server start --workload WORKLOAD_ID
+mica-server status
+mica-server workload activate OTHER_PREPARED_WORKLOAD_ID
+mica-server endpoints
+mica-server stop
 ```
 
-The two-job build setting limits compiler concurrency, not peak memory use.
-Review available RAM before building native runtimes; Mica's build-memory
-budget is not an OS-enforced cap.
+Use IDs shown in the TUI or workload list. Installs prepare engines and models;
+activation requires a prepared workload and does not install missing engines
+inside a running server. Configure `--host 0.0.0.0` for a trusted LAN; localhost
+is the default. API keys stay hidden in the TUI.
 
-## Quick start on Apple Silicon
+The included [browser chat](docs/getting-started.md#run-the-server) supports
+streamed replies, media attachments, voice when the workload supports it,
+workload selection, settings, and session import/export. It is a client of Mica,
+not a required part of the server.
 
-For the 16-GiB Bonsai + Spark + MiniCPM coding profile, see
-[Profiles](docs/profiles.md#recommended-assistant-profiles).
+## Small native control plane
 
-```sh
-# Inspect the deterministic plan first.
-./build/mica-server plan --profile mica-assistant-mlx --ram-gib 8
-
-# Install only the engines selected by this profile.
-./build/mica-server setup --profile mica-assistant-mlx --ram-gib 8
-
-# Start the authenticated OpenAI-compatible proxy.
-./build/mica-server serve --port 8080
-```
-
-In another terminal, start the local chat:
-
-```sh
-python3 apps/mica_playground.py \
-  --mica-url http://127.0.0.1:8080 \
-  --api-key-file "$HOME/.mica/secrets/api-key" \
-  --port 8090
-```
-
-Open <http://127.0.0.1:8090/chat>. See the
-[getting-started guide](docs/getting-started.md) for release installation,
-GGUF/Linux setup, hardware detection, the complete `~/.mica` layout, and
-troubleshooting.
-
-## Recommended profiles
-
-| Profile | Purpose | Status |
-| --- | --- | --- |
-| `mica-assistant-mlx` | Four-model Apple Silicon assistant | Runnable |
-| `mica-assistant-gguf` | Portable native assistant with no Python | Runnable |
-| `mica-assistant-gptq` | Planned four-capability vLLM/GPTQ profile | Awaiting native-hardware certification |
-
-List local or GitHub-hosted profiles:
-
-```sh
-./build/mica-server profile list
-./build/mica-server profile list --remote
-./build/mica-server profile install mica-assistant-mlx
-```
-
-Profiles can also be created, validated, installed, edited, or loaded directly
-from a local schema-5 YAML file. JSON profile files are intentionally rejected.
-See [Profiles and memory policies](docs/profiles.md).
-
-## Model registry
-
-```sh
-./build/mica-server registry list
-./build/mica-server registry list --modality asr
-./build/mica-server registry list --modality video-text-to-text --backend mlx
-./build/mica-server registry ping --modality tts
-```
-
-The ledger exposes descriptions, modalities, licenses, repositories,
-quantization types, formats, artifact sizes, and memory reservations. See
-[Models, quantization, and publishing](docs/models.md).
+C++20 and embedded Lua implement the CLI, TUI, hardware discovery and scheduling.
+A native GGUF-only workload does not need Python for serving. MLX and vLLM use
+Python only for their engines; optional browser tooling and offline development
+tools can also use it. Engines and weight downloads are separate from the core
+binary. Everything lives under `~/.mica` by default (`MICA_HOME` or `--root`
+overrides it).
 
 ## Documentation
 
-| Guide | Contents |
-| --- | --- |
-| [Getting started](docs/getting-started.md) | Releases, source builds, engines, chat, and `~/.mica` |
-| [Profiles](docs/profiles.md) | Model collections, memory policy, context, batching, and custom profiles |
-| [Profiling architecture](docs/engines-and-profiles.md) | System detection, engine manifests, multi-file artifacts, resolution, and inference profiles |
-| [Schema vocabulary](docs/schema-vocabulary.md) | Active modality, ability, operation, endpoint, and model-collection contracts; generation routes remain future work |
-| [API reference](docs/api.md) | Authentication, model discovery, chat, ASR, TTS, agent streaming, and sessions |
-| [Models](docs/models.md) | Registry, custom models, quantization, provenance, and Hugging Face publication |
-| [Development](docs/development.md) | Tests, benchmarks, release packaging, troubleshooting, and security |
-| [Apple M4 coding-profile benchmark](docs/validation/coder-profile-benchmark-macos.md) | Task/context speeds, answer checks, MiniCPM video, and monitored memory |
-| [vLLM quantization](docs/vllm-quantization.md) | Candidate methodology and certification gates |
-| [Architecture decisions](docs/design/architecture-decisions.md) | Runtime, storage, engine, and scheduler decisions |
-| [Agent state machine](docs/design/agent-chat-state-machine.md) | Multimodal chat/tool flow |
-| [Validation evidence](docs/validation/) | Hardware-specific inference and quality results |
+- [Install and run](docs/getting-started.md), including source builds and Linux GPU setup
+- [TUI walkthrough](docs/tui.md)
+- [Workloads](docs/profiles.md) and [engines/artifacts](docs/engines-and-profiles.md)
+- [API reference](docs/api.md) and [schema vocabulary](docs/schema-vocabulary.md)
+- [Models and quantization](docs/models.md), [model cards](docs/model-cards/)
+- [Memory estimation](docs/memory-estimation.md) and [measured profiling](docs/model-memory-profiling.md)
+- [Validation evidence](docs/validation/), [researcher checks](docs/researcher-validation.md)
+- [Development](docs/development.md), [vLLM certification](docs/vllm-quantization.md)
 
 ## Roadmap
 
-- [ ] Certify the four-model GPTQ/vLLM assistant on CUDA/ROCm/XPU hardware.
-- [ ] Add image-generation engines, routes, profiles, and Q4/Q8 artifacts.
-- [ ] Add Stable Audio/DiffRhythm engines and quantized music profiles.
-- [ ] Add a Qwen2.5-Coder-7B coding profile.
-- [ ] Expand native-hardware release and quality testing.
+- [ ] Complete vLLM certification on native CUDA/ROCm/XPU hardware.
+- [ ] Add image-generation and music/audio-generation engines and artifacts.
+- [ ] Expand hardware-specific inference, concurrency and memory testing.
 
 ## License
 
-Mica Server is licensed under [GPL-3.0](LICENSE). Model artifacts retain their
-own licenses; consult each model card before redistribution or commercial use.
+[GPL-3.0](LICENSE). Model artifacts retain their own licenses; consult their
+model cards before redistribution or commercial use.

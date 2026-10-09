@@ -1,0 +1,661 @@
+{
+  "schema": 1,
+  "test_type": "real-inference-smoke-not-benchmark",
+  "scope": "embeddings",
+  "cases": [
+    {
+      "name": "embedding-text-batch",
+      "http_status": 503,
+      "seconds": 0.0002972499933093786,
+      "passed": false,
+      "response": {
+        "error": {
+          "code": "not_ready",
+          "message": ""
+        }
+      },
+      "worker_snapshot": {
+        "active_backends": [
+          "gguf"
+        ],
+        "effective_ram_limit_gib": 3.5,
+        "effective_vram_limit_gib": 0.0,
+        "max_ram_gib": 4.0,
+        "max_vram_gib": 0.0,
+        "profile": {
+          "backend": "gguf",
+          "kv_cache_precision": "not-applicable",
+          "max_concurrent_requests": 1,
+          "max_input_tokens": 8192,
+          "max_output_tokens": 0,
+          "max_total_tokens": 8192,
+          "maximum_resident_workers": 1,
+          "memory_estimates": {
+            "assumptions": "Independent workers; no cross-process weight/cache sharing. Sequential waits for unload. Balanced minimum retains keep_resident plus the largest swappable worker; priority controls optional residency.",
+            "budget_gib": 4.0,
+            "budget_valid": true,
+            "cache_layouts_verified": true,
+            "global_limit_gib": 4.0,
+            "models": [
+              {
+                "balanced_keep": false,
+                "engine": "llama-cpp",
+                "estimate": {
+                  "cache_layout_verified": true,
+                  "components": [
+                    {
+                      "basis": "artifact-storage-proxy-not-measured",
+                      "estimated_mb": 309.855456,
+                      "path": "embeddinggemma-2-Q8_0.gguf",
+                      "role": "model",
+                      "selected": true
+                    },
+                    {
+                      "basis": "artifact-storage-proxy-not-measured",
+                      "estimated_mb": 554.821024,
+                      "path": "mmproj-embeddinggemma-2-Q8_0.gguf",
+                      "role": "vision-projector",
+                      "selected": true
+                    }
+                  ],
+                  "estimated_total_gib": 2.5,
+                  "estimated_total_mb": 2684.35456,
+                  "fixed_state_mb": 0.0,
+                  "key_precision": "not-applicable",
+                  "kv_k_mb": 0.0,
+                  "kv_total_mb": 0.0,
+                  "kv_v_mb": 0.0,
+                  "runtime_overhead_mb": 1819.67808,
+                  "sequences": 1,
+                  "status": "estimated",
+                  "total_tokens": 8192,
+                  "value_precision": "not-applicable",
+                  "warnings": [
+                    "Bidirectional embedding inference has no persistent autoregressive KV cache. Input-dependent attention, projector and batching workspace still consume memory; 2.5 GiB is provisional, not an 8192-token measured peak.",
+                    "The main GGUF is the text backbone; its matching projector contains the image and audio encoders. Do not treat 270M as the full multimodal model size."
+                  ],
+                  "weights_mb": 864.67648
+                },
+                "estimated_gib": 2.5,
+                "model": "embeddinggemma-2",
+                "priority": 100
+              }
+            ],
+            "safety_reserve_gib": 0.5,
+            "selected_strategy": "sequential",
+            "status": "estimated",
+            "strategies": {
+              "all": {
+                "fits_estimate": true,
+                "required_gib": 3.0,
+                "required_mb": 3221.225472
+              },
+              "balanced": {
+                "fits_estimate": true,
+                "required_gib": 3.0,
+                "required_mb": 3221.225472
+              },
+              "sequential": {
+                "fits_estimate": true,
+                "required_gib": 3.0,
+                "required_mb": 3221.225472
+              }
+            },
+            "workload": "embedding-only"
+          },
+          "memory_limit_gib": 4.0,
+          "memory_safety_reserve_gib": 0.5,
+          "mode": "interactive",
+          "models": [
+            {
+              "backend": "gguf",
+              "engine": "llama-cpp",
+              "execution": "",
+              "id": "embeddinggemma-2",
+              "idle_seconds": 300,
+              "kv_cache_precision": "not-applicable",
+              "max_concurrent_requests": 1,
+              "max_input_tokens": 8192,
+              "max_output_tokens": 0,
+              "max_total_tokens": 8192,
+              "native_options": {
+                "context_checkpoints": -1,
+                "draft_gpu_layers": -1,
+                "draft_kv_cache_precision": "q4",
+                "draft_max_tokens": 7,
+                "micro_batch_size": 8192,
+                "projector_on_cpu": false,
+                "ram_cache_mib": -1,
+                "speculative_method": "none",
+                "token_batch_size": 8192
+              },
+              "placement": {
+                "device": "auto",
+                "gpu_layers": -1,
+                "mode": "auto",
+                "ram_reservation_gib": -1.0,
+                "vram_reservation_gib": -1.0
+              },
+              "priority": 100,
+              "quantization": "q8",
+              "residency": "warm",
+              "startup": true
+            }
+          ],
+          "name": "embedding-only",
+          "required_ram_gib": 0.0,
+          "required_vram_gib": 0.0,
+          "residency_strategy": "sequential",
+          "schema": 5
+        },
+        "ready": false,
+        "reserved_ram_gib": 0.0,
+        "reserved_vram_gib": 0.0,
+        "vllm_device": "metal",
+        "workers": []
+      }
+    },
+    {
+      "name": "embedding-image",
+      "http_status": 503,
+      "seconds": 0.00020795792806893587,
+      "passed": false,
+      "response": {
+        "error": {
+          "code": "not_ready",
+          "message": ""
+        }
+      },
+      "worker_snapshot": {
+        "active_backends": [
+          "gguf"
+        ],
+        "effective_ram_limit_gib": 3.5,
+        "effective_vram_limit_gib": 0.0,
+        "max_ram_gib": 4.0,
+        "max_vram_gib": 0.0,
+        "profile": {
+          "backend": "gguf",
+          "kv_cache_precision": "not-applicable",
+          "max_concurrent_requests": 1,
+          "max_input_tokens": 8192,
+          "max_output_tokens": 0,
+          "max_total_tokens": 8192,
+          "maximum_resident_workers": 1,
+          "memory_estimates": {
+            "assumptions": "Independent workers; no cross-process weight/cache sharing. Sequential waits for unload. Balanced minimum retains keep_resident plus the largest swappable worker; priority controls optional residency.",
+            "budget_gib": 4.0,
+            "budget_valid": true,
+            "cache_layouts_verified": true,
+            "global_limit_gib": 4.0,
+            "models": [
+              {
+                "balanced_keep": false,
+                "engine": "llama-cpp",
+                "estimate": {
+                  "cache_layout_verified": true,
+                  "components": [
+                    {
+                      "basis": "artifact-storage-proxy-not-measured",
+                      "estimated_mb": 309.855456,
+                      "path": "embeddinggemma-2-Q8_0.gguf",
+                      "role": "model",
+                      "selected": true
+                    },
+                    {
+                      "basis": "artifact-storage-proxy-not-measured",
+                      "estimated_mb": 554.821024,
+                      "path": "mmproj-embeddinggemma-2-Q8_0.gguf",
+                      "role": "vision-projector",
+                      "selected": true
+                    }
+                  ],
+                  "estimated_total_gib": 2.5,
+                  "estimated_total_mb": 2684.35456,
+                  "fixed_state_mb": 0.0,
+                  "key_precision": "not-applicable",
+                  "kv_k_mb": 0.0,
+                  "kv_total_mb": 0.0,
+                  "kv_v_mb": 0.0,
+                  "runtime_overhead_mb": 1819.67808,
+                  "sequences": 1,
+                  "status": "estimated",
+                  "total_tokens": 8192,
+                  "value_precision": "not-applicable",
+                  "warnings": [
+                    "Bidirectional embedding inference has no persistent autoregressive KV cache. Input-dependent attention, projector and batching workspace still consume memory; 2.5 GiB is provisional, not an 8192-token measured peak.",
+                    "The main GGUF is the text backbone; its matching projector contains the image and audio encoders. Do not treat 270M as the full multimodal model size."
+                  ],
+                  "weights_mb": 864.67648
+                },
+                "estimated_gib": 2.5,
+                "model": "embeddinggemma-2",
+                "priority": 100
+              }
+            ],
+            "safety_reserve_gib": 0.5,
+            "selected_strategy": "sequential",
+            "status": "estimated",
+            "strategies": {
+              "all": {
+                "fits_estimate": true,
+                "required_gib": 3.0,
+                "required_mb": 3221.225472
+              },
+              "balanced": {
+                "fits_estimate": true,
+                "required_gib": 3.0,
+                "required_mb": 3221.225472
+              },
+              "sequential": {
+                "fits_estimate": true,
+                "required_gib": 3.0,
+                "required_mb": 3221.225472
+              }
+            },
+            "workload": "embedding-only"
+          },
+          "memory_limit_gib": 4.0,
+          "memory_safety_reserve_gib": 0.5,
+          "mode": "interactive",
+          "models": [
+            {
+              "backend": "gguf",
+              "engine": "llama-cpp",
+              "execution": "",
+              "id": "embeddinggemma-2",
+              "idle_seconds": 300,
+              "kv_cache_precision": "not-applicable",
+              "max_concurrent_requests": 1,
+              "max_input_tokens": 8192,
+              "max_output_tokens": 0,
+              "max_total_tokens": 8192,
+              "native_options": {
+                "context_checkpoints": -1,
+                "draft_gpu_layers": -1,
+                "draft_kv_cache_precision": "q4",
+                "draft_max_tokens": 7,
+                "micro_batch_size": 8192,
+                "projector_on_cpu": false,
+                "ram_cache_mib": -1,
+                "speculative_method": "none",
+                "token_batch_size": 8192
+              },
+              "placement": {
+                "device": "auto",
+                "gpu_layers": -1,
+                "mode": "auto",
+                "ram_reservation_gib": -1.0,
+                "vram_reservation_gib": -1.0
+              },
+              "priority": 100,
+              "quantization": "q8",
+              "residency": "warm",
+              "startup": true
+            }
+          ],
+          "name": "embedding-only",
+          "required_ram_gib": 0.0,
+          "required_vram_gib": 0.0,
+          "residency_strategy": "sequential",
+          "schema": 5
+        },
+        "ready": false,
+        "reserved_ram_gib": 0.0,
+        "reserved_vram_gib": 0.0,
+        "vllm_device": "metal",
+        "workers": []
+      }
+    },
+    {
+      "name": "embedding-video",
+      "http_status": 503,
+      "seconds": 0.00017370900604873896,
+      "passed": false,
+      "response": {
+        "error": {
+          "code": "not_ready",
+          "message": ""
+        }
+      },
+      "worker_snapshot": {
+        "active_backends": [
+          "gguf"
+        ],
+        "effective_ram_limit_gib": 3.5,
+        "effective_vram_limit_gib": 0.0,
+        "max_ram_gib": 4.0,
+        "max_vram_gib": 0.0,
+        "profile": {
+          "backend": "gguf",
+          "kv_cache_precision": "not-applicable",
+          "max_concurrent_requests": 1,
+          "max_input_tokens": 8192,
+          "max_output_tokens": 0,
+          "max_total_tokens": 8192,
+          "maximum_resident_workers": 1,
+          "memory_estimates": {
+            "assumptions": "Independent workers; no cross-process weight/cache sharing. Sequential waits for unload. Balanced minimum retains keep_resident plus the largest swappable worker; priority controls optional residency.",
+            "budget_gib": 4.0,
+            "budget_valid": true,
+            "cache_layouts_verified": true,
+            "global_limit_gib": 4.0,
+            "models": [
+              {
+                "balanced_keep": false,
+                "engine": "llama-cpp",
+                "estimate": {
+                  "cache_layout_verified": true,
+                  "components": [
+                    {
+                      "basis": "artifact-storage-proxy-not-measured",
+                      "estimated_mb": 309.855456,
+                      "path": "embeddinggemma-2-Q8_0.gguf",
+                      "role": "model",
+                      "selected": true
+                    },
+                    {
+                      "basis": "artifact-storage-proxy-not-measured",
+                      "estimated_mb": 554.821024,
+                      "path": "mmproj-embeddinggemma-2-Q8_0.gguf",
+                      "role": "vision-projector",
+                      "selected": true
+                    }
+                  ],
+                  "estimated_total_gib": 2.5,
+                  "estimated_total_mb": 2684.35456,
+                  "fixed_state_mb": 0.0,
+                  "key_precision": "not-applicable",
+                  "kv_k_mb": 0.0,
+                  "kv_total_mb": 0.0,
+                  "kv_v_mb": 0.0,
+                  "runtime_overhead_mb": 1819.67808,
+                  "sequences": 1,
+                  "status": "estimated",
+                  "total_tokens": 8192,
+                  "value_precision": "not-applicable",
+                  "warnings": [
+                    "Bidirectional embedding inference has no persistent autoregressive KV cache. Input-dependent attention, projector and batching workspace still consume memory; 2.5 GiB is provisional, not an 8192-token measured peak.",
+                    "The main GGUF is the text backbone; its matching projector contains the image and audio encoders. Do not treat 270M as the full multimodal model size."
+                  ],
+                  "weights_mb": 864.67648
+                },
+                "estimated_gib": 2.5,
+                "model": "embeddinggemma-2",
+                "priority": 100
+              }
+            ],
+            "safety_reserve_gib": 0.5,
+            "selected_strategy": "sequential",
+            "status": "estimated",
+            "strategies": {
+              "all": {
+                "fits_estimate": true,
+                "required_gib": 3.0,
+                "required_mb": 3221.225472
+              },
+              "balanced": {
+                "fits_estimate": true,
+                "required_gib": 3.0,
+                "required_mb": 3221.225472
+              },
+              "sequential": {
+                "fits_estimate": true,
+                "required_gib": 3.0,
+                "required_mb": 3221.225472
+              }
+            },
+            "workload": "embedding-only"
+          },
+          "memory_limit_gib": 4.0,
+          "memory_safety_reserve_gib": 0.5,
+          "mode": "interactive",
+          "models": [
+            {
+              "backend": "gguf",
+              "engine": "llama-cpp",
+              "execution": "",
+              "id": "embeddinggemma-2",
+              "idle_seconds": 300,
+              "kv_cache_precision": "not-applicable",
+              "max_concurrent_requests": 1,
+              "max_input_tokens": 8192,
+              "max_output_tokens": 0,
+              "max_total_tokens": 8192,
+              "native_options": {
+                "context_checkpoints": -1,
+                "draft_gpu_layers": -1,
+                "draft_kv_cache_precision": "q4",
+                "draft_max_tokens": 7,
+                "micro_batch_size": 8192,
+                "projector_on_cpu": false,
+                "ram_cache_mib": -1,
+                "speculative_method": "none",
+                "token_batch_size": 8192
+              },
+              "placement": {
+                "device": "auto",
+                "gpu_layers": -1,
+                "mode": "auto",
+                "ram_reservation_gib": -1.0,
+                "vram_reservation_gib": -1.0
+              },
+              "priority": 100,
+              "quantization": "q8",
+              "residency": "warm",
+              "startup": true
+            }
+          ],
+          "name": "embedding-only",
+          "required_ram_gib": 0.0,
+          "required_vram_gib": 0.0,
+          "residency_strategy": "sequential",
+          "schema": 5
+        },
+        "ready": false,
+        "reserved_ram_gib": 0.0,
+        "reserved_vram_gib": 0.0,
+        "vllm_device": "metal",
+        "workers": []
+      }
+    },
+    {
+      "name": "embedding-audio",
+      "http_status": 503,
+      "seconds": 0.0001550000160932541,
+      "passed": false,
+      "response": {
+        "error": {
+          "code": "not_ready",
+          "message": ""
+        }
+      },
+      "worker_snapshot": {
+        "active_backends": [
+          "gguf"
+        ],
+        "effective_ram_limit_gib": 3.5,
+        "effective_vram_limit_gib": 0.0,
+        "max_ram_gib": 4.0,
+        "max_vram_gib": 0.0,
+        "profile": {
+          "backend": "gguf",
+          "kv_cache_precision": "not-applicable",
+          "max_concurrent_requests": 1,
+          "max_input_tokens": 8192,
+          "max_output_tokens": 0,
+          "max_total_tokens": 8192,
+          "maximum_resident_workers": 1,
+          "memory_estimates": {
+            "assumptions": "Independent workers; no cross-process weight/cache sharing. Sequential waits for unload. Balanced minimum retains keep_resident plus the largest swappable worker; priority controls optional residency.",
+            "budget_gib": 4.0,
+            "budget_valid": true,
+            "cache_layouts_verified": true,
+            "global_limit_gib": 4.0,
+            "models": [
+              {
+                "balanced_keep": false,
+                "engine": "llama-cpp",
+                "estimate": {
+                  "cache_layout_verified": true,
+                  "components": [
+                    {
+                      "basis": "artifact-storage-proxy-not-measured",
+                      "estimated_mb": 309.855456,
+                      "path": "embeddinggemma-2-Q8_0.gguf",
+                      "role": "model",
+                      "selected": true
+                    },
+                    {
+                      "basis": "artifact-storage-proxy-not-measured",
+                      "estimated_mb": 554.821024,
+                      "path": "mmproj-embeddinggemma-2-Q8_0.gguf",
+                      "role": "vision-projector",
+                      "selected": true
+                    }
+                  ],
+                  "estimated_total_gib": 2.5,
+                  "estimated_total_mb": 2684.35456,
+                  "fixed_state_mb": 0.0,
+                  "key_precision": "not-applicable",
+                  "kv_k_mb": 0.0,
+                  "kv_total_mb": 0.0,
+                  "kv_v_mb": 0.0,
+                  "runtime_overhead_mb": 1819.67808,
+                  "sequences": 1,
+                  "status": "estimated",
+                  "total_tokens": 8192,
+                  "value_precision": "not-applicable",
+                  "warnings": [
+                    "Bidirectional embedding inference has no persistent autoregressive KV cache. Input-dependent attention, projector and batching workspace still consume memory; 2.5 GiB is provisional, not an 8192-token measured peak.",
+                    "The main GGUF is the text backbone; its matching projector contains the image and audio encoders. Do not treat 270M as the full multimodal model size."
+                  ],
+                  "weights_mb": 864.67648
+                },
+                "estimated_gib": 2.5,
+                "model": "embeddinggemma-2",
+                "priority": 100
+              }
+            ],
+            "safety_reserve_gib": 0.5,
+            "selected_strategy": "sequential",
+            "status": "estimated",
+            "strategies": {
+              "all": {
+                "fits_estimate": true,
+                "required_gib": 3.0,
+                "required_mb": 3221.225472
+              },
+              "balanced": {
+                "fits_estimate": true,
+                "required_gib": 3.0,
+                "required_mb": 3221.225472
+              },
+              "sequential": {
+                "fits_estimate": true,
+                "required_gib": 3.0,
+                "required_mb": 3221.225472
+              }
+            },
+            "workload": "embedding-only"
+          },
+          "memory_limit_gib": 4.0,
+          "memory_safety_reserve_gib": 0.5,
+          "mode": "interactive",
+          "models": [
+            {
+              "backend": "gguf",
+              "engine": "llama-cpp",
+              "execution": "",
+              "id": "embeddinggemma-2",
+              "idle_seconds": 300,
+              "kv_cache_precision": "not-applicable",
+              "max_concurrent_requests": 1,
+              "max_input_tokens": 8192,
+              "max_output_tokens": 0,
+              "max_total_tokens": 8192,
+              "native_options": {
+                "context_checkpoints": -1,
+                "draft_gpu_layers": -1,
+                "draft_kv_cache_precision": "q4",
+                "draft_max_tokens": 7,
+                "micro_batch_size": 8192,
+                "projector_on_cpu": false,
+                "ram_cache_mib": -1,
+                "speculative_method": "none",
+                "token_batch_size": 8192
+              },
+              "placement": {
+                "device": "auto",
+                "gpu_layers": -1,
+                "mode": "auto",
+                "ram_reservation_gib": -1.0,
+                "vram_reservation_gib": -1.0
+              },
+              "priority": 100,
+              "quantization": "q8",
+              "residency": "warm",
+              "startup": true
+            }
+          ],
+          "name": "embedding-only",
+          "required_ram_gib": 0.0,
+          "required_vram_gib": 0.0,
+          "residency_strategy": "sequential",
+          "schema": 5
+        },
+        "ready": false,
+        "reserved_ram_gib": 0.0,
+        "reserved_vram_gib": 0.0,
+        "vllm_device": "metal",
+        "workers": []
+      }
+    },
+    {
+      "name": "stream-rejected",
+      "http_status": 503,
+      "passed": false,
+      "response": {
+        "error": {
+          "code": "not_ready",
+          "message": ""
+        }
+      }
+    },
+    {
+      "name": "dimensions-rejected",
+      "http_status": 503,
+      "passed": false,
+      "response": {
+        "error": {
+          "code": "not_ready",
+          "message": ""
+        }
+      }
+    },
+    {
+      "name": "empty-input-rejected",
+      "http_status": 503,
+      "passed": false,
+      "response": {
+        "error": {
+          "code": "not_ready",
+          "message": ""
+        }
+      }
+    },
+    {
+      "name": "over-budget-rejected",
+      "http_status": 503,
+      "passed": false,
+      "response": {
+        "error": {
+          "code": "not_ready",
+          "message": ""
+        }
+      }
+    }
+  ],
+  "authentication_rejected": true,
+  "passed": false
+}

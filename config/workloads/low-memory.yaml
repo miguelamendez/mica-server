@@ -1,5 +1,6 @@
 schema: 5
 id: low-memory
+catalog_visible: false
 description: Low-memory MLX assistant that swaps specialist models rather than keeping them all resident.
 mode: exclusive
 memory:

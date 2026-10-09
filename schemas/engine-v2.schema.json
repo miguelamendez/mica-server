@@ -29,10 +29,10 @@
           "adapter_call": {"type": "string", "minLength": 1},
           "method": {"const": "POST"},
           "path": {"type": "string", "pattern": "^/"},
-          "required_inputs": {"$ref": "vocabulary-v1.schema.json#/$defs/modalities"},
+          "required_inputs": {"$ref": "vocabulary-v1.schema.json#/$defs/input_modalities"},
           "optional_inputs": {
             "type": "array", "uniqueItems": true,
-            "items": {"$ref": "vocabulary-v1.schema.json#/$defs/modality"}
+            "items": {"$ref": "vocabulary-v1.schema.json#/$defs/input_modality"}
           },
           "outputs": {"$ref": "vocabulary-v1.schema.json#/$defs/modalities"},
           "streaming": {"type": "boolean"},

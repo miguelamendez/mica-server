@@ -1,5 +1,6 @@
 schema: 5
 id: realtime-voice
+catalog_visible: false
 description: Voice-first assistant that keeps speech recognition, text response, and speech synthesis ready for low-latency turns.
 mode: realtime
 memory:

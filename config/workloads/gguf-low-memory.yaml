@@ -1,5 +1,6 @@
 schema: 5
 id: gguf-low-memory
+catalog_visible: false
 description: Low-memory GGUF assistant that favors one resident worker and swaps other models on demand.
 mode: exclusive
 memory:

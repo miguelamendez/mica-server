@@ -1,5 +1,6 @@
 schema: 5
 id: mica-qwen27b-q3
+catalog_visible: false
 description: Qwen3.8 27B GSQ-RCO IQ3_XXS chat and vision on a 16 GiB CUDA GPU, with its BF16 projector, Q4 KV cache, 64K input and 16K output allocation. One model worker; no speculative drafter. Memory allocation is not long-context quality certification.
 selection:
   engine_policy: explicit-only

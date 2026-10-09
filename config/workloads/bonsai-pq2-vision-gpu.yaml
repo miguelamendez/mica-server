@@ -1,5 +1,6 @@
 schema: 5
 id: bonsai-pq2-vision-gpu
+catalog_visible: false
 description: GPU-offloaded Bonsai PQ2 vision validation profile for checking image input and device placement.
 mode: vision-gpu-validation
 memory:

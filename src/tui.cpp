@@ -6,11 +6,16 @@
 #include "mica_server/hardware.hpp"
 #include "mica_server/profiles.hpp"
 #include "mica_server/command.hpp"
+#include "mica_server/inventory.hpp"
+#include "mica_server/machine.hpp"
+#include "mica_server/memory.hpp"
+#include "mica_server/scheduler.hpp"
 #include <nlohmann/json.hpp>
 #include <ftxui/component/app.hpp>
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/event.hpp>
 #include <ftxui/dom/elements.hpp>
+#include <ftxui/screen/terminal.hpp>
 extern "C" {
 #include <lua.h>
 #include <lauxlib.h>
@@ -22,6 +27,8 @@ extern "C" {
 #include <functional>
 #include <iostream>
 #include <map>
+#include <set>
+#include <iomanip>
 #include <sstream>
 #include <thread>
 #include <unistd.h>
@@ -42,9 +49,9 @@ std::vector<Section> sections_from_lua(const std::filesystem::path& path) {
   lua_getfield(lua, -1, "sections");
   if (!lua_istable(lua, -1)) throw std::runtime_error("TUI sections missing");
   std::vector<Section> sections;
-  const std::vector<std::string> allowed{"server", "workloads", "models", "engines", "machine", "endpoints", "settings"};
+  const std::vector<std::string> allowed{"server", "workloads", "models", "engines", "endpoints", "settings"};
   const auto count = lua_rawlen(lua, -1);
-  if (count != allowed.size()) throw std::runtime_error("TUI requires seven sections");
+  if (count != allowed.size()) throw std::runtime_error("TUI requires six sections");
   for (std::size_t i = 1; i <= count; ++i) {
     lua_rawgeti(lua, -1, i);
     const auto field = [&](const char* key) {
@@ -77,15 +84,49 @@ std::string compact(const json& value) {
 
 struct ViewData {
   Registry registry;
-  json hardware, machine, server, settings, models, runtime;
+  json hardware, machine, server, settings, models, runtime, engines, workloads, disk;
 };
+std::string model_group(const std::string& capability) {
+  if (capability == "text") return "LLM";
+  if (capability == "vision") return "VLM";
+  if (capability == "embedding" || capability == "embeddings") return "Embeddings";
+  if (capability == "asr") return "ASR";
+  if (capability == "tts") return "TTS";
+  if (capability == "diarization" || capability == "diar") return "Diarization";
+  if (capability == "image-generation") return "Image generation";
+  if (capability == "audio-generation") return "Audio generation";
+  return capability;
+}
+std::string gib_text(std::uintmax_t bytes) {
+  std::ostringstream out; out << std::fixed << std::setprecision(2) << bytes / 1073741824.0 << " GiB";
+  return out.str();
+}
+json disk_usage(const std::filesystem::path& root) {
+  json result = json::object();
+  for (const auto* name : {"models", "runtimes", "environments"}) {
+    std::uintmax_t bytes = 0;
+    std::error_code error;
+    auto it = std::filesystem::recursive_directory_iterator(root / name,
+        std::filesystem::directory_options::skip_permission_denied, error);
+    const auto end = std::filesystem::recursive_directory_iterator();
+    while (!error && it != end) {
+      if (it->is_regular_file(error) && !it->is_symlink(error)) {
+        auto size = it->file_size(error); if (!error) bytes += size;
+      }
+      it.increment(error);
+    }
+    result[name] = bytes;
+  }
+  return result;
+}
 ViewData refresh_data(const std::filesystem::path& root, const std::filesystem::path& config) {
   ViewData data;
   data.registry = load_registry(config);
   data.registry.runtime_root = root.string();
   merge_custom_models(data.registry, root);
   merge_installed_profiles(data.registry, root);
-  data.hardware = hardware_to_json(detect_hardware());
+  const auto hardware = detect_hardware();
+  data.hardware = hardware_to_json(hardware);
   data.machine = std::filesystem::exists(root / "config/machine.yaml")
                      ? read_profile_file(root / "config/machine.yaml") : json::object();
   data.server = local_server_status(root);
@@ -95,8 +136,66 @@ ViewData refresh_data(const std::filesystem::path& root, const std::filesystem::
   data.settings.erase("api_key");
   data.settings["api_key"] = configured ? "configured (hidden)" : "not configured";
   data.settings["host"] = data.settings.value("host", "127.0.0.1");
-  data.settings["port"] = data.settings.value("port", 8080);
+  data.settings["port"] = data.settings.value("port", ServerOptions{}.port);
   data.models = registry_catalog(data.registry, std::nullopt, std::nullopt, false);
+  data.engines = json::object();
+  for (const auto& [id, engine] : data.registry.engines)
+    data.engines[id] = inspect_engine(engine, hardware, root);
+  for (auto& entry : data.models["data"]) {
+    const auto& model = data.registry.model(entry.at("id").get<std::string>());
+    entry["group"] = model_group(model.capability);
+    entry["compatible"] = false; entry["cached"] = false;
+    entry["supported_engines"] = json::array();
+    for (auto& family : entry["variants"].items()) for (auto& variant : family.value()) {
+      const auto engine = variant.at("engine").get<std::string>();
+      const auto backend = data.registry.engine(engine).backend;
+      const auto quant = Quantization(variant.at("quantization").get<std::string>());
+      variant["availability"] = inspect_artifact(model, model.artifact_for(backend, quant, engine), backend, quant, root);
+      variant["compatible"] = data.engines.at(engine).at("compatible");
+      entry["compatible"] = entry["compatible"].get<bool>() || variant["compatible"].get<bool>();
+      entry["cached"] = entry["cached"].get<bool>() || variant["availability"]["cached"].get<bool>();
+      if (std::find(entry["supported_engines"].begin(), entry["supported_engines"].end(), json(engine)) == entry["supported_engines"].end())
+        entry["supported_engines"].push_back(engine);
+    }
+  }
+  const auto active = data.server.value("profile", json::object()).value("name", "");
+  const auto fallback = data.settings.value("default_workload", "");
+  const auto allocation = resolve_machine_policy(hardware, data.machine.empty() ? MachinePolicy{} : machine_policy_from_document(data.machine));
+  const auto policy_hardware = hardware_for_machine_policy(hardware, allocation);
+  data.workloads = json::object();
+  for (const auto& [id, profile] : data.registry.profiles) if (profile.schema >= 4) {
+    auto availability = inspect_workload(data.registry, profile, hardware, root);
+    availability["visible"] = profile.catalog_visible || id == active || id == fallback ||
+        std::filesystem::exists(root / "config/profiles" / (id + ".yaml"));
+    availability["description"] = profile.description;
+    availability["active"] = id == active;
+    double vram = 0;
+    for (const auto& [device, limit] : allocation.dedicated_memory_gib) vram = std::max(vram, limit);
+    availability["allocation_fits"] = profile.required_ram_gib <= allocation.inference_ram_gib && profile.required_vram_gib <= vram;
+    availability["allocation_reason"] = availability["allocation_fits"].get<bool>() ?
+        "Declared requirements fit; setup still checks per-device worker footprints" : "RAM/VRAM requirements exceed machine allocation";
+    try {
+      auto registry = data.registry; auto resolved = profile;
+      resolve_profile_engines(registry, resolved, policy_hardware, root);
+      validate_memory_strategy(registry, resolved, allocation.inference_ram_gib + vram);
+      for (const auto& policy : resolved.model_policies) {
+        const auto& artifact = registry.model(policy.id).artifact_for(policy.backend, policy.quantization, policy.engine);
+        const auto placement = resolve_model_placement(policy, artifact, policy_hardware);
+        auto device = placement.device;
+        if (device != "cpu") {
+          const auto colon = device.find(':');
+          const auto id = colon == std::string::npos ? "0" : device.substr(colon + 1);
+          for (const auto& accelerator : hardware.accelerators)
+            if (accelerator.id == id) { device = accelerator.runtime + ":" + id; break; }
+        }
+        if (!allocation.allowed_devices.contains(device)) throw std::runtime_error("Machine policy disables " + device);
+      }
+    } catch (const std::exception& error) {
+      availability["allocation_fits"] = false; availability["allocation_reason"] = error.what();
+    }
+    data.workloads[id] = std::move(availability);
+  }
+  data.disk = disk_usage(root);
   data.runtime = read_optional(root / "state/runtime.json");
   // Runtime is internal; retain only fields used in engine/workload status cards.
   json safe = json::object();
@@ -117,12 +216,15 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     for (const auto& section : sections) navigation.push_back({{"id", section.id}, {"title", section.title}});
     json workloads = json::array();
     for (const auto& [id, profile] : data.registry.profiles)
-      if (profile.schema >= 5) workloads.push_back({{"id", id}, {"description", profile.description}});
+      if (data.workloads.contains(id) && data.workloads[id]["visible"].get<bool>()) {
+        auto entry = data.workloads[id]; entry["id"] = id; workloads.push_back(entry);
+      }
     json engines = json::array();
     for (const auto& [id, engine] : data.registry.engines)
-      engines.push_back(read_profile_file(config / "engines" / (id + ".yaml")));
+      engines.push_back({{"id", id}, {"availability", data.engines[id]}, {"hardware", engine.hardware}});
     std::cout << json{{"sections", navigation}, {"server", data.server}, {"machine", data.hardware},
-                     {"settings", data.settings}, {"workloads", workloads},
+                     {"settings", data.settings}, {"disk_usage_bytes", data.disk}, {"workloads", workloads},
+                     {"server_subsections", {"Overview", "Choose workload", "Machine"}},
                      {"models", data.models}, {"engines", engines}, {"endpoints", server_endpoints()}}.dump(2) << '\n';
     return 0;
   }
@@ -134,7 +236,12 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
   const auto good = Color::RGB(166, 227, 161);
   int section_index = 0, row_index = 0, scroll = 0;
   std::string search, message = "Choose a section. Tab opens its list; arrows select; ? shows keys.";
-  bool search_open = false, confirm = false, busy = false, help = false, list_focus = false;
+  bool search_open = false, confirm = false, busy = false, help = false, list_focus = false, show_all = false, server_picker = false;
+  const std::vector<std::string> groups{"All", "LLM", "VLM", "ASR", "TTS", "Embeddings", "Diarization", "Image generation", "Audio generation"};
+  int group_index = 0;
+  std::vector<std::string> scope;
+  struct Location { int section, row, group; bool picker; std::vector<std::string> scope; };
+  std::vector<Location> history;
   std::string edit_option, edit_value;
   std::vector<std::string> pending;
   std::thread worker;
@@ -144,13 +251,25 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
   const auto entries = [&]() {
     std::vector<std::string> values;
     const auto& section = sections[section_index].id;
-    if (section == "workloads") {
+    if (section == "server" && !server_picker) values = {"Overview", "Choose workload", "Machine"};
+    else if (section == "workloads" || (section == "server" && server_picker)) {
       for (const auto& [id, profile] : data.registry.profiles)
-        if (profile.schema >= 5) values.push_back(id);
+        if (data.workloads.contains(id) && data.workloads[id]["visible"].get<bool>() &&
+            (show_all || data.workloads[id]["compatible"].get<bool>() || data.workloads[id]["active"].get<bool>())) values.push_back(id);
     } else if (section == "models") {
-      for (const auto& model : data.models["data"]) values.push_back(model.at("id").get<std::string>());
+      for (const auto& model : data.models["data"]) {
+        const auto id = model.at("id").get<std::string>();
+        if ((show_all || model["compatible"].get<bool>()) &&
+            (group_index == 0 || model["group"] == groups[group_index]) &&
+            (scope.empty() || std::find(scope.begin(), scope.end(), id) != scope.end())) values.push_back(id);
+      }
+      std::stable_sort(values.begin(), values.end(), [&](const auto& a, const auto& b) {
+        return model_group(data.registry.model(a).capability) < model_group(data.registry.model(b).capability);
+      });
     } else if (section == "engines") {
-      for (const auto& [id, engine] : data.registry.engines) values.push_back(id);
+      for (const auto& [id, engine] : data.registry.engines)
+        if ((show_all || data.engines[id]["compatible"].get<bool>()) &&
+            (scope.empty() || std::find(scope.begin(), scope.end(), id) != scope.end())) values.push_back(id);
     } else if (section == "endpoints") {
       for (const auto& endpoint : endpoint_catalog["endpoints"])
         values.push_back(endpoint.at("method").get<std::string>() + " " + endpoint.at("path").get<std::string>());
@@ -177,8 +296,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       catch (const std::exception& e) { result = {1, e.what()}; }
       screen.Post([&, result = std::move(result)] {
         busy = false;
-        message = (result.exit_code == 0 ? "Completed. " : "Failed. ") + result.output;
-        if (message.size() > 1800) message = message.substr(message.size() - 1800);
+        message = result.exit_code == 0 ? "Completed. Inventory refreshed." : "Failed. " + result.output.substr(0, 450);
         try { data = refresh_data(root, config); } catch (const std::exception& e) { message = e.what(); }
       });
       screen.PostEvent(Event::Custom);
@@ -205,23 +323,25 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     };
     const auto object = [&](const json& value) { tree(value, ""); };
     const auto& section = sections[section_index].id;
-    if (section == "server") {
+    if (section == "server" && !server_picker && selected != "Machine") {
       heading("Local inference server");
       row("Status", data.server.value("status", "stopped"));
+      row("Default workload", data.settings.value("default_workload", "not configured"));
+      heading("Stored data (logical file size; not RAM)");
+      for (const auto& item : data.disk.items()) row(item.key(), gib_text(item.value().get<std::uintmax_t>()));
       if (data.server.contains("profile")) {
         row("Workload", data.server["profile"]["name"]);
         row("RAM reserved / allocated (GiB)", compact(data.server["reserved_ram_gib"]) + " / " + compact(data.server["max_ram_gib"]));
         row("VRAM reserved / allocated (GiB)", compact(data.server["reserved_vram_gib"]) + " / " + compact(data.server["max_vram_gib"]));
         row("Listening", compact(data.server["host"]) + ":" + compact(data.server["port"]));
-        heading("Resident model workers");
-        for (const auto& w : data.server["workers"]) {
-          row(w.at("id").get<std::string>(), compact(w["device"]) + " · " + compact(w["in_flight"]) + " active requests");
-        }
+        heading("Loaded models");
+        for (const auto& w : data.server["workers"]) lines.push_back(text(" " + w.at("id").get<std::string>()));
         if (data.server["workers"].empty()) row("Workers", "none resident");
       } else if (data.server.contains("error")) row("Error", data.server["error"]);
-      lines.push_back(separator()); row("Actions", "s start · x stop · r refresh · 2 browse and swap workloads");
+      else row("Loaded models", "none — server stopped");
+      lines.push_back(separator()); row("Actions", "Choose workload + Enter to start or swap · s choose/start · x stop · r refresh");
       row("Memory accounting", "Reservations are planning estimates, not measurements or a universal hard RSS/VRAM cap.");
-    } else if (section == "machine") {
+    } else if (section == "server" && !server_picker && selected == "Machine") {
       heading("Detected machine (facts)"); object(data.hardware);
       heading("User limits (machine.yaml)"); object(data.machine);
       row("Edit limits", "Use Settings. Changes require stopping and reconciling the workload.");
@@ -233,7 +353,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       row("Apply", "Stop first. Settings are saved for the next start; a workload is reconciled against the new limits.");
       row("Network", "0.0.0.0 listens on all IPv4 interfaces. Use a trusted LAN and a firewall; HTTP is not encrypted.");
     } else if (selected.empty()) row("Entries", "No matches");
-    else if (section == "workloads") {
+    else if (section == "workloads" || (section == "server" && server_picker)) {
       const auto& profile = data.registry.profile(selected);
       heading(selected); row("Purpose", profile.description);
       row("RAM required (GiB)", profile.required_ram_gib); row("VRAM required (GiB)", profile.required_vram_gib);
@@ -241,15 +361,14 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       row("Active", active == selected);
       row("Prepared selection", data.runtime.value("profile", "") == selected);
       row("Source", std::filesystem::exists(root / "config/profiles" / (selected + ".yaml")) ? "installed / user-owned" : "packaged example");
+      const auto& availability = data.workloads[selected];
+      row("Hardware compatible", availability["compatible"]); row("Compatibility", availability["reason"]);
+      row("Engines installed", availability["engines_installed"]); row("Models cached", availability["models_cached"]);
       row("Resident worker limit", profile.maximum_resident_workers);
-      const auto inference = data.machine.value("limits", json::object()).value("inference", json::object());
-      const double ram = inference.value("ram_gib", 8.0);
-      double vram = 0;
-      for (const auto& value : inference.value("dedicated_memory_gib", json::object()))
-        vram = std::max(vram, value.get<double>());
-      row("Memory eligibility", profile.required_ram_gib <= ram && profile.required_vram_gib <= vram
-                                  ? "Requirements fit configured allocation (engine/device checks run during install)"
-                                  : "Blocked: workload requirements exceed configured allocation");
+      row("Memory/policy eligibility", availability["allocation_fits"]);
+      row("Allocation check", availability["allocation_reason"]);
+      row("Strategy", profile.residency_strategy.empty() ? "per-model residency policy" : profile.residency_strategy);
+      if (profile.memory_limit_gib > 0) row("Workload ceiling (GiB)", profile.memory_limit_gib);
       for (const auto& policy : profile.model_policies) {
         heading(policy.id);
         row("Engine / artifact", policy.engine + " / " + to_string(policy.quantization));
@@ -257,10 +376,12 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
         row("KV cache", policy.kv_cache_precision); row("Residency", to_string(policy.residency));
         row("Priority / startup", std::to_string(policy.priority) + " / " + (policy.startup ? "yes" : "no"));
       }
-      lines.push_back(separator()); row("Actions", "i install engines + models · s install & start · a hot-swap · e edit YAML · c clone");
+      lines.push_back(separator()); row("Actions", server_picker ? "Enter start/swap selected workload · Esc back" : "Enter browse models · i install · s start · a hot-swap · e edit YAML · c clone");
     } else if (section == "models") {
       for (const auto& model : data.models["data"]) if (model["id"] == selected) {
         heading(selected);
+        row("Category", model["group"]); row("Hardware compatible", model["compatible"]);
+        row("Any complete artifact cached", model["cached"]); row("Supported engines", model["supported_engines"]);
         for (const auto* key : {"description", "license", "input_modalities", "output_modalities", "abilities",
                                "native_context_tokens", "recommended_context_tokens", "max_output_tokens", "thinking_modes",
                                "thinking_budget_supported", "tool_call_formats", "source_repository", "quantizations"})
@@ -272,21 +393,37 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
             row("Format", variant["format"]);
             row("Download (GiB)", variant["download_size_gib"]);
             row("Base reservation estimate (GiB)", variant["memory_reservation_gib"]);
+            row("Engine compatible / installed", compact(variant["compatible"]) + " / " + compact(data.engines.at(variant["engine"].get<std::string>())["installed"]));
+            row("Bundle cached", variant["availability"]["cached"]);
+            row("Local artifact", variant["availability"]["path"]);
+            row("Cache status", variant["availability"]["reason"]);
             for (const auto& file : variant.value("files", json::array()))
-              row(compact(file["role"]), compact(file["repository"]) + "/" + compact(file["path"]));
+              row(compact(file["role"]), compact(file["repository"]) + "/" + compact(file["path"]) + " · " + gib_text(file.value("size_bytes", std::uint64_t{0})));
+            if (variant.contains("memory_estimate") && variant["memory_estimate"].is_object()) {
+              heading("Memory estimates (planning, not measured peaks)"); object(variant["memory_estimate"]);
+            }
           }
+        heading("Supported interactions and references");
+        for (const auto* key : {"supported_interactions", "references"})
+          if (model.contains(key)) object(json{{key, model[key]}});
         const auto downloads = data.runtime.value("downloads", json::object());
         for (const auto& download : downloads.items())
           if (download.value().value("model", "") == selected) row("Cached " + download.key(), download.value().value("local_path", ""));
+        row("Actions", "Enter browses supported engines · Esc back. Browsing never changes a workload engine pin.");
         row("Loading", "Choose a workload to install exact model/engine/quantization selections.");
       }
     } else if (section == "engines") {
       heading(selected);
+      row("Hardware compatible", data.engines[selected]["compatible"]);
+      row("Compatibility", data.engines[selected]["reason"]);
+      row("Installed", data.engines[selected]["installed"]);
+      row("Executable / environment", data.engines[selected]["path"]);
+      heading("Engine manifest: installation recipe and endpoint contracts");
       const auto path = config / "engines" / (selected + ".yaml");
       if (std::filesystem::exists(path)) object(read_profile_file(path));
       const auto resolved = data.runtime.value("resolved", json::object()).value("engines", json::object());
       if (resolved.contains(selected)) { heading("Installed runtime"); object(resolved[selected]); }
-      else row("Installation", "Not selected in current setup; workloads install missing compatible engines.");
+      row("Installation", "Workload installation prepares missing engines. Installed does not mean inference-certified.");
     } else if (section == "endpoints") {
       for (const auto& endpoint : endpoint_catalog["endpoints"])
         if (selected == endpoint.at("method").get<std::string>() + " " + endpoint.at("path").get<std::string>()) {
@@ -306,10 +443,22 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       if (static_cast<int>(i) == section_index) line = line | bold | color(accent) | inverted;
       navigation.push_back(line);
     }
-    auto left = vbox(navigation) | size(WIDTH, EQUAL, 26) | border;
+    auto left = vbox(navigation) | size(WIDTH, EQUAL, 22) | border;
     Elements list;
     for (std::size_t i = 0; i < values.size(); ++i) {
-      auto line = text(" " + values[i] + " ");
+      auto label = values[i];
+      const auto& section = sections[section_index].id;
+      if (section == "models") {
+        for (const auto& model : data.models["data"]) if (model["id"] == values[i])
+          label = "[" + compact(model["group"]) + "] " + label + (model["cached"].get<bool>() ? " ✓" : " ↓") + (model["compatible"].get<bool>() ? "" : " !");
+      } else if (section == "engines") label += data.engines[values[i]]["installed"].get<bool>() ? " ✓" : " ↓";
+      else if (section == "workloads" || (section == "server" && server_picker)) {
+        const auto& available = data.workloads[values[i]];
+        label += available["prepared"].get<bool>() ? " ✓" : " ↓";
+        if (!available["compatible"].get<bool>()) label += " !";
+        if (!available["allocation_fits"].get<bool>()) label += " $";
+      }
+      auto line = text(" " + label + " ");
       if (static_cast<int>(i) == row_index) line = line | color(accent) | focus | (list_focus ? inverted : bold);
       list.push_back(line);
     }
@@ -318,20 +467,24 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     scroll = std::clamp(scroll, 0, std::max(0, static_cast<int>(details.size()) - 1));
     if (scroll > 0) details.erase(details.begin(), details.begin() + scroll);
     auto right = vbox(details) | yframe | flex | border;
-    if (!values.empty())
-      left = vbox({vbox(navigation), separator(), rows | flex}) | size(WIDTH, EQUAL, 26) | border;
-    auto body = hbox({left, right});
+    const bool wide = Terminal::Size().dimx >= 120;
+    auto middle = vbox({text(sections[section_index].id == "models" ? " Group: " + groups[group_index] + " (g)" : " Select / Enter to explore"), separator(), rows | flex}) | size(WIDTH, EQUAL, wide ? 38 : 28) | border;
+    // Smaller terminals keep the list/details usable instead of squeezing
+    // details between two fixed sidebars. Number keys still select views.
+    auto body = wide ? hbox({left, middle, right}) : vbox({hbox(navigation), hbox({middle, right}) | flex});
     const auto state = data.server.value("status", "stopped");
-    auto header = hbox({text(" ◇ Mica ") | bold | color(accent), text(" local model server ") | color(muted),
+    const auto active = data.server.value("profile", json::object()).value("name", "");
+    const auto fallback = data.settings.value("default_workload", "not configured");
+    auto header = hbox({text(" ◇ Mica ") | bold | color(accent), text(" " + (active.empty() ? "Default: " + fallback : "Active: " + active)) | color(muted),
                         filler(), text(" " + state + (busy ? " · working " : " ")) | color(state == "ready" ? good : muted)});
     const auto& selected_section = sections[section_index].id;
-    const std::string actions = selected_section == "workloads" ? " i install · s start · a swap · e edit · c clone " :
+    const std::string actions = selected_section == "workloads" ? " Enter models · i install · s start · a swap · e edit · c clone " :
                                 selected_section == "server" ? " s start · x stop · r refresh " :
                                 selected_section == "settings" ? " Enter edit selected setting " : " r refresh · PgUp/PgDn details ";
     auto base = vbox({header, separator(), paragraph(" " + sections[section_index].hint) | color(muted), body | flex,
                       separator(), paragraph(" " + message.substr(0, 500)) | size(HEIGHT, LESS_THAN, 4),
                       text(actions) | color(accent),
-                      text(" 1–7 views · Tab focus · ↑↓ select · / filter · ? help · q quit ") | color(muted)});
+                      text(std::string(" 1–6 views · Tab focus · ↑↓ select · Enter explore · Esc back · u ") + (show_all ? "compatible only" : "show all hardware") + " · / filter · ? help · q quit") | color(muted)});
     if (confirm) return dbox({base, vbox({text(" Confirm action ") | bold, separator(),
                              paragraph(display_command(pending)), text(""),
                              text(" Enter confirms · Esc cancels ")}) | border | size(WIDTH, LESS_THAN, 85) | clear_under | center});
@@ -340,7 +493,11 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     if (search_open) return dbox({base, vbox({text(" Filter "), search_input->Render(), text(" Enter closes · Esc clears ")}) | border | size(WIDTH, LESS_THAN, 60) | clear_under | center});
     if (help) return dbox({base, vbox({text(" Mica controls ") | bold, separator(),
       text(" Workloads: i install · s start · a activate · e edit · c clone "),
-      text(" Server: s start · x stop · r refresh "), text(" Settings: select a field and press Enter "),
+      text(" Server: Enter Choose workload · s choose/start · x stop · Machine subsection "),
+      text(" Workload → Enter models → Enter engines · Esc returns · g model group "),
+      text(" u shows incompatible hardware; hidden legacy examples stay hidden "),
+      text(" ✓ cached/installed · ↓ needs installation/download · ! unsupported · $ exceeds allocation "),
+      text(" Settings: select a field and press Enter "),
       text(" Changes are confirmed and use the same CLI as the terminal. "),
       text(" Closing the TUI leaves the inference server running. "), text(" Esc closes help ")}) | border | clear_under | center});
     return base;
@@ -374,7 +531,20 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     }
     if (event == Event::Character("q")) { screen.ExitLoopClosure()(); return true; }
     if (event == Event::Character("?")) { help = !help; return true; }
-    if (event == Event::Escape) { help = false; list_focus = false; return true; }
+    if (event == Event::Escape) {
+      if (help) { help = false; return true; }
+      if (!history.empty()) {
+        auto previous = history.back(); history.pop_back();
+        section_index = previous.section; row_index = previous.row; group_index = previous.group;
+        server_picker = previous.picker; scope = previous.scope; search.clear(); scroll = 0;
+      } else if (server_picker) { server_picker = false; row_index = 1; }
+      else list_focus = false;
+      return true;
+    }
+    if (event == Event::Character("u")) { show_all = !show_all; row_index = scroll = 0; return true; }
+    if (event == Event::Character("g") && sections[section_index].id == "models") {
+      group_index = (group_index + 1) % groups.size(); row_index = scroll = 0; return true;
+    }
     if (event == Event::Character("/")) { search_open = true; return true; }
     if (event == Event::Tab) { list_focus = !list_focus; return true; }
     if (event == Event::PageDown) { scroll += 8; return true; }
@@ -382,11 +552,11 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     if (event == Event::ArrowDown || event == Event::ArrowUp) {
       const int delta = event == Event::ArrowDown ? 1 : -1;
       if (list_focus) row_index = std::max(0, row_index + delta);
-      else { section_index = std::clamp(section_index + delta, 0, 6); row_index = 0; search.clear(); }
+      else { section_index = std::clamp(section_index + delta, 0, 5); row_index = 0; search.clear(); scope.clear(); history.clear(); server_picker = false; }
       scroll = 0; return true;
     }
-    if (event.is_character() && event.character().size() == 1 && event.character()[0] >= '1' && event.character()[0] <= '7') {
-      section_index = event.character()[0] - '1'; row_index = scroll = 0; search.clear(); list_focus = true; return true;
+    if (event.is_character() && event.character().size() == 1 && event.character()[0] >= '1' && event.character()[0] <= '6') {
+      section_index = event.character()[0] - '1'; row_index = scroll = 0; search.clear(); scope.clear(); history.clear(); server_picker = false; list_focus = true; return true;
     }
     if (event == Event::Character("r")) {
       try { data = refresh_data(root, config); message = "Refreshed."; } catch (const std::exception& e) { message = e.what(); }
@@ -399,9 +569,33 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       args.insert(args.begin(), executable.string()); args.insert(args.end(), {"--root", root.string()}); queue(std::move(args));
     };
     if (section == "server") {
-      if (event == Event::Character("s")) command({"start", "--config-dir", config.string()});
+      if (event == Event::Character("s") || event == Event::Return) {
+        if (server_picker && !selected.empty()) {
+          if (!data.workloads[selected]["compatible"].get<bool>()) {
+            message = "Cannot start/swap: " + compact(data.workloads[selected]["reason"]); return true;
+          }
+          if (local_server_running(root)) command({"workload", "activate", selected});
+          else command({"start", "--workload", selected, "--config-dir", config.string()});
+        } else if (selected == "Choose workload" || event == Event::Character("s")) {
+          server_picker = true; row_index = scroll = 0; list_focus = true;
+          const auto current = data.server.value("profile", json::object()).value("name", data.settings.value("default_workload", ""));
+          const auto choices = entries();
+          const auto found = std::find(choices.begin(), choices.end(), current);
+          if (found != choices.end()) row_index = static_cast<int>(found - choices.begin());
+          message = "Choose a workload; Enter starts when stopped or hot-swaps when running. Install missing dependencies from Workloads first.";
+        } else list_focus = true;
+      }
       if (event == Event::Character("x")) command({"stop"});
     } else if (section == "workloads" && !selected.empty()) {
+      if ((event == Event::Character("i") || event == Event::Character("s") || event == Event::Character("a")) &&
+          !data.workloads[selected]["compatible"].get<bool>()) {
+        message = "Cannot install/start/swap: " + compact(data.workloads[selected]["reason"]); return true;
+      }
+      if (event == Event::Return) {
+        history.push_back({section_index, row_index, group_index, server_picker, scope});
+        scope = data.registry.profile(selected).models; section_index = 2; row_index = scroll = group_index = 0; search.clear(); list_focus = true;
+        message = "Models in " + selected + ". Enter inspects supported engines; Esc returns to workload.";
+      }
       if (event == Event::Character("i")) command({"workload", "install", selected, "--config-dir", config.string()});
       if (event == Event::Character("s")) command({"start", "--workload", selected, "--config-dir", config.string()});
       if (event == Event::Character("a")) command({"workload", "activate", selected});
@@ -413,6 +607,13 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
         })();
         data = refresh_data(root, config);
       }
+    } else if (section == "models" && event == Event::Return && !selected.empty()) {
+      history.push_back({section_index, row_index, group_index, server_picker, scope});
+      scope.clear();
+      for (const auto& model : data.models["data"]) if (model["id"] == selected)
+        scope = model["supported_engines"].get<std::vector<std::string>>();
+      section_index = 3; row_index = scroll = 0; search.clear(); list_focus = true;
+      message = "Supported engines for " + selected + ". View only; engine pins are edited in the workload YAML.";
     } else if (section == "settings" && event == Event::Return && !selected.empty()) {
       if (local_server_running(root)) { message = "Stop Mica first to change configuration safely."; return true; }
       const std::map<std::string, std::string> options{{"Bind address", "--host"}, {"Port", "--port"},

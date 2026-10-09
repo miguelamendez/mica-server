@@ -23,7 +23,7 @@ See [context and generation limits](models.md#context-and-generation-limits).
 
 | Layer | Controlled values | Meaning |
 | --- | --- | --- |
-| Modality | `text`, `image`, `video`, `audio` | Physical input/output data. An interaction lists required and optional inputs separately. |
+| Modality | `text`, `image`, `video`, `audio`, `embedding` | Physical input/output data; `embedding` is a vector output, not a media input. An interaction lists required and optional inputs separately. |
 | Model ability | `text_generation`, `instruction_following`, `tool_calling`, `reasoning`, `structured_output`, `image_understanding`, `video_understanding`, `audio_understanding`, `speech_recognition`, `speech_translation`, `speaker_diarization`, `speech_synthesis`, `voice_conditioning`, `general_audio_generation`, `music_generation`, `audio_transformation`, `image_generation`, `image_editing`, `video_generation`, `video_editing` | Properties of the weights, backed by a model card or validation. Coding and creativity are evaluation domains, not binary abilities. |
 | Operation | `text.generate`, `chat.generate`, `decisions.score`, `audio.transcribe`, `audio.translate`, `audio.diarize`, `audio.synthesize_speech`, `audio.generate`, `audio.transform`, `image.generate`, `image.edit`, `video.generate`, `video.edit` | A normalized callable contract. The engine must expose a real adapter call for it. Agent execution is a composition of operations, not a model operation. |
 | Engine interface | `endpoint_contracts[]` with operation, transport, adapter call, input/output shape, and optional streaming/tools flags | Describes **actual callable surfaces**, not hypothetical features inferred from the model type. Current adapters support HTTP POST only; unsupported transports and calls are rejected. |
@@ -93,8 +93,14 @@ Image/music-generation routes still need their own adapters before becoming
 runnable; a schema declaration alone does not implement an endpoint.
 
 Current public routes map to `text.generate` (`/v1/completions`),
-`chat.generate` (`/v1/chat/completions`), `audio.transcribe`
+`chat.generate` (`/v1/chat/completions`), `embedding.generate`
+(`/v1/embeddings`, ability `embedding_generation`), `audio.transcribe`
 (`/v1/audio/transcriptions`), `audio.diarize` (`/v1/audio/diarizations`), and `audio.synthesize_speech`
 (`/v1/audio/speech`). `/v1/agent/chat` composes these calls. New image/audio
 generation operations need adapters and public routes before they are usable;
 the schemas alone do not add those endpoints.
+
+Embedding workloads set `max_output_tokens: 0`: their outputs are vectors,
+not decoded tokens. Generative workloads must still reserve a positive output
+budget. Multimodal embeddings use the same content-part types as native chat,
+but belong to a separate operation and cannot be routed to chat generation.

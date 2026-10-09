@@ -47,6 +47,11 @@ class LifecycleTests(unittest.TestCase):
                     self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
                 return result
             try:
+                missing = run("start", "--workload", "missing-workload-test",
+                              "--config-dir", str(CONFIG), success=False)
+                self.assertIn("workload 'missing-workload-test' was not found", missing.stderr)
+                self.assertNotIn("map::at", missing.stderr)
+                self.assertFalse((root / "state/runtime.json").exists())
                 run("config", "set", "--port", str(port), "--default-workload", "swap-a", "--rotate-api-key")
                 token = (root / "secrets/api-key").read_text().strip()
                 self.assertEqual((root / "secrets/api-key").stat().st_mode & 0o777, 0o600)
@@ -67,6 +72,10 @@ class LifecycleTests(unittest.TestCase):
                 self.assertEqual(rejected_workloads.exception.code, 401)
                 catalog = workloads()
                 self.assertEqual(catalog["active_workload"], "swap-a")
+                listed_ids = {item["id"] for item in catalog["data"]}
+                self.assertNotIn("vllm-control", listed_ids)
+                self.assertNotIn("qwen27b-modes", listed_ids)
+                self.assertIn("gpu_16g_coder", listed_ids)
                 swap_b = next(item for item in catalog["data"] if item["id"] == "swap-b")
                 self.assertTrue(swap_b["can_activate"])
                 self.assertTrue(swap_b["description"])
@@ -83,7 +92,17 @@ class LifecycleTests(unittest.TestCase):
                 self.assertEqual(workloads()["active_workload"], "swap-b")
                 snap = run("tui", "--snapshot", "--config-dir", str(CONFIG)).stdout
                 document = json.loads(snap)
-                self.assertEqual(len(document["sections"]), 7)
+                self.assertEqual(len(document["sections"]), 6)
+                self.assertNotIn("machine", [section["id"] for section in document["sections"]])
+                self.assertIn("Machine", document["server_subsections"])
+                self.assertIn("models", document["disk_usage_bytes"])
+                self.assertTrue(all("availability" in engine for engine in document["engines"]))
+                groups = {model["group"] for model in document["models"]["data"]}
+                self.assertTrue({"LLM", "VLM", "ASR", "TTS", "Embeddings"} <= groups)
+                self.assertNotIn("balanced-all", {entry["id"] for entry in document["workloads"]})
+                current = next(item for item in document["workloads"] if item["id"] == "swap-b")
+                self.assertTrue(current["allocation_fits"])
+                self.assertTrue(all("example" in route for route in document["endpoints"]["endpoints"]))
                 self.assertNotIn(token, snap)
                 run("stop")
                 self.assertEqual(json.loads(run("status").stdout)["status"], "stopped")

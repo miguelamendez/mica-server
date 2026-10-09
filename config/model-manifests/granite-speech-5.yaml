@@ -31,9 +31,58 @@ artifacts:
     repository: miguelamendez/mica-granite-speech-5
     revision: 1bd2ab6e8b006062f6336a0ab15d4707295f932d
     reservation_gib: 0.9
+    memory_estimate:
+      basis: non-autoregressive-ASR-or-diarization-no-decoder-KV
+      kv_status: not-applicable
+      kv_groups: []
+      fixed_state_mb: 0
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - No autoregressive decoder KV; audio-duration/batch-dependent activations remain in workspace allowance.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
     required_compatibility: [asr]
     files:
-      - {role: model, path: q4, repository_path: mlx/q4, size_bytes: 320409580}
+      - {role: model, path: q4, repository_path: mlx/q4, size_bytes: 320409580, estimated_memory_mb: 320.40958}
   - id: q8
     compatible_engines: [mlx-audio]
     format: mlx
@@ -41,9 +90,58 @@ artifacts:
     repository: miguelamendez/mica-granite-speech-5
     revision: 1bd2ab6e8b006062f6336a0ab15d4707295f932d
     reservation_gib: 1.2
+    memory_estimate:
+      basis: non-autoregressive-ASR-or-diarization-no-decoder-KV
+      kv_status: not-applicable
+      kv_groups: []
+      fixed_state_mb: 0
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - No autoregressive decoder KV; audio-duration/batch-dependent activations remain in workspace allowance.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
     required_compatibility: [asr]
     files:
-      - {role: model, path: q8, repository_path: mlx/q8, size_bytes: 538513660}
+      - {role: model, path: q8, repository_path: mlx/q8, size_bytes: 538513660, estimated_memory_mb: 538.51366}
   - id: q4
     compatible_engines: [audio-cpp]
     format: gguf
@@ -51,9 +149,58 @@ artifacts:
     repository: miguelamendez/mica-granite-speech-5
     revision: 1bd2ab6e8b006062f6336a0ab15d4707295f932d
     reservation_gib: 0.9
+    memory_estimate:
+      basis: non-autoregressive-ASR-or-diarization-no-decoder-KV
+      kv_status: not-applicable
+      kv_groups: []
+      fixed_state_mb: 0
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - No autoregressive decoder KV; audio-duration/batch-dependent activations remain in workspace allowance.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
     required_compatibility: [asr]
     files:
-      - {role: model, path: granite-speech-5.0-470m-turboctc-q4_k.gguf, repository_path: gguf/granite-speech-5.0-470m-turboctc-q4_k.gguf, size_bytes: 272112352}
+      - {role: model, path: granite-speech-5.0-470m-turboctc-q4_k.gguf, repository_path: gguf/granite-speech-5.0-470m-turboctc-q4_k.gguf, size_bytes: 272112352, estimated_memory_mb: 272.112352}
   - id: q8
     compatible_engines: [audio-cpp]
     format: gguf
@@ -61,6 +208,55 @@ artifacts:
     repository: miguelamendez/mica-granite-speech-5
     revision: 1bd2ab6e8b006062f6336a0ab15d4707295f932d
     reservation_gib: 1.4
+    memory_estimate:
+      basis: non-autoregressive-ASR-or-diarization-no-decoder-KV
+      kv_status: not-applicable
+      kv_groups: []
+      fixed_state_mb: 0
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - No autoregressive decoder KV; audio-duration/batch-dependent activations remain in workspace allowance.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
     required_compatibility: [asr]
     files:
-      - {role: model, path: granite-speech-5.0-470m-turboctc-q8_0.gguf, repository_path: gguf/granite-speech-5.0-470m-turboctc-q8_0.gguf, size_bytes: 504718560}
+      - {role: model, path: granite-speech-5.0-470m-turboctc-q8_0.gguf, repository_path: gguf/granite-speech-5.0-470m-turboctc-q8_0.gguf, size_bytes: 504718560, estimated_memory_mb: 504.71856}

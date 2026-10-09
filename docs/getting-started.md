@@ -166,12 +166,15 @@ silently replaced. The older `profile` commands remain available for managing
 YAML definitions; `profile install` installs a definition only, not its engines
 and weights.
 
-The TUI has Server, Workloads, Models, Engines, Machine, Endpoints and Settings
-views. Arrows select, Tab switches navigation/list focus, numbers select a
-section, `/` filters, and `?` shows actions. Installs, starts, stops, swaps and
-settings writes require confirmation. Long operations run outside the UI thread.
-API keys are hidden. Memory reservations are estimates, not universal hard
-process/GPU caps.
+The TUI has six views: Server, Workloads, Models, Engines, Endpoints and Settings.
+Machine is a Server subsection. Choose a workload from Server to start or swap;
+Enter on a workload browses its models, and Enter on a model browses its supported
+engines. Model categories and compatible-only inventories keep the lists focused;
+`u` reveals other hardware targets. Arrows select, Tab switches focus, `1`–`6`
+select a view, `/` filters, and `?` shows actions. Mutations require confirmation.
+Long operations run outside the UI thread; API keys stay hidden. See the
+[TUI walkthrough](tui.md) for installation markers, cache checks and shortcuts.
+Memory reservations are estimates, not universal hard process/GPU caps.
 
 Configure a stopped server using Settings or the CLI:
 

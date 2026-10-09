@@ -1,5 +1,6 @@
 schema: 5
 id: mica-coder-bonsai-macos
+catalog_visible: false
 description: Apple Silicon coding workspace with Spark as the default chat model, Bonsai and Ling as alternate coders, and MiniCPM for image or PDF-page analysis.
 selection:
   engine_policy: explicit-only

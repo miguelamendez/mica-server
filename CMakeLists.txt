@@ -78,10 +78,13 @@ FetchContent_MakeAvailable(ftxui)
 
 add_library(mica_server_core
   src/catalog.cpp
+  src/download.cpp
   src/command.cpp
   src/config.cpp
   src/hardware.cpp
+  src/inventory.cpp
   src/machine.cpp
+  src/memory.cpp
   src/profiles.cpp
   src/scheduler.cpp
   src/setup.cpp
@@ -135,8 +138,40 @@ if(MICA_SERVER_BUILD_TESTS)
   add_executable(mica-server-tests tests/test_scheduler.cpp)
   target_link_libraries(mica-server-tests PRIVATE mica_server_core)
   add_test(NAME mica-server-tests COMMAND mica-server-tests)
+  add_executable(mica-server-inventory-tests tests/test_inventory.cpp)
+  target_link_libraries(mica-server-inventory-tests PRIVATE mica_server_core)
+  add_test(NAME mica-server-inventory COMMAND mica-server-inventory-tests)
+  add_executable(mica-server-memory-tests tests/test_memory_estimates.cpp)
+  target_link_libraries(mica-server-memory-tests PRIVATE mica_server_core)
+  add_test(NAME mica-server-memory-estimates COMMAND mica-server-memory-tests)
+  add_executable(mica-server-download-tests tests/test_download.cpp)
+  target_link_libraries(mica-server-download-tests PRIVATE mica_server_core httplib::httplib)
+  add_test(NAME mica-server-native-download COMMAND mica-server-download-tests)
+  add_test(NAME mica-server-gguf-metadata
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_gguf_metadata.py)
+  add_test(NAME mica-server-researcher-fixtures
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_researcher_acceptance.py)
+  foreach(MICA_MEMORY_STRATEGY sequential all balanced)
+    add_test(NAME mica-server-memory-strategy-${MICA_MEMORY_STRATEGY}
+      COMMAND $<TARGET_FILE:mica-server> plan --profile-file
+              ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/profiles/memory-${MICA_MEMORY_STRATEGY}.yaml
+              --ram-gib 8 --root /tmp/mica-memory-strategy-${MICA_MEMORY_STRATEGY}
+              --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config --hardware-profile
+              ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/mac-metal.json)
+  endforeach()
+  set_tests_properties(mica-server-memory-strategy-all PROPERTIES WILL_FAIL TRUE)
+  add_test(NAME mica-server-memory-strategy-global-limit
+    COMMAND $<TARGET_FILE:mica-server> plan --profile-file
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/profiles/memory-sequential.yaml
+            --ram-gib 5 --root /tmp/mica-memory-global-limit
+            --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config --hardware-profile
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/mac-metal.json)
+  set_tests_properties(mica-server-memory-strategy-global-limit PROPERTIES WILL_FAIL TRUE)
   add_test(NAME mica-server-native-lifecycle
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_lifecycle.py
+            $<TARGET_FILE:mica-server> ${CMAKE_CURRENT_SOURCE_DIR}/config)
+  add_test(NAME mica-server-tui-navigation
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_tui_navigation.py
             $<TARGET_FILE:mica-server> ${CMAKE_CURRENT_SOURCE_DIR}/config)
   add_test(NAME mica-server-mlx-worker-guards
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mlx_worker_guards.py)
@@ -147,7 +182,7 @@ if(MICA_SERVER_BUILD_TESTS)
   add_test(
     NAME mica-server-schema3-gguf-profile
     COMMAND $<TARGET_FILE:mica-server> setup --profile gguf-interactive
-            --dry-run --ram-gib 8 --root /tmp/mica-schema3-gguf-test
+            --dry-run --ram-gib 9 --root /tmp/mica-schema3-gguf-test
             --config-dir ${CMAKE_CURRENT_SOURCE_DIR}/config
             --hardware-profile
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/mac-metal.json
@@ -233,7 +268,7 @@ if(MICA_SERVER_BUILD_TESTS)
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cuda.json
   )
   set_tests_properties(mica-server-placement-cpu-on-cuda-host PROPERTIES
-    PASS_REGULAR_EXPRESSION "resolved_device.*cpu.*reserved_ram_gib.*7.58.*reserved_vram_gib.*0.0"
+    PASS_REGULAR_EXPRESSION "resolved_device.*cpu.*reserved_ram_gib.*7.92.*reserved_vram_gib.*0.0"
   )
   add_test(
     NAME mica-server-placement-gpu-on-cuda-host
@@ -245,7 +280,7 @@ if(MICA_SERVER_BUILD_TESTS)
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cuda.json
   )
   set_tests_properties(mica-server-placement-gpu-on-cuda-host PROPERTIES
-    PASS_REGULAR_EXPRESSION "resolved_device.*cuda:0.*reserved_ram_gib.*1.5.*reserved_vram_gib.*7.58"
+    PASS_REGULAR_EXPRESSION "resolved_device.*cuda:0.*reserved_ram_gib.*1.5.*reserved_vram_gib.*7.92"
   )
   add_test(
     NAME mica-server-placement-mixed-on-cuda-host
@@ -257,7 +292,7 @@ if(MICA_SERVER_BUILD_TESTS)
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/hardware/linux-cuda.json
   )
   set_tests_properties(mica-server-placement-mixed-on-cuda-host PROPERTIES
-    PASS_REGULAR_EXPRESSION "resolved_device.*cuda:0.*resolved_device.*cpu.*reserved_ram_gib.*3.0.*reserved_vram_gib.*5.08"
+    PASS_REGULAR_EXPRESSION "resolved_device.*cuda:0.*resolved_device.*cpu.*reserved_ram_gib.*3.02.*reserved_vram_gib.*5.39"
   )
   add_test(
     NAME mica-server-placement-reject-gpu-on-cpu-host

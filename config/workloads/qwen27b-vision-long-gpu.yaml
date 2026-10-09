@@ -1,5 +1,6 @@
 schema: 5
 id: qwen27b-vision-long-gpu
+catalog_visible: false
 description: Experimental GPU-only Qwen 27B vision baseline with 160K input plus 32K output reservation. No drafter; target, KV cache and projector on CUDA. A requested window is not a certification that populated context fits or preserves quality.
 selection:
   defaults:

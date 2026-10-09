@@ -1,5 +1,6 @@
 schema: 5
 id: mica-coder-qwen-gguf
+catalog_visible: false
 description: Single-engine coding workspace with Spark Q4 as default, Qwen3.8 27B GSQ-RCO IQ3_XXS as alternate coder, and Qwen3.5 9B Q4 for images and video. One resident worker keeps GPU usage bounded.
 selection:
   engine_policy: explicit-only

@@ -43,6 +43,57 @@ artifacts:
     repository: unsloth/Qwen3.5-4B-GGUF
     revision: e87f176479d0855a907a41277aca2f8ee7a09523
     reservation_gib: 5.0
+    memory_estimate:
+      basis: cached-GGUF-metadata-and-engine-layout
+      kv_status: verified
+      kv_groups:
+      - layers: 8
+        key_width: 1024
+        value_width: 1024
+      fixed_state_mb: 52.690944
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 75.497472
+          q4_k_q8_v: 109.051904
+          q8_k_q4_v: 109.051904
+          q8_k_q8_v: 142.606336
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 150.994944
+          q4_k_q8_v: 218.103808
+          q8_k_q4_v: 218.103808
+          q8_k_q8_v: 285.212672
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 301.989888
+          q4_k_q8_v: 436.207616
+          q8_k_q4_v: 436.207616
+          q8_k_q8_v: 570.425344
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 641.728512
+          q4_k_q8_v: 926.941184
+          q8_k_q4_v: 926.941184
+          q8_k_q8_v: 1212.153856
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 1207.959552
+          q4_k_q8_v: 1744.830464
+          q8_k_q4_v: 1744.830464
+          q8_k_q8_v: 2281.701376
+        layout_verified: true
     kv_bytes_per_token_f16: 32768
     image_min_tokens: 1024
     required_compatibility: [text-generation, vision-projector]
@@ -50,8 +101,10 @@ artifacts:
       - role: model
         path: Qwen3.5-4B-Q4_K_M.gguf
         size_bytes: 2740937888
+        estimated_memory_mb: 2740.937888
         sha256: 00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4
       - role: vision-projector
         path: mmproj-F16.gguf
         size_bytes: 672423616
+        estimated_memory_mb: 672.423616
         sha256: cd88edcf8d031894960bb0c9c5b9b7e1fea6ebee02b9f7ce925a00d12891f864

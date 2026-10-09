@@ -26,15 +26,65 @@ artifacts:
     repository: mlx-community/Nemotron-3-Diarization-8bit
     revision: dd8b8ce3d69a80540a7e50150e2beed1c34fee37
     reservation_gib: 1.5
+    memory_estimate:
+      basis: non-autoregressive-ASR-or-diarization-no-decoder-KV
+      kv_status: not-applicable
+      kv_groups: []
+      fixed_state_mb: 0
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - No autoregressive decoder KV; audio-duration/batch-dependent activations remain in workspace allowance.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
     load_path: q8
     required_compatibility: [speaker-diarization]
     files:
-      - {role: model, path: q8/model.safetensors, repository_path: model.safetensors, size_bytes: 106613900, sha256: 8b09366e0e4f52370065c88b1d0d5b9a4fa73f686d989495418a2c5cfe39ab07}
-      - {role: config, path: q8/config.json, repository_path: config.json, size_bytes: 1694}
+      - {role: model, path: q8/model.safetensors, repository_path: model.safetensors, size_bytes: 106613900, estimated_memory_mb: 106.6139, sha256: 8b09366e0e4f52370065c88b1d0d5b9a4fa73f686d989495418a2c5cfe39ab07}
+      - {role: config, path: q8/config.json, repository_path: config.json, size_bytes: 1694, estimated_memory_mb: 0.001694}
       - role: license
         path: q8/LICENSE.html
         repository_path: LICENSE.html
         size_bytes: 54587
+        estimated_memory_mb: 0.054587
         source: {repository: audio-cpp/Nemotron-3-Diarization-GGUF, revision: 647d39feaa0e91dca5ce355a95403837b76dff56, license: openmdw-1.1}
   - id: q8
     compatible_engines: [audio-cpp]
@@ -43,11 +93,60 @@ artifacts:
     repository: audio-cpp/Nemotron-3-Diarization-GGUF
     revision: 647d39feaa0e91dca5ce355a95403837b76dff56
     reservation_gib: 1.5
+    memory_estimate:
+      basis: non-autoregressive-ASR-or-diarization-no-decoder-KV
+      kv_status: not-applicable
+      kv_groups: []
+      fixed_state_mb: 0
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - No autoregressive decoder KV; audio-duration/batch-dependent activations remain in workspace allowance.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
     required_compatibility: [speaker-diarization]
     minimum_engine_commit: 8fa20ff7b5c80a05176dadcf7bfc7d53509e6767
     files:
-      - {role: model, path: nemotron-3-diarization-q8_0.gguf, size_bytes: 106675136, sha256: 9a737455bd10123bcf1e036d9a0b07b6e8c42e7d0dd1a5ee4141dc386db46d0b}
-      - {role: license, path: LICENSE.html, size_bytes: 54587}
+      - {role: model, path: nemotron-3-diarization-q8_0.gguf, size_bytes: 106675136, estimated_memory_mb: 106.675136, sha256: 9a737455bd10123bcf1e036d9a0b07b6e8c42e7d0dd1a5ee4141dc386db46d0b}
+      - {role: license, path: LICENSE.html, size_bytes: 54587, estimated_memory_mb: 0.054587}
   - id: bf16
     compatible_engines: [audio-cpp]
     format: gguf
@@ -55,8 +154,57 @@ artifacts:
     repository: audio-cpp/Nemotron-3-Diarization-GGUF
     revision: 647d39feaa0e91dca5ce355a95403837b76dff56
     reservation_gib: 1.5
+    memory_estimate:
+      basis: non-autoregressive-ASR-or-diarization-no-decoder-KV
+      kv_status: not-applicable
+      kv_groups: []
+      fixed_state_mb: 0
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - No autoregressive decoder KV; audio-duration/batch-dependent activations remain in workspace allowance.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 0.0
+          q4_k_q8_v: 0.0
+          q8_k_q4_v: 0.0
+          q8_k_q8_v: 0.0
+        layout_verified: true
     required_compatibility: [speaker-diarization]
     minimum_engine_commit: 8fa20ff7b5c80a05176dadcf7bfc7d53509e6767
     files:
-      - {role: model, path: nemotron-3-diarization-bf16.gguf, size_bytes: 198720928, sha256: 84f6f0f12b9ecf2615548427e884534a72fedbca32d00872d95c0f72a078c953}
-      - {role: license, path: LICENSE.html, size_bytes: 54587}
+      - {role: model, path: nemotron-3-diarization-bf16.gguf, size_bytes: 198720928, estimated_memory_mb: 198.720928, sha256: 84f6f0f12b9ecf2615548427e884534a72fedbca32d00872d95c0f72a078c953}
+      - {role: license, path: LICENSE.html, size_bytes: 54587, estimated_memory_mb: 0.054587}

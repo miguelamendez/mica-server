@@ -1,5 +1,6 @@
 schema: 5
 id: mica-assistant-gguf-gpu
+catalog_visible: false
 description: GPU-placed GGUF assistant for validating accelerator-only model placement and serving.
 mode: interactive-gpu
 memory:

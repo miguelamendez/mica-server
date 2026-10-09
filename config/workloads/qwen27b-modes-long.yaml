@@ -1,5 +1,6 @@
 schema: 5
 id: qwen27b-modes-long
+catalog_visible: false
 description: Qwen 27B text-only 160K input plus 32K output reservation (192K total), Q4 KV, single request, no projector and no drafter. All GPU layers are faster than the tested CPU-drafter alternative on the 16 GiB RTX card. Long-input memory test only, not a long-context quality guarantee.
 selection:
   defaults:

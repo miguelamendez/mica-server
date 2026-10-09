@@ -1,5 +1,6 @@
 schema: 5
 id: text-batch
+catalog_visible: false
 description: MLX assistant favoring concurrent text prompts, with audio and vision utilities available on demand.
 mode: batch
 memory:

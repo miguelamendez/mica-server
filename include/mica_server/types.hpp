@@ -6,6 +6,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <nlohmann/json.hpp>
 
 namespace mica {
 
@@ -89,6 +90,7 @@ struct Artifact {
     std::string repository;
     std::string revision;
     std::uint64_t size_bytes{0};
+    double estimated_memory_mb{-1.0};
     std::string sha256;
   };
   bool supported{false};
@@ -103,6 +105,8 @@ struct Artifact {
   std::string size_source;
   double reservation_gib{0.0};
   std::uint64_t kv_bytes_per_token_f16{0};
+  // Device-independent planning metadata; never a measured peak.
+  nlohmann::json memory_estimate;
   int gguf_block_count{0};
   // Optional native vision preprocessing floor; zero retains engine defaults.
   int image_min_tokens{0};
@@ -228,6 +232,8 @@ struct ProfileModel {
   int max_total_tokens{8192};
   int max_concurrent_requests{1};
   std::string kv_cache_precision{"q8"};
+  std::string kv_cache_k_precision;
+  std::string kv_cache_v_precision;
   int token_batch_size{0};
   int micro_batch_size{0};
   int context_checkpoints{-1};
@@ -268,6 +274,9 @@ struct Profile {
   double required_vram_gib{0.0};
   double memory_safety_reserve_gib{0.0};
   int maximum_resident_workers{0};
+  std::string residency_strategy;
+  double memory_limit_gib{0.0};
+  std::vector<std::string> balanced_keep_models;
   std::vector<ProfileModel> model_policies;
 
   [[nodiscard]] const ProfileModel* policy_for(const std::string& id) const {

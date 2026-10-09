@@ -1,4 +1,5 @@
 #include "mica_server/server.hpp"
+#include "mica_server/inventory.hpp"
 #include "mica_server/generation_metrics.hpp"
 
 #include <algorithm>
@@ -42,7 +43,9 @@
 #include "mica_server/base64.hpp"
 #include "mica_server/command.hpp"
 #include "mica_server/catalog.hpp"
+#include "mica_server/download.hpp"
 #include "mica_server/profiles.hpp"
+#include "mica_server/memory.hpp"
 
 namespace mica {
 namespace {
@@ -1030,10 +1033,17 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
     }
     command.insert(command.end(), {"--n-gpu-layers",
                                    std::to_string(worker.gpu_layers)});
-    if (kv_cache_precision == "q4" || kv_cache_precision == "q8") {
-      const auto cache_type = kv_cache_precision == "q4" ? "q4_0" : "q8_0";
-      command.insert(command.end(), {"--cache-type-k", cache_type,
-                                     "--cache-type-v", cache_type});
+    if (worker.model->capability == "embedding") {
+      command.insert(command.end(), {"--embedding", "--pooling", "mean"});
+    }
+    if (kv_cache_precision == "q4" || kv_cache_precision == "q8" ||
+        (model_policy && (!model_policy->kv_cache_k_precision.empty() || !model_policy->kv_cache_v_precision.empty()))) {
+      const auto native_type = [](const std::string& precision) {
+        return precision == "q4" ? "q4_0" : precision == "q8" ? "q8_0" : "f16";
+      };
+      const auto k = model_policy && !model_policy->kv_cache_k_precision.empty() ? model_policy->kv_cache_k_precision : kv_cache_precision;
+      const auto v = model_policy && !model_policy->kv_cache_v_precision.empty() ? model_policy->kv_cache_v_precision : kv_cache_precision;
+      command.insert(command.end(), {"--cache-type-k", native_type(k), "--cache-type-v", native_type(v)});
     }
     if (model_policy) {
       if (model_policy->token_batch_size > 0)
@@ -1090,19 +1100,6 @@ const EngineDefinition::EndpointContract& worker_contract(const Worker& worker,
     if (endpoint.operation == operation) return endpoint;
   }
   throw std::invalid_argument("engine has no endpoint for " + operation);
-}
-
-std::filesystem::path model_cache_directory(const std::filesystem::path& root,
-                                            const ModelDefinition& model,
-                                            Backend backend, const std::string& engine) {
-  auto directory = root / "models" / to_string(backend) / model.id;
-  int engines = 0;
-  const auto format = model.artifacts.at(backend).begin()->second.format;
-  for (const auto& [id, variants] : model.engine_artifacts) {
-    if (!variants.empty() && variants.begin()->second.format == format) ++engines;
-  }
-  if (engines > 1) directory /= engine;
-  return directory;
 }
 
 class WorkerManager {
@@ -1446,6 +1443,7 @@ class WorkerManager {
     }
     std::sort(next_backends.begin(), next_backends.end());
 
+    validate_memory_strategy(registry_, target, state_.max_ram_gib + state_.max_vram_gib);
     // Every selected model must fit the global allocation. Pinned models
     // coexist; each swappable model must also fit alongside that baseline.
     const auto hardware = runtime_hardware(state_);
@@ -1481,6 +1479,9 @@ class WorkerManager {
     }
     const auto fits_target = [&](double ram,
                                  const std::map<std::string, double>& vram) {
+      double combined = ram;
+      for (const auto& [_, amount] : vram) combined += amount;
+      if (target.memory_limit_gib > 0 && combined > target.memory_limit_gib - target.memory_safety_reserve_gib + 1e-9) return false;
       if (ram > std::max(0.0, state_.max_ram_gib -
                                  target.memory_safety_reserve_gib) + 1e-9) return false;
       const double common = std::max(0.0, state_.max_vram_gib -
@@ -1772,8 +1773,10 @@ class WorkerManager {
     std::lock_guard lock(mutex_);
     json data = json::array();
     for (const auto& [id, profile] : registry_.profiles) {
-      if (profile.schema < 4) continue;
+      if (profile.schema < 4 || !profile.catalog_visible) continue;
       json blockers = json::array();
+      try { validate_memory_strategy(registry_, profile, state_.max_ram_gib + state_.max_vram_gib); }
+      catch (const std::exception& error) { blockers.push_back(error.what()); }
       if (state_.schema < 6) blockers.push_back("Refresh runtime with workload install before live switching.");
       if (!registry_.allow_partial_workload &&
           (profile.required_ram_gib > state_.max_ram_gib + 1e-9 ||
@@ -1796,6 +1799,7 @@ class WorkerManager {
         }
       }
       data.push_back({{"id", id}, {"description", profile.description},
+                      {"memory_estimates", workload_memory_report(registry_, profile, 0, state_.max_ram_gib + state_.max_vram_gib)},
                       {"active", id == state_.profile}, {"models", models},
                       {"required_ram_gib", profile.required_ram_gib},
                       {"required_vram_gib", profile.required_vram_gib},
@@ -1865,6 +1869,9 @@ class WorkerManager {
                          {"required_vram_gib", profile.required_vram_gib},
                          {"memory_safety_reserve_gib", profile.memory_safety_reserve_gib},
                          {"maximum_resident_workers", profile.maximum_resident_workers},
+                         {"residency_strategy", profile.residency_strategy.empty() ? "balanced" : profile.residency_strategy},
+                         {"memory_limit_gib", profile.memory_limit_gib},
+                         {"memory_estimates", workload_memory_report(registry_, profile, 0, state_.max_ram_gib + state_.max_vram_gib)},
                          {"models", policies}}},
             {"reserved_ram_gib", reserved_ram_gib_},
             {"reserved_vram_gib", reserved_vram_gib_},
@@ -1967,14 +1974,13 @@ class WorkerManager {
         const auto temporary = destination.string() + ".part";
         const auto url = "https://huggingface.co/" + repository +
                          "/resolve/" + file_revision + "/" + remote + "?download=true";
-        const auto result = run_command(
-            {"curl", "--location", "--fail", "--silent", "--show-error",
-             "--retry", "3", "--output", temporary, url},
-            true);
-        if (result.exit_code != 0) {
+        std::clog << "Downloading " << worker.model->id << "/" << remote
+                  << " (" << expected_size << " bytes)\n";
+        try {
+          download_native_file(url, temporary, expected_size);
+        } catch (...) {
           std::filesystem::remove(temporary);
-          throw std::runtime_error("native Hugging Face download failed for " +
-                                   worker.model->id + ": " + result.output);
+          throw;
         }
         if (expected_size > 0 && std::filesystem::file_size(temporary) != expected_size) {
           std::filesystem::remove(temporary);
@@ -2204,7 +2210,12 @@ class WorkerManager {
                                          ? worker.artifact_path.string()
                                          : worker.model->id;
     httplib::Result response;
-    if (worker.model->capability == "asr" || worker.model->capability == "diar") {
+    if (worker.model->capability == "embedding") {
+      const json body = {{"model", worker_model}, {"input", "task: search result | query: Mica warmup"},
+                         {"encoding_format", "float"}};
+      response = client.Post(worker_contract(worker, "embedding.generate").path,
+                             body.dump(), "application/json");
+    } else if (worker.model->capability == "asr" || worker.model->capability == "diar") {
       const auto fixture = asr_fixture();
       httplib::UploadFormDataItems items = {
           {"model", worker_model, "", "text/plain"},
@@ -2287,6 +2298,23 @@ class WorkerManager {
   }
 
   static void validate_inference(const Worker& worker, const std::string& body) {
+    if (worker.model->capability == "embedding") {
+      const auto parsed = json::parse(body);
+      if (!parsed.contains("data") || !parsed["data"].is_array() || parsed["data"].empty())
+        throw std::runtime_error("embedding smoke returned no vectors");
+      for (const auto& item : parsed["data"]) {
+        const auto& vector = item.at("embedding");
+        if (!vector.is_array() || vector.empty()) throw std::runtime_error("empty embedding vector");
+        double norm = 0;
+        for (const auto& value : vector) {
+          if (!value.is_number() || !std::isfinite(value.get<double>()))
+            throw std::runtime_error("embedding smoke returned non-finite values");
+          norm += value.get<double>() * value.get<double>();
+        }
+        if (!(norm > 0)) throw std::runtime_error("embedding smoke returned a zero vector");
+      }
+      return;
+    }
     if (worker.model->capability == "diar") {
       const auto parsed = json::parse(body);
       if (!parsed.contains("speaker_turns") || !parsed["speaker_turns"].is_array() || parsed["speaker_turns"].empty()) {
@@ -2345,6 +2373,12 @@ class WorkerManager {
 
   bool fits_resources(double requested_ram, double requested_vram,
                       const std::string& memory_device) const {
+    const auto& profile = registry_.profile(state_.profile);
+    if (profile.memory_limit_gib > 0) {
+      double total = reserved_ram_gib_ + requested_ram + requested_vram;
+      for (const auto& [_, amount] : reserved_vram_by_device_) total += amount;
+      if (total > profile.memory_limit_gib - profile.memory_safety_reserve_gib + 1e-9) return false;
+    }
     return reserved_ram_gib_ + requested_ram <= ram_limit() + 1e-9 &&
            fits_device_reservation(reserved_vram_by_device_,
                                    state_.dedicated_memory_gib,
@@ -2369,6 +2403,10 @@ class WorkerManager {
         0.0, (reserved_for_device == reserved_vram_by_device_.end()
                   ? 0.0 : reserved_for_device->second) + requested_vram -
                  device_vram_limit(memory_device));
+    double combined = reserved_ram_gib_ + requested_ram + requested_vram;
+    for (const auto& [_, amount] : reserved_vram_by_device_) combined += amount;
+    const bool aggregate_shortfall = profile.memory_limit_gib > 0 &&
+        combined > profile.memory_limit_gib - profile.memory_safety_reserve_gib + 1e-9;
     std::vector<std::shared_ptr<Worker>> candidates;
     const auto now = monotonic_ns();
     for (const auto& [_, worker] : workers_) {
@@ -2383,7 +2421,7 @@ class WorkerManager {
       const bool relieves_vram = vram_shortfall > 0 &&
                                  worker->memory_device == memory_device &&
                                  worker->vram_reservation_gib > 0;
-      if (!worker_limit_only && !relieves_ram && !relieves_vram) continue;
+      if (!worker_limit_only && !aggregate_shortfall && !relieves_ram && !relieves_vram) continue;
       candidates.push_back(worker);
     }
     const auto expired = [now, this](const auto& worker) {
@@ -2589,6 +2627,42 @@ std::string rewrite_json_model(const std::string& body, const Worker& worker,
           "tool_calling") == worker.model->abilities.end())) {
     throw std::invalid_argument("selected model/engine does not support tool calling");
   }
+  if (operation == "embedding.generate") {
+    if (!parsed.contains("input") || parsed.at("input").is_null() || parsed.at("input").empty())
+      throw std::invalid_argument("embeddings require nonempty input");
+    if (parsed.contains("dimensions"))
+      throw std::invalid_argument("dimension truncation is not implemented; request native vectors and truncate/re-normalize client-side");
+    if (parsed.contains("max_tokens") || parsed.contains("max_completion_tokens"))
+      throw std::invalid_argument("embeddings do not generate output tokens");
+    // Bound text/token inputs before forwarding. Native llama.cpp also checks
+    // the complete expanded media input against its per-slot context.
+    const auto validate_input = [&](const json& entry) {
+      std::string text;
+      if (entry.is_string()) text = entry.get<std::string>();
+      else if (entry.is_object() && entry.contains("content") && entry["content"].is_array()) {
+        for (const auto& part : entry["content"]) {
+          if (!part.is_object()) throw std::invalid_argument("invalid embedding content part");
+          if (part.value("type", std::string()) == "text") text += part.at("text").get<std::string>();
+        }
+      } else if (entry.is_array() && std::all_of(entry.begin(), entry.end(), [](const auto& token) { return token.is_number_integer(); })) {
+        if (worker.profile_policy && entry.size() > static_cast<std::size_t>(worker.profile_policy->max_input_tokens))
+          throw std::invalid_argument("embedding input exceeds profile token limit");
+        return;
+      } else throw std::invalid_argument("invalid embedding input shape");
+      if (worker.profile_policy && worker.engine->launcher == "llama-server" && !text.empty()) {
+        httplib::Client tokenizer("127.0.0.1", worker.port);
+        tokenizer.set_read_timeout(30, 0);
+        const auto result = tokenizer.Post("/tokenize", json{{"content", text}, {"add_special", true}}.dump(), "application/json");
+        if (!result || result->status != 200) throw std::runtime_error("embedding tokenizer unavailable");
+        if (json::parse(result->body).at("tokens").size() > static_cast<std::size_t>(worker.profile_policy->max_input_tokens))
+          throw std::invalid_argument("embedding input exceeds profile token limit");
+      }
+    };
+    const auto& input = parsed.at("input");
+    if (input.is_array() && !input.empty() && !input.front().is_number_integer())
+      for (const auto& entry : input) validate_input(entry);
+    else validate_input(input);
+  }
   const bool mlx_vlm_worker = worker.backend == Backend::mlx &&
       (worker.model->capability == "vision" ||
        worker.engine->launcher == "mlx-vlm");
@@ -2629,7 +2703,7 @@ std::string rewrite_json_model(const std::string& body, const Worker& worker,
     parsed.erase("thinking_budget_tokens");
     parsed[mlx_vlm_worker ? "thinking_budget" : "reasoning_budget_tokens"] = tokens;
   }
-  if (worker.profile_policy) {
+  if (worker.profile_policy && operation != "embedding.generate") {
     if (!parsed.contains("max_tokens") && !parsed.contains("max_completion_tokens")) {
       parsed["max_tokens"] = worker.profile_policy->max_output_tokens;
     }
@@ -2709,11 +2783,17 @@ std::vector<std::string> request_input_modalities(const std::string& path,
   if (path == "/v1/audio/speech") return body.contains("ref_audio") ?
       std::vector<std::string>{"text", "audio"} : std::vector<std::string>{"text"};
   std::vector<std::string> inputs = {"text"};
-  if (!body.is_object() || !body.contains("messages") ||
-      !body.at("messages").is_array()) return inputs;
+  json messages = body.value("messages", json::array());
+  if (path == "/v1/embeddings" && body.contains("input")) {
+    const auto& input = body.at("input");
+    if (input.is_object()) messages = json::array({input});
+    else if (input.is_array()) messages = input;
+  }
+  if (!messages.is_array()) return inputs;
   bool image = false;
   bool video = false;
-  for (const auto& message : body.at("messages")) {
+  bool audio = false;
+  for (const auto& message : messages) {
     if (!message.is_object() || !message.contains("content") ||
         !message.at("content").is_array()) continue;
     for (const auto& item : message.at("content")) {
@@ -2723,10 +2803,12 @@ std::vector<std::string> request_input_modalities(const std::string& path,
               item.contains("image_url");
       video = video || type == "video_url" || type == "input_video" ||
               item.contains("video_url") || item.contains("input_video");
+      audio = audio || type == "input_audio" || type == "audio_url";
     }
   }
   if (image) inputs.push_back("image");
   if (video) inputs.push_back("video");
+  if (audio) inputs.push_back("audio");
   return inputs;
 }
 
@@ -2879,6 +2961,7 @@ nlohmann::json server_endpoints() {
   add("POST", "/admin/server/stop", "Gracefully stop the server and its model workers");
   add("POST", "/v1/chat/completions", "Chat, tools and supported multimodal inputs");
   add("POST", "/v1/completions", "Single-prompt text completion adapter");
+  add("POST", "/v1/embeddings", "Text and supported multimodal embedding vectors");
   add("POST", "/v1/audio/transcriptions", "Speech transcription");
   add("POST", "/v1/audio/diarizations", "Speaker diarization");
   add("POST", "/v1/audio/speech", "Speech synthesis");
@@ -2890,6 +2973,31 @@ nlohmann::json server_endpoints() {
   add("POST", "/v1/agent/sessions/import", "Import session and media ZIP");
   add("GET", "/v1/agent/sessions/{session_id}/media/{message_index}/{media_index}",
       "Read session media");
+  // Examples belong to route discovery, not a separate TUI-maintained route list.
+  for (auto& endpoint : endpoints) {
+    const auto path = endpoint.at("path").get<std::string>();
+    const auto method = endpoint.at("method").get<std::string>();
+    std::string example = "curl \"$MICA_BASE_URL" + path + "\"";
+    if (endpoint.at("authentication_required").get<bool>())
+      example += " -H \"Authorization: Bearer $MICA_API_KEY\"";
+    if (method == "POST") {
+      if (path == "/v1/audio/transcriptions" || path == "/v1/audio/diarizations")
+        example += " -F 'model=MODEL_ID' -F 'file=@recording.wav'";
+      else if (path == "/v1/agent/sessions/import") example += " -F 'file=@conversation.zip'";
+      else if (path == "/v1/agent/chat" || path == "/v1/agent/chat/stream") example += " -F 'text=Hello' -F 'llm_model=MODEL_ID'";
+      else {
+        json payload = json::object();
+        if (path == "/admin/profile/activate") payload = {{"profile", "WORKLOAD_ID"}};
+        if (path == "/v1/chat/completions") payload = {{"model", "MODEL_ID"}, {"messages", json::array({{{"role", "user"}, {"content", "Hello"}}})}};
+        if (path == "/v1/completions") payload = {{"model", "MODEL_ID"}, {"prompt", "Hello"}};
+        if (path == "/v1/embeddings") payload = {{"model", "MODEL_ID"}, {"input", "A document to embed"}};
+        if (path == "/v1/audio/speech") payload = {{"model", "MODEL_ID"}, {"input", "Hello"}, {"voice", "default"}};
+        example += " -H 'Content-Type: application/json' -d '" + payload.dump() + "'";
+      }
+    }
+    if (path == "/v1/audio/speech") example += " --output speech.wav";
+    endpoint["example"] = example;
+  }
   return {{"endpoints", endpoints},
           {"note", "Routes are registered globally. Inference requires an eligible model in the active workload; inspect /v1/models for capabilities."}};
 }
@@ -2898,6 +3006,7 @@ void download_workload_models(const Registry& source, const std::filesystem::pat
   auto registry = source;
   const auto state = load_runtime_state(root);
   const auto hardware = detect_hardware();
+  (void) registry.profile(state.profile); // Validate before mutable map lookup.
   auto& profile = registry.profiles.at(state.profile);
   resolve_profile_engines(registry, profile, hardware, root);
   WorkerManager manager(registry, state, root, state.installed_backends);
@@ -2933,6 +3042,7 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
     resolve_profile_engines(registry, profile, hardware, options.root);
   }
   const auto& selected_profile = registry.profile(state.profile);
+  validate_memory_strategy(registry, selected_profile, state.max_ram_gib + state.max_vram_gib);
   validate_runtime_profile(state, selected_profile);
   std::vector<Backend> active_backends;
   if (selected_profile.schema >= 3) {
@@ -4188,6 +4298,7 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
       const std::string route = request.path == "/v1/audio/transcriptions" ? "asr" :
                          request.path == "/v1/audio/diarizations" ? "diar" :
                          request.path == "/v1/completions" ? "completion" :
+                         request.path == "/v1/embeddings" ? "embeddings" :
                          request.path == "/v1/audio/speech" ? "tts" : "chat";
       if (route == "diar") {
         if (!request.is_multipart_form_data() || !request.form.has_file("file")) {
@@ -4214,7 +4325,8 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
       });
       const auto operation = route == "asr" ? "audio.transcribe" :
           route == "diar" ? "audio.diarize" : route == "tts" ? "audio.synthesize_speech" :
-          route == "completion" ? "text.generate" : "chat.generate";
+          route == "completion" ? "text.generate" :
+          route == "embeddings" ? "embedding.generate" : "chat.generate";
       const auto endpoint = worker_contract(*worker, operation);
       const auto worker_path = endpoint.path;
       const bool wants_stream = request.is_multipart_form_data() ?
@@ -4379,6 +4491,7 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
 
   server.Post("/v1/chat/completions", proxy);
   server.Post("/v1/completions", proxy);
+  server.Post("/v1/embeddings", proxy);
   server.Post("/v1/audio/transcriptions", proxy);
   server.Post("/v1/audio/diarizations", proxy);
   server.Post("/v1/audio/speech", proxy);

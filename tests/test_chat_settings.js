@@ -48,6 +48,11 @@ async function test() {
   await assert.rejects(picker.activate(),/validation rejected/);
   assert.equal(current,'qwen');assert.equal(ui.button.disabled,false);
   assert.deepEqual(busyEvents,[true,false,true,false]);
+  current='hidden-legacy';ui.select.value='hidden-legacy';
+  await picker.refresh();
+  assert.equal(ui.select.value,'spark');
+  assert.match(ui.active.textContent,/Active: hidden-legacy/);
+  assert.equal(ui.button.disabled,false);
   console.log('Workload selector, confirmation, warmup, rejection recovery and speed labels passed');
 }
 test().catch(error=>{console.error(error);process.exitCode=1;});

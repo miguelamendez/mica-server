@@ -1,0 +1,45 @@
+schema: 5
+id: mac_meetings
+description: Apple Silicon meeting analysis with Granite transcription, Nemotron Q8 anonymous speaker turns and Spark summaries. No TTS or vision weights. Transcription and diarization are separate operations; this workload does not align transcript words to speakers automatically.
+catalog_visible: true
+selection:
+  engine_policy: explicit-only
+  defaults:
+    - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
+    - {operation: audio.transcribe, required_inputs: [audio], model: granite-speech-5}
+mode: meetings
+memory: {required_ram_gib: 12, required_vram_gib: 0, maximum_resident_workers: 0, safety_reserve_gib: 0.5}
+models:
+  - id: spark-x25-4b
+    engine: mlx-lm
+    artifact: {id: q4}
+    context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: q8}
+    placement: {device: 'metal:0', mode: fixed}
+    priority: 100
+    residency: warm
+    startup: true
+    idle_seconds: 120
+  - id: granite-speech-5
+    engine: mlx-audio
+    artifact: {id: q8}
+    context: {max_input_tokens: 1, max_output_tokens: 1, max_total_tokens: 2}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: not-applicable}
+    placement: {device: 'metal:0', mode: fixed}
+    priority: 90
+    residency: warm
+    startup: true
+    idle_seconds: 120
+  - id: nemotron-3-diarization
+    engine: mlx-audio-diarization
+    artifact: {id: q8}
+    context: {max_input_tokens: 1, max_output_tokens: 1, max_total_tokens: 2}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: not-applicable}
+    placement: {device: 'metal:0', mode: fixed}
+    priority: 80
+    residency: warm
+    startup: true
+    idle_seconds: 120

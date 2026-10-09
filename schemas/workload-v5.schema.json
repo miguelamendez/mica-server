@@ -5,147 +5,445 @@
   "description": "A workload profile is an ordered collection of models, not a set of fixed roles or modality groups.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "id", "description", "memory", "models"],
+  "required": [
+    "schema",
+    "id",
+    "description",
+    "memory",
+    "models"
+  ],
   "$defs": {
     "context": {
-      "type": "object", "additionalProperties": false,
-      "required": ["max_input_tokens", "max_output_tokens", "max_total_tokens"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_input_tokens",
+        "max_output_tokens",
+        "max_total_tokens"
+      ],
       "properties": {
-        "max_input_tokens": {"type": "integer", "minimum": 1},
-        "max_output_tokens": {"type": "integer", "minimum": 1},
-        "max_total_tokens": {"type": "integer", "minimum": 2}
+        "max_input_tokens": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_output_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_total_tokens": {
+          "type": "integer",
+          "minimum": 2
+        }
       }
     },
     "placement": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "mode": {"enum": ["auto", "fixed"]},
-        "device": {"type": "string", "pattern": "^(auto|cpu|(accelerator|cuda|rocm|xpu|metal):[0-9]+)$"},
-        "gpu_layers": {"type": "integer", "minimum": -1, "maximum": 999},
-        "projector_on_cpu": {"type": "boolean"},
-        "ram_reservation_gib": {"type": "number", "minimum": -1},
-        "vram_reservation_gib": {"type": "number", "minimum": -1}
+        "mode": {
+          "enum": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "device": {
+          "type": "string",
+          "pattern": "^(auto|cpu|(accelerator|cuda|rocm|xpu|metal):[0-9]+)$"
+        },
+        "gpu_layers": {
+          "type": "integer",
+          "minimum": -1,
+          "maximum": 999
+        },
+        "projector_on_cpu": {
+          "type": "boolean"
+        },
+        "ram_reservation_gib": {
+          "type": "number",
+          "minimum": -1
+        },
+        "vram_reservation_gib": {
+          "type": "number",
+          "minimum": -1
+        }
       }
     },
     "artifact": {
       "oneOf": [
         {
-          "type": "object", "additionalProperties": false,
-          "required": ["id"],
-          "properties": {"id": {"type": "string", "minLength": 1}, "format": {"type": "string"}}
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "format": {
+              "type": "string"
+            }
+          }
         },
         {
-          "type": "object", "additionalProperties": false,
-          "required": ["path"],
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path"
+          ],
           "properties": {
-            "repository": {"type": "string"},
-            "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-            "format": {"type": "string"},
-            "quantization": {"type": "string"},
-            "quantization_type": {"type": "string"},
-            "path": {"type": "string"},
-            "projector": {"type": "string"},
-            "size_bytes": {"type": "integer", "minimum": 0},
-            "size_gib": {"type": "number", "minimum": 0},
-            "projector_size_bytes": {"type": "integer", "minimum": 0},
-            "reservation_gib": {"type": "number", "minimum": 0},
-            "size_source": {"type": "string"},
-            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-            "projector_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+            "repository": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "format": {
+              "type": "string"
+            },
+            "quantization": {
+              "type": "string"
+            },
+            "quantization_type": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "projector": {
+              "type": "string"
+            },
+            "size_bytes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "size_gib": {
+              "type": "number",
+              "minimum": 0
+            },
+            "projector_size_bytes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "reservation_gib": {
+              "type": "number",
+              "minimum": 0
+            },
+            "size_source": {
+              "type": "string"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "projector_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
           }
         }
       ]
     },
     "source": {
-      "type": "object", "additionalProperties": false,
-      "required": ["repository", "revision", "license"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "revision",
+        "license"
+      ],
       "properties": {
-        "repository": {"type": "string"},
-        "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-        "license": {"type": "string"},
-        "trust_remote_code": {"const": false}
+        "repository": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "license": {
+          "type": "string"
+        },
+        "trust_remote_code": {
+          "const": false
+        }
       }
     }
   },
   "properties": {
-    "schema": {"const": 5},
-    "id": {"$ref": "vocabulary-v1.schema.json#/$defs/id"},
-    "description": {"type": "string", "minLength": 1},
-    "available": {"type": "boolean"},
-    "catalog_visible": {"type": "boolean"},
-    "mode": {"type": "string"},
+    "schema": {
+      "const": 5
+    },
+    "id": {
+      "$ref": "vocabulary-v1.schema.json#/$defs/id"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "available": {
+      "type": "boolean"
+    },
+    "catalog_visible": {
+      "type": "boolean"
+    },
+    "mode": {
+      "type": "string"
+    },
     "memory": {
-      "type": "object", "additionalProperties": false,
-      "required": ["required_ram_gib", "required_vram_gib"],
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "required_ram_gib": {"type": "number", "minimum": 0},
-        "required_vram_gib": {"type": "number", "minimum": 0},
-        "safety_reserve_gib": {"type": "number", "minimum": 0},
-        "maximum_resident_workers": {"type": "integer", "minimum": 0, "maximum": 128}
-      }
+        "required_ram_gib": {
+          "type": "number",
+          "minimum": 0
+        },
+        "required_vram_gib": {
+          "type": "number",
+          "minimum": 0
+        },
+        "safety_reserve_gib": {
+          "type": "number",
+          "minimum": 0
+        },
+        "maximum_resident_workers": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "limit_gib": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Optional total worker allocation ceiling, no larger than global allocation."
+        },
+        "strategy": {
+          "enum": [
+            "all",
+            "sequential",
+            "balanced"
+          ]
+        },
+        "keep_resident": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "vocabulary-v1.schema.json#/$defs/id"
+          },
+          "description": "Balanced retained set; other workers use priority and eviction."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "not": {
+              "required": [
+                "strategy"
+              ]
+            }
+          },
+          "then": {
+            "required": [
+              "required_ram_gib",
+              "required_vram_gib"
+            ]
+          }
+        }
+      ]
     },
     "models": {
-      "type": "array", "minItems": 1, "maxItems": 128,
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
       "items": {
-        "type": "object", "additionalProperties": false,
-        "required": ["id"],
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ],
         "properties": {
-          "id": {"$ref": "vocabulary-v1.schema.json#/$defs/id"},
-          "description": {"type": "string"},
-          "tags": {"type": "array", "items": {"type": "string"}},
-          "modality": {"type": "string"},
-          "family": {"type": "string"},
-          "declared_context_tokens": {"type": "integer", "minimum": 1},
-          "source": {"$ref": "#/$defs/source"},
-          "engine": {"$ref": "vocabulary-v1.schema.json#/$defs/id"},
-          "artifact": {"$ref": "#/$defs/artifact"},
-          "context": {"$ref": "#/$defs/context"},
+          "id": {
+            "$ref": "vocabulary-v1.schema.json#/$defs/id"
+          },
+          "description": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "modality": {
+            "type": "string"
+          },
+          "family": {
+            "type": "string"
+          },
+          "declared_context_tokens": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "source": {
+            "$ref": "#/$defs/source"
+          },
+          "engine": {
+            "$ref": "vocabulary-v1.schema.json#/$defs/id"
+          },
+          "artifact": {
+            "$ref": "#/$defs/artifact"
+          },
+          "context": {
+            "$ref": "#/$defs/context"
+          },
           "batching": {
-            "type": "object", "additionalProperties": false,
+            "type": "object",
+            "additionalProperties": false,
             "properties": {
-              "max_concurrent_requests": {"type": "integer", "minimum": 1, "maximum": 64},
-              "token_batch_size": {"type": "integer", "minimum": 1, "maximum": 8192},
-              "micro_batch_size": {"type": "integer", "minimum": 1, "maximum": 8192}
+              "max_concurrent_requests": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 64
+              },
+              "token_batch_size": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 8192
+              },
+              "micro_batch_size": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 8192
+              }
             }
           },
           "kv_cache": {
-            "type": "object", "additionalProperties": false,
+            "type": "object",
+            "additionalProperties": false,
             "properties": {
-              "precision": {"enum": ["q4", "q8", "auto", "runtime-managed", "not-applicable"]},
-              "context_checkpoints": {"type": "integer", "minimum": 0, "maximum": 64},
-              "ram_cache_mib": {"type": "integer", "minimum": 0, "maximum": 32768}
+              "precision": {
+                "enum": [
+                  "q4",
+                  "q8",
+                  "auto",
+                  "runtime-managed",
+                  "not-applicable"
+                ]
+              },
+              "context_checkpoints": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 64
+              },
+              "ram_cache_mib": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 32768
+              },
+              "key_precision": {
+                "enum": [
+                  "q4",
+                  "q8",
+                  "f16"
+                ]
+              },
+              "value_precision": {
+                "enum": [
+                  "q4",
+                  "q8",
+                  "f16"
+                ]
+              }
             }
           },
           "speculative": {
-            "type": "object", "additionalProperties": false,
+            "type": "object",
+            "additionalProperties": false,
             "properties": {
-              "method": {"enum": ["auto", "none", "mtp", "dflash"]},
-              "max_draft_tokens": {"type": "integer", "minimum": 1, "maximum": 32},
-              "gpu_layers": {"type": "integer", "minimum": -1, "maximum": 999},
-              "kv_cache_precision": {"enum": ["q4", "q8"]}
+              "method": {
+                "enum": [
+                  "auto",
+                  "none",
+                  "mtp",
+                  "dflash"
+                ]
+              },
+              "max_draft_tokens": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 32
+              },
+              "gpu_layers": {
+                "type": "integer",
+                "minimum": -1,
+                "maximum": 999
+              },
+              "kv_cache_precision": {
+                "enum": [
+                  "q4",
+                  "q8"
+                ]
+              }
             }
           },
-          "placement": {"$ref": "#/$defs/placement"},
-          "residency": {"enum": ["pinned", "warm", "on-demand", "ephemeral"]},
-          "priority": {"type": "integer", "minimum": 0, "maximum": 1000},
-          "startup": {"type": "boolean"},
-          "idle_seconds": {"type": "integer", "minimum": 0}
+          "placement": {
+            "$ref": "#/$defs/placement"
+          },
+          "residency": {
+            "enum": [
+              "pinned",
+              "warm",
+              "on-demand",
+              "ephemeral"
+            ]
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "startup": {
+            "type": "boolean"
+          },
+          "idle_seconds": {
+            "type": "integer",
+            "minimum": 0
+          }
         }
       }
     },
     "selection": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "engine_policy": {"enum": ["prefer-installed", "manifest-order", "explicit-only"]},
+        "engine_policy": {
+          "enum": [
+            "prefer-installed",
+            "manifest-order",
+            "explicit-only"
+          ]
+        },
         "defaults": {
-          "type": "array", "uniqueItems": true,
+          "type": "array",
+          "uniqueItems": true,
           "items": {
-            "type": "object", "additionalProperties": false,
-            "required": ["operation", "required_inputs", "model"],
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "operation",
+              "required_inputs",
+              "model"
+            ],
             "properties": {
-              "operation": {"$ref": "vocabulary-v1.schema.json#/$defs/operation"},
-              "required_inputs": {"$ref": "vocabulary-v1.schema.json#/$defs/modalities"},
-              "model": {"$ref": "vocabulary-v1.schema.json#/$defs/id"}
+              "operation": {
+                "$ref": "vocabulary-v1.schema.json#/$defs/operation"
+              },
+              "required_inputs": {
+                "$ref": "vocabulary-v1.schema.json#/$defs/modalities"
+              },
+              "model": {
+                "$ref": "vocabulary-v1.schema.json#/$defs/id"
+              }
             }
           }
         }

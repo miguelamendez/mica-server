@@ -1,5 +1,6 @@
 schema: 5
 id: quality-interactive
+catalog_visible: false
 description: Interactive MLX assistant favoring quality-oriented variants and a larger memory allowance.
 mode: interactive
 memory:

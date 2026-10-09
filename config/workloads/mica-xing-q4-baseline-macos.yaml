@@ -1,5 +1,6 @@
 schema: 5
 id: mica-xing-q4-baseline-macos
+catalog_visible: false
 description: Experimental Xing IQ4_NL baseline for 24 GiB Apple Silicon; 20 GiB admission budget is not a physical memory hard cap.
 selection:
   engine_policy: explicit-only

@@ -1,0 +1,143 @@
+schema: 2
+id: gemma4-12b
+description: Gemma 4 12B Unified QAT, a dense text/image/audio/video-to-text model. Trusted Unsloth Q4 weights,
+  matching BF16 multimodal projector, and an optional separately downloaded Q4 MTP drafter.
+source_repository: google/gemma-4-12B-it
+license: apache-2.0
+input_modalities:
+- text
+- image
+- video
+- audio
+output_modalities:
+- text
+abilities:
+- text_generation
+- instruction_following
+- tool_calling
+- reasoning
+- image_understanding
+- video_understanding
+- audio_understanding
+supported_interactions:
+- operation: chat.generate
+  required_inputs:
+  - text
+  optional_inputs:
+  - image
+  - video
+  - audio
+  outputs:
+  - text
+native_context_tokens: 262144
+recommended_context_tokens: null
+max_output_tokens: null
+thinking_modes:
+- none
+- 'on'
+tags:
+- omnimodal
+- researcher
+- coding
+- qat
+references:
+- kind: model-card
+  title: Gemma 4 12B upstream
+  url: https://huggingface.co/google/gemma-4-12B-it
+  description: 256K shared total context. No independently verified training-based output ceiling. Text output only;
+    audio input is not speech synthesis. Videos are sampled frames, not continuous video embeddings.
+- kind: documentation
+  title: Gemma 4 12B architecture
+  url: https://huggingface.co/google/gemma-4-12B-it/blob/main/config.json
+  description: 48 layers; 8 global attention layers and 40 sliding attention layers, with 1024-token local windows.
+    Global attention uses tied K/V; allocation optimization must be verified against the engine.
+- kind: model-card
+  title: Unsloth QAT GGUF and optional MTP
+  url: https://huggingface.co/unsloth/gemma-4-12B-it-qat-GGUF
+  description: Publisher sampling guidance temperature 1.0, top_p 0.95, top_k 64. Image before text; audio after
+    text. Audio up to 30 seconds, video up to 60 sampled frames. MTP is optional and requires separate acceptance
+    testing.
+artifacts:
+- id: q4
+  compatible_engines:
+  - llama-cpp
+  format: gguf
+  quantization_type: UD-Q4_K_XL
+  repository: unsloth/gemma-4-12B-it-qat-GGUF
+  revision: 980b060c40a8539ac159e0501a3e0f66a6365af3
+  minimum_engine_commit: 79e2e74eb11022c1ba2e438df7f0ca2d4c10f8b6
+  reservation_gib: 8.5
+  gguf_block_count: 48
+  memory_estimate:
+    basis: pinned-gguf-header-and-native-interleaved-swa-allocation
+    kv_status: unknown
+    kv_groups:
+    - layers: 8
+      key_width: 512
+      value_width: 512
+    - layers: 40
+      key_width: 2048
+      value_width: 2048
+      sliding_window_tokens: 1024
+    notes:
+    - Native llama.cpp interleaved SWA holds the 1024-token window plus the configured micro-batch, padded to 256.
+      Global layers retain the full context. GGUF shared_kv_layers is zero; both K and V buffers are charged.
+      Checkpoint tables assume a 512-token micro-batch. Other engines and full-SWA allocation need separate layouts.
+    - MTP workspace/cache sharing remains unverified. The validation workload disables speculative decoding initially.
+    checkpoints:
+    - total_tokens: 8192
+      supported: true
+      kv_mb:
+        q4_k_q4_v: 179.306496
+        q4_k_q8_v: 258.998272
+        q8_k_q4_v: 258.998272
+        q8_k_q8_v: 338.690048
+      layout_verified: false
+    - total_tokens: 16384
+      supported: true
+      kv_mb:
+        q4_k_q4_v: 217.055232
+        q4_k_q8_v: 313.524224
+        q8_k_q4_v: 313.524224
+        q8_k_q8_v: 409.993216
+      layout_verified: false
+    - total_tokens: 32768
+      supported: true
+      kv_mb:
+        q4_k_q4_v: 292.552704
+        q4_k_q8_v: 422.576128
+        q8_k_q4_v: 422.576128
+        q8_k_q8_v: 552.599552
+      layout_verified: false
+    - total_tokens: 69632
+      supported: true
+      kv_mb:
+        q4_k_q4_v: 462.422016
+        q4_k_q8_v: 667.942912
+        q8_k_q4_v: 667.942912
+        q8_k_q8_v: 873.463808
+      layout_verified: false
+    - total_tokens: 131072
+      supported: true
+      kv_mb:
+        q4_k_q4_v: 745.537536
+        q4_k_q8_v: 1076.887552
+        q8_k_q4_v: 1076.887552
+        q8_k_q8_v: 1408.237568
+      layout_verified: false
+  files:
+  - role: model
+    path: gemma-4-12B-it-qat-UD-Q4_K_XL.gguf
+    size_bytes: 6716356800
+    estimated_memory_mb: 6716.3568
+    sha256: 90fd44e29e0d7cffeb0fd00dc73cfdab9ed0b0e95306ecf7821ea634c940c370
+  - role: vision-projector
+    path: mmproj-BF16.gguf
+    size_bytes: 175115840
+    estimated_memory_mb: 175.11584
+    sha256: dcb8103adad042b1bf99df767aaf34eb37c5a73a4a2f0417e4d7ba557e91664f
+  - role: mtp-drafter
+    path: mtp-gemma-4-12B-it.gguf
+    size_bytes: 253708800
+    estimated_memory_mb: 253.7088
+    sha256: fcb35dea42c71333db904cee11baac525c9ef872818ee3753f6cb156f3c6f4f6

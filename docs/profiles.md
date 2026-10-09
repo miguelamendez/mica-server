@@ -1,5 +1,9 @@
 # Mica workload profiles
 
+See [memory estimates and reusable residency strategies](memory-estimation.md)
+for `all`, `sequential`, `balanced`, workload-specific ceilings, and the native
+calculator commands.
+
 A Mica workload profile is a model collection with loading and residency
 policies, not an ordered execution workflow. It selects the models needed for
 an intended use and tells Mica how each model is installed, loaded, retained,
@@ -127,11 +131,12 @@ These are workload ceilings, not a requirement to generate that many tokens
 on every request or a claim of measured long-context quality. Smaller output
 budgets can be requested per call.
 
-The current conservative KV estimate gives Bonsai a 14.8125-GiB model/cache
-reservation at this context size, plus the 0.5-GiB workload safety margin. The
-workload therefore requires a 16-GiB machine allocation; a 14-GiB allocation
-must reject it. `--ram-gib 16` cannot override a lower existing machine-policy
-ceiling. Review `~/.mica/config/machine.yaml` explicitly before setup; Mica
+Use `mica-server memory workload mica-coder-bonsai-macos --budget-gib 16`
+for the current component/state/KV estimate at this context size. Historical
+fixed numbers used generic cache dimensions and are superseded by this report.
+The legacy workload still explicitly declares a 16-GiB requirement.
+`--ram-gib 16` cannot override a lower existing machine-policy ceiling.
+Review `~/.mica/config/machine.yaml` explicitly before setup; Mica
 does not raise that user-owned limit automatically. Context declarations in
 the upstream configs are not evidence of trained context or usable quality
 at the maximum. Full-size inference and memory validation remain pending.
@@ -538,3 +543,13 @@ workers. The target workload's RAM/VRAM requirements must fit the global machine
 allocation. A missing backend, changed machine allocation, or edited engine
 installation still requires `setup` and a server restart. See the
 [API reference](api.md#health-and-discovery).
+
+## Browsing workload collections
+
+Use `mica-server tui` → **Workloads** for the curated, hardware-compatible list.
+Enter opens the collection's model details; another Enter opens supported engine
+details. `u` shows hardware-incompatible alternatives, not hidden legacy examples.
+User-owned and active/default definitions remain accessible. Install (`i`) before
+hot-swapping (`a`), or use **Server → Choose workload**. Compatibility, complete
+cached artifacts, installed engines and memory eligibility are separate checks.
+See the [TUI guide](tui.md).

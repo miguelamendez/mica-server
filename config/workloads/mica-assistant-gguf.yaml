@@ -1,5 +1,6 @@
 schema: 5
 id: mica-assistant-gguf
+catalog_visible: false
 description: General GGUF assistant combining text chat, visual understanding, speech recognition, and speech replies.
 selection:
   engine_policy: explicit-only
@@ -11,6 +12,8 @@ selection:
     - {operation: audio.synthesize_speech, required_inputs: [text], model: audio8-tts-06b}
 mode: interactive
 memory:
+  strategy: balanced
+  keep_resident: []
   required_ram_gib: 8
   maximum_resident_workers: 0
   required_vram_gib: 0

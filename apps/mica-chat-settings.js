@@ -39,7 +39,8 @@
           const option = new Option(`${item.id}${item.id === activeId ? ' · active' : ''}`, item.id);
           select.add(option);
         }
-        select.value = workloads.some(item => item.id === previous) ? previous : activeId;
+        select.value = workloads.some(item => item.id === previous) ? previous :
+          workloads.some(item => item.id === activeId) ? activeId : workloads[0]?.id || '';
         update();
         if (onState) onState({ready, activeId});
         return catalog;

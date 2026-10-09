@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <iostream>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -17,6 +18,7 @@
 #include "mica_server/command.hpp"
 #include "mica_server/hardware.hpp"
 #include "mica_server/profiles.hpp"
+#include "mica_server/memory.hpp"
 #include "mica_server/scheduler.hpp"
 #include "mica_server/server.hpp"
 #include "mica_server/setup.hpp"
@@ -44,6 +46,8 @@ Usage:
                          [--ram-gib N] [--vram-gib N] [--rotate-api-key] [--root PATH]
   mica-server endpoints     List public API routes; no running server required
   mica-server detect [--output PATH]
+  mica-server memory model ID [--config-dir PATH]
+  mica-server memory workload ID [--budget-gib N] [--global-limit-gib N]
   mica-server registry list|ping [--modality VALUE] [--engine VALUE] [--backend VALUE]
   mica-server profile list [--remote] [--root PATH] [--catalog-url URL]
   mica-server profile show ID [--root PATH]
@@ -411,6 +415,25 @@ int main(int argc, char** argv) {
       std::cout << std::setw(2) << hardware_json(hardware) << '\n';
       return 0;
     }
+    if (args[1] == "memory") {
+      if (args.size() < 4) throw std::invalid_argument("memory requires model|workload ID");
+      auto config = default_config(); auto root = default_root();
+      double budget = 0, global = 0;
+      for (std::size_t i = 4; i < args.size(); ++i) {
+        if (args[i] == "--config-dir") config = value_after(args, i);
+        else if (args[i] == "--root") root = value_after(args, i);
+        else if (args[i] == "--budget-gib") budget = std::stod(value_after(args, i));
+        else if (args[i] == "--global-limit-gib") global = std::stod(value_after(args, i));
+        else throw std::invalid_argument("unknown memory option: " + args[i]);
+      }
+      auto registry = mica::load_registry(config);
+      registry.runtime_root = root.string();
+      mica::merge_custom_models(registry, root); mica::merge_installed_profiles(registry, root);
+      if (args[2] == "model") std::cout << mica::model_memory_report(registry.model(args[3])).dump(2) << '\n';
+      else if (args[2] == "workload") std::cout << mica::workload_memory_report(registry, registry.profile(args[3]), budget, global).dump(2) << '\n';
+      else throw std::invalid_argument("memory requires model|workload");
+      return 0;
+    }
     if (args[1] == "profile") {
       if (args.size() < 3) {
         throw std::invalid_argument(
@@ -494,6 +517,32 @@ int main(int argc, char** argv) {
         if (from.empty() || output.empty()) {
           throw std::invalid_argument(
               "profile export-catalog requires --from and --output");
+        }
+        if (std::filesystem::is_directory(from)) {
+          std::vector<std::filesystem::path> files;
+          for (const auto& entry : std::filesystem::directory_iterator(from)) {
+            if (entry.is_regular_file() &&
+                (entry.path().extension() == ".yaml" || entry.path().extension() == ".yml"))
+              files.push_back(entry.path());
+          }
+          std::sort(files.begin(), files.end());
+          json catalog = {{"schema", 1}, {"profiles", json::array()}};
+          std::set<std::string> ids;
+          for (const auto& path : files) {
+            auto document = mica::read_profile_file(path);
+            if (!document.value("catalog_visible", true) || !document.value("available", true)) continue;
+            auto working = registry;
+            const auto profile = mica::profile_from_document(working, document);
+            if (!ids.insert(profile.name).second)
+              throw std::invalid_argument("duplicate workload id in catalogue directory: " + profile.name);
+            document = mica::profile_to_document(profile);
+            document["available"] = true;
+            catalog["profiles"].push_back(std::move(document));
+          }
+          mica::write_profile_file(output, catalog);
+          std::cout << std::setw(2) << json({{"exported", catalog["profiles"].size()},
+                                            {"path", output.string()}}) << '\n';
+          return 0;
         }
         auto catalog = mica::read_profile_file(from);
         if (catalog.value("schema", 0) != 1 || !catalog.contains("profiles") ||

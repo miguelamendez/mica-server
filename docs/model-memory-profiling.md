@@ -1,5 +1,10 @@
 # Model-component memory measurements
 
+For metadata-only planning, use the native
+[memory estimator and residency strategies](memory-estimation.md). No inference
+is needed for its context/cache tables; this offline profiler validates those
+estimates against actual allocations.
+
 `scripts/profile_model_memory.py` is an offline developer tool, not part of
 Mica's native serving dependency chain. It measures one model artifact at a
 time using an already installed engine and cached weights. It never downloads

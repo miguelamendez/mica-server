@@ -1,5 +1,6 @@
 schema: 5
 id: diarization
+catalog_visible: false
 description: Identify who spoke when in audio, without producing a transcript; chooses an installed compatible engine or installs the manifest default.
 memory: {required_ram_gib: 2, required_vram_gib: 0, safety_reserve_gib: 0.5}
 models:

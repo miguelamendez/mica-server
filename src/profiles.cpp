@@ -1,4 +1,6 @@
 #include "mica_server/profiles.hpp"
+#include "mica_server/inventory.hpp"
+#include "mica_server/memory.hpp"
 
 #include <algorithm>
 #include <cerrno>
@@ -141,11 +143,12 @@ void validate_policy(const Registry& registry, const Profile& profile,
     throw std::invalid_argument("selected artifact requires engine " +
                                 selected_artifact.engine + ", not " + policy.engine);
   }
-  if (policy.max_input_tokens < 1 || policy.max_output_tokens < 1 ||
+  if (policy.max_input_tokens < 1 ||
+      (model.capability == "embedding" ? policy.max_output_tokens != 0 : policy.max_output_tokens < 1) ||
       policy.max_total_tokens < policy.max_input_tokens + policy.max_output_tokens) {
     throw std::invalid_argument("inconsistent context limits for " + policy.id);
   }
-  if ((model.capability == "text" || model.capability == "vision") &&
+  if ((model.capability == "text" || model.capability == "vision" || model.capability == "embedding") &&
       !registry.ignore_context_limit &&
       policy.max_total_tokens > model.gguf_context_tokens) {
     throw std::invalid_argument("profile exceeds declared context for " + policy.id);
@@ -161,6 +164,11 @@ void validate_policy(const Registry& registry, const Profile& profile,
       "q4", "q8", "auto", "runtime-managed", "not-applicable"};
   if (!cache_precisions.contains(policy.kv_cache_precision)) {
     throw std::invalid_argument("unsupported KV-cache precision for " + policy.id);
+  }
+  for (const auto& precision : {policy.kv_cache_k_precision, policy.kv_cache_v_precision}) {
+    if (!precision.empty() && (policy.backend != Backend::gguf ||
+        (precision != "q4" && precision != "q8" && precision != "f16")))
+      throw std::invalid_argument("independent K/V precision requires GGUF and q4/q8/f16");
   }
   if (policy.token_batch_size < 0 || policy.token_batch_size > 8192 ||
       policy.micro_batch_size < 0 || policy.micro_batch_size > 8192 ||
@@ -594,7 +602,8 @@ bool model_matches_route(const ModelDefinition& model, const std::string& route,
     const std::string operation = route == "asr" ? "audio.transcribe" :
                                   route == "tts" ? "audio.synthesize_speech" :
                                   route == "diar" ? "audio.diarize" :
-                                  route == "completion" ? "text.generate" : "chat.generate";
+                                  route == "completion" ? "text.generate" :
+                                  route == "embeddings" ? "embedding.generate" : "chat.generate";
     for (const auto& interaction : model.supported_interactions) {
       if (interaction.operation != operation) continue;
       const auto contains = [](const std::vector<std::string>& values,
@@ -637,7 +646,8 @@ bool engine_matches_route(const EngineDefinition& engine, const std::string& rou
   const std::string operation = route == "asr" ? "audio.transcribe" :
                                 route == "tts" ? "audio.synthesize_speech" :
                                 route == "diar" ? "audio.diarize" :
-                                route == "completion" ? "text.generate" : "chat.generate";
+                                route == "completion" ? "text.generate" :
+                                route == "embeddings" ? "embedding.generate" : "chat.generate";
   for (const auto& endpoint : engine.endpoint_contracts) {
     if (endpoint.operation != operation) continue;
     const auto contains = [](const std::vector<std::string>& values,
@@ -670,6 +680,7 @@ void resolve_profile_engines(Registry& registry, Profile& profile,
     for (const auto& id : model.engine_order) {
       if (policy.engine_explicit && id != policy.engine) continue;
       const auto& engine = registry.engine(id);
+      if (!inspect_engine(engine, hardware, root).at("compatible").get<bool>()) continue;
       if (engine.backend == Backend::mlx && !hardware.supports_mlx()) continue;
       if (engine.backend == Backend::gguf && !hardware.supports_gguf()) continue;
       if (engine.backend == Backend::vllm && !hardware.supports_vllm()) continue;
@@ -679,12 +690,7 @@ void resolve_profile_engines(Registry& registry, Profile& profile,
     }
     if (candidates.empty()) throw std::invalid_argument("no compatible engine/artifact for " + policy.id);
     const auto installed = [&](const std::string& id) {
-      const auto& engine = registry.engine(id);
-      if (engine.backend == Backend::gguf) {
-        return std::filesystem::exists(root / "runtimes" / engine.runtime_directory / engine.server_executable);
-      }
-      return std::filesystem::exists(root / "environments" /
-          engine.environment_group / "bin/python");
+      return inspect_engine(registry.engine(id), hardware, root).at("installed").get<bool>();
     };
     if (profile.engine_policy == "prefer-installed") {
       std::stable_sort(candidates.begin(), candidates.end(), [&](const auto& a, const auto& b) {
@@ -777,7 +783,7 @@ std::string select_profile_model(const Registry& registry, const Profile& profil
 }
 
 json profile_native_options(const ProfileModel& policy) {
-  return {{"token_batch_size", policy.token_batch_size},
+  json result = {{"token_batch_size", policy.token_batch_size},
           {"micro_batch_size", policy.micro_batch_size},
           {"context_checkpoints", policy.context_checkpoints},
           {"ram_cache_mib", policy.ram_cache_mib},
@@ -786,6 +792,9 @@ json profile_native_options(const ProfileModel& policy) {
           {"draft_gpu_layers", policy.draft_gpu_layers},
           {"draft_kv_cache_precision", policy.draft_kv_cache_precision},
           {"projector_on_cpu", policy.projector_on_cpu}};
+  if (!policy.kv_cache_k_precision.empty()) result["kv_cache_k_precision"] = policy.kv_cache_k_precision;
+  if (!policy.kv_cache_v_precision.empty()) result["kv_cache_v_precision"] = policy.kv_cache_v_precision;
+  return result;
 }
 
 json profile_to_document(const Profile& profile) {
@@ -814,6 +823,8 @@ json profile_to_document(const Profile& profile) {
     if (policy.engine_explicit) item["engine"] = policy.engine;
     if (policy.artifact_explicit) item["artifact"] = {{"id", to_string(policy.quantization)}};
     if (profile.schema >= 5) {
+      if (!policy.kv_cache_k_precision.empty()) item["kv_cache"]["key_precision"] = policy.kv_cache_k_precision;
+      if (!policy.kv_cache_v_precision.empty()) item["kv_cache"]["value_precision"] = policy.kv_cache_v_precision;
       if (policy.token_batch_size > 0) item["batching"]["token_batch_size"] = policy.token_batch_size;
       if (policy.micro_batch_size > 0) item["batching"]["micro_batch_size"] = policy.micro_batch_size;
       if (policy.context_checkpoints >= 0) item["kv_cache"]["context_checkpoints"] = policy.context_checkpoints;
@@ -840,12 +851,18 @@ json profile_to_document(const Profile& profile) {
                       {"maximum_resident_workers", profile.maximum_resident_workers}}},
           {"models", models}};
   if (profile.schema >= 5) {
+    if (profile.memory_limit_gib > 0) document["memory"]["limit_gib"] = profile.memory_limit_gib;
+    if (!profile.residency_strategy.empty()) {
+      document["memory"]["strategy"] = profile.residency_strategy;
+      document["memory"]["keep_resident"] = profile.balanced_keep_models;
+    }
     json defaults = json::array();
     for (const auto& [category, id] : profile.default_models) {
       const std::string operation = category == "asr" ? "audio.transcribe" :
                                     category == "tts" ? "audio.synthesize_speech" :
                                     category == "diar" ? "audio.diarize" :
-                                    category == "completion" ? "text.generate" : "chat.generate";
+                                    category == "completion" ? "text.generate" :
+                                    category == "embeddings" ? "embedding.generate" : "chat.generate";
       const std::vector<std::string> inputs = category == "asr" || category == "diar" ?
           std::vector<std::string>{"audio"} : category == "image" ?
           std::vector<std::string>{"text", "image"} : category == "video" ?
@@ -923,6 +940,8 @@ Profile profile_from_document(Registry& registry, const json& document) {
         category = "diar";
       } else if (operation == "text.generate" && inputs == std::vector<std::string>{"text"}) {
         category = "completion";
+      } else if (operation == "embedding.generate" && inputs == std::vector<std::string>{"text"}) {
+        category = "embeddings";
       } else if (operation == "audio.synthesize_speech" &&
                  inputs == std::vector<std::string>{"text"}) {
         category = "tts";
@@ -965,6 +984,7 @@ Profile profile_from_document(Registry& registry, const json& document) {
   reject_unknown_fields(memory,
                         {"required_ram_gib", "required_vram_gib",
                          "safety_reserve_gib", "maximum_resident_workers",
+                         "limit_gib", "strategy", "keep_resident",
                          "maximum_ram_gib", "maximum_vram_gib"},
                         "profile memory");
   if (profile.schema >= 4 &&
@@ -972,7 +992,7 @@ Profile profile_from_document(Registry& registry, const json& document) {
     throw std::invalid_argument(
         "schema-4 workload memory declares requirements, not maximum usage");
   }
-  if (profile.schema >= 4 &&
+  if (profile.schema >= 4 && !memory.contains("strategy") &&
       (!memory.contains("required_ram_gib") ||
        !memory.contains("required_vram_gib"))) {
     throw std::invalid_argument(
@@ -987,6 +1007,12 @@ Profile profile_from_document(Registry& registry, const json& document) {
   }
   profile.memory_safety_reserve_gib = memory.value("safety_reserve_gib", 0.5);
   profile.maximum_resident_workers = memory.value("maximum_resident_workers", 0);
+  profile.memory_limit_gib = memory.value("limit_gib", 0.0);
+  profile.residency_strategy = memory.value("strategy", std::string());
+  profile.balanced_keep_models = memory.value("keep_resident", std::vector<std::string>{});
+  if (!std::isfinite(profile.memory_limit_gib) || profile.memory_limit_gib < 0 ||
+      (memory.contains("limit_gib") && profile.memory_limit_gib == 0))
+    throw std::invalid_argument("memory.limit_gib must be positive");
   if (!document.contains("models") || !document.at("models").is_array() ||
       document.at("models").empty() || document.at("models").size() > 128) {
     throw std::invalid_argument("profile must contain a models array");
@@ -1101,10 +1127,12 @@ Profile profile_from_document(Registry& registry, const json& document) {
       policy.micro_batch_size = entry.at("batching").value("micro_batch_size", 0);
     }
     if (entry.contains("kv_cache")) {
-      reject_unknown_fields(entry.at("kv_cache"), {"precision", "context_checkpoints", "ram_cache_mib"},
+      reject_unknown_fields(entry.at("kv_cache"), {"precision", "key_precision", "value_precision", "context_checkpoints", "ram_cache_mib"},
                             "profile model KV cache");
       policy.kv_cache_precision =
           entry.at("kv_cache").value("precision", std::string("q8"));
+      policy.kv_cache_k_precision = entry.at("kv_cache").value("key_precision", std::string());
+      policy.kv_cache_v_precision = entry.at("kv_cache").value("value_precision", std::string());
       for (const auto key : {"context_checkpoints", "ram_cache_mib"}) {
         if (entry.at("kv_cache").contains(key) &&
             !entry.at("kv_cache").at(key).is_number_integer())
@@ -1147,6 +1175,13 @@ Profile profile_from_document(Registry& registry, const json& document) {
     profile.models.push_back(policy.id);
     profile.model_policies.push_back(std::move(policy));
   }
+  if (!memory.contains("keep_resident")) for (const auto& policy : profile.model_policies)
+    if (policy.residency == Residency::pinned) profile.balanced_keep_models.push_back(policy.id);
+  std::set<std::string> keep_ids;
+  for (const auto& id : profile.balanced_keep_models)
+    if (!ids.contains(id) || !keep_ids.insert(id).second)
+      throw std::invalid_argument("keep_resident must contain unique workload model IDs");
+  apply_residency_strategy(profile);
   if (std::any_of(profile.model_policies.begin(), profile.model_policies.end(),
       [](const auto& p) { return !p.engine_explicit || !p.artifact_explicit; })) {
     const auto hardware = registry.resolution_hardware ? *registry.resolution_hardware : detect_hardware();
@@ -1174,7 +1209,7 @@ Profile profile_from_document(Registry& registry, const json& document) {
                         category == "image" ? std::vector<std::string>{"text", "image"} :
                         category == "video" ? std::vector<std::string>{"text", "video"} :
                         std::vector<std::string>{"text"};
-    const auto route = category == "asr" || category == "tts" || category == "diar" || category == "completion" ? category : "chat";
+    const auto route = category == "asr" || category == "tts" || category == "diar" || category == "completion" || category == "embeddings" ? category : "chat";
     try {
       (void)select_profile_model(working, profile, route, inputs, id);
     } catch (const std::invalid_argument& error) {

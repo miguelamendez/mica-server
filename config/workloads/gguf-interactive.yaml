@@ -1,8 +1,11 @@
 schema: 5
 id: gguf-interactive
+catalog_visible: false
 description: Interactive GGUF assistant with on-demand vision and audio utilities.
 mode: interactive
 memory:
+  strategy: balanced
+  keep_resident: []
   required_ram_gib: 8
   maximum_resident_workers: 0
   required_vram_gib: 0

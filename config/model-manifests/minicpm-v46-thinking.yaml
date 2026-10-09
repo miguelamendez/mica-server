@@ -39,12 +39,66 @@ artifacts:
     repository: miguelamendez/mica-minicpm-v46-thinking
     revision: dfad66c29f50dc9b0545baf9e9ec3a67c1c8bd7d
     reservation_gib: 3.3
+    memory_estimate:
+      basis: cached-GGUF-metadata-and-engine-layout
+      kv_status: verified
+      kv_groups:
+      - layers: 6
+        key_width: 512
+        value_width: 512
+      fixed_state_mb: 20.201472
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - Recurrent-state estimate is for one live sequence; checkpoints may add state copies. MLX bundled vision
+        cannot be separated from its weights by file size.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 28.311552
+          q4_k_q8_v: 40.894464
+          q8_k_q4_v: 40.894464
+          q8_k_q8_v: 53.477376
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 56.623104
+          q4_k_q8_v: 81.788928
+          q8_k_q4_v: 81.788928
+          q8_k_q8_v: 106.954752
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 113.246208
+          q4_k_q8_v: 163.577856
+          q8_k_q4_v: 163.577856
+          q8_k_q8_v: 213.909504
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 240.648192
+          q4_k_q8_v: 347.602944
+          q8_k_q4_v: 347.602944
+          q8_k_q8_v: 454.557696
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 452.984832
+          q4_k_q8_v: 654.311424
+          q8_k_q4_v: 654.311424
+          q8_k_q8_v: 855.638016
+        layout_verified: true
     required_compatibility: [image-understanding]
     files:
       - role: model
         path: q4
         repository_path: mlx/q4
         size_bytes: 2177913514
+        estimated_memory_mb: 2177.913514
   - id: q8
     compatible_engines: [mlx-vlm]
     format: mlx
@@ -52,12 +106,66 @@ artifacts:
     repository: miguelamendez/mica-minicpm-v46-thinking
     revision: dfad66c29f50dc9b0545baf9e9ec3a67c1c8bd7d
     reservation_gib: 3.5
+    memory_estimate:
+      basis: cached-GGUF-metadata-and-engine-layout
+      kv_status: verified
+      kv_groups:
+      - layers: 6
+        key_width: 512
+        value_width: 512
+      fixed_state_mb: 20.201472
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - Recurrent-state estimate is for one live sequence; checkpoints may add state copies. MLX bundled vision
+        cannot be separated from its weights by file size.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 28.311552
+          q4_k_q8_v: 40.894464
+          q8_k_q4_v: 40.894464
+          q8_k_q8_v: 53.477376
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 56.623104
+          q4_k_q8_v: 81.788928
+          q8_k_q4_v: 81.788928
+          q8_k_q8_v: 106.954752
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 113.246208
+          q4_k_q8_v: 163.577856
+          q8_k_q4_v: 163.577856
+          q8_k_q8_v: 213.909504
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 240.648192
+          q4_k_q8_v: 347.602944
+          q8_k_q4_v: 347.602944
+          q8_k_q8_v: 454.557696
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 452.984832
+          q4_k_q8_v: 654.311424
+          q8_k_q4_v: 654.311424
+          q8_k_q8_v: 855.638016
+        layout_verified: true
     required_compatibility: [image-understanding]
     files:
       - role: model
         path: q8
         repository_path: mlx/q8
         size_bytes: 2332054242
+        estimated_memory_mb: 2332.054242
   - id: q4
     compatible_engines: [llama-cpp]
     format: gguf
@@ -65,10 +173,63 @@ artifacts:
     repository: miguelamendez/mica-minicpm-v46-thinking
     revision: dfad66c29f50dc9b0545baf9e9ec3a67c1c8bd7d
     reservation_gib: 2.2
+    memory_estimate:
+      basis: cached-GGUF-metadata-and-engine-layout
+      kv_status: verified
+      kv_groups:
+      - layers: 6
+        key_width: 512
+        value_width: 512
+      fixed_state_mb: 20.201472
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - Recurrent-state estimate is for one live sequence; checkpoints may add state copies. MLX bundled vision
+        cannot be separated from its weights by file size.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 28.311552
+          q4_k_q8_v: 40.894464
+          q8_k_q4_v: 40.894464
+          q8_k_q8_v: 53.477376
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 56.623104
+          q4_k_q8_v: 81.788928
+          q8_k_q4_v: 81.788928
+          q8_k_q8_v: 106.954752
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 113.246208
+          q4_k_q8_v: 163.577856
+          q8_k_q4_v: 163.577856
+          q8_k_q8_v: 213.909504
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 240.648192
+          q4_k_q8_v: 347.602944
+          q8_k_q4_v: 347.602944
+          q8_k_q8_v: 454.557696
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 452.984832
+          q4_k_q8_v: 654.311424
+          q8_k_q4_v: 654.311424
+          q8_k_q8_v: 855.638016
+        layout_verified: true
     required_compatibility: [vision-projector]
     files:
-      - {role: model, path: MiniCPM-V-4_6-Thinking-Q4_K_M.gguf, repository_path: gguf/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf, size_bytes: 529101536}
-      - {role: vision-projector, path: mmproj-model-f16.gguf, repository_path: gguf/mmproj-model-f16.gguf, size_bytes: 1108746976}
+      - {role: model, path: MiniCPM-V-4_6-Thinking-Q4_K_M.gguf, repository_path: gguf/MiniCPM-V-4_6-Thinking-Q4_K_M.gguf, size_bytes: 529101536, estimated_memory_mb: 529.101536}
+      - {role: vision-projector, path: mmproj-model-f16.gguf, repository_path: gguf/mmproj-model-f16.gguf, size_bytes: 1108746976, estimated_memory_mb: 1108.746976}
   - id: q8
     compatible_engines: [llama-cpp]
     format: gguf
@@ -76,7 +237,60 @@ artifacts:
     repository: miguelamendez/mica-minicpm-v46-thinking
     revision: dfad66c29f50dc9b0545baf9e9ec3a67c1c8bd7d
     reservation_gib: 2.6
+    memory_estimate:
+      basis: cached-GGUF-metadata-and-engine-layout
+      kv_status: verified
+      kv_groups:
+      - layers: 6
+        key_width: 512
+        value_width: 512
+      fixed_state_mb: 20.201472
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - Recurrent-state estimate is for one live sequence; checkpoints may add state copies. MLX bundled vision
+        cannot be separated from its weights by file size.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 28.311552
+          q4_k_q8_v: 40.894464
+          q8_k_q4_v: 40.894464
+          q8_k_q8_v: 53.477376
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 56.623104
+          q4_k_q8_v: 81.788928
+          q8_k_q4_v: 81.788928
+          q8_k_q8_v: 106.954752
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 113.246208
+          q4_k_q8_v: 163.577856
+          q8_k_q4_v: 163.577856
+          q8_k_q8_v: 213.909504
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 240.648192
+          q4_k_q8_v: 347.602944
+          q8_k_q4_v: 347.602944
+          q8_k_q8_v: 454.557696
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 452.984832
+          q4_k_q8_v: 654.311424
+          q8_k_q4_v: 654.311424
+          q8_k_q8_v: 855.638016
+        layout_verified: true
     required_compatibility: [vision-projector]
     files:
-      - {role: model, path: MiniCPM-V-4_6-Thinking-Q8_0.gguf, repository_path: gguf/MiniCPM-V-4_6-Thinking-Q8_0.gguf, size_bytes: 811591648}
-      - {role: vision-projector, path: mmproj-model-f16.gguf, repository_path: gguf/mmproj-model-f16.gguf, size_bytes: 1108746976}
+      - {role: model, path: MiniCPM-V-4_6-Thinking-Q8_0.gguf, repository_path: gguf/MiniCPM-V-4_6-Thinking-Q8_0.gguf, size_bytes: 811591648, estimated_memory_mb: 811.591648}
+      - {role: vision-projector, path: mmproj-model-f16.gguf, repository_path: gguf/mmproj-model-f16.gguf, size_bytes: 1108746976, estimated_memory_mb: 1108.746976}

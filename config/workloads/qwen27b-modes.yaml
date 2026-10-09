@@ -1,5 +1,6 @@
 schema: 5
 id: qwen27b-modes
+catalog_visible: false
 description: RTX 16 GiB Qwen 27B modes, one worker at a time. Text-only DFlash has 80K input plus 32K output; vision uses a GPU projector and MTP with 48K input plus 16K output. Q4 KV, single request. Input/output limits include framing and media tokens, not just user text.
 selection:
   defaults:

@@ -1,5 +1,6 @@
 schema: 5
 id: gguf-long-context
+catalog_visible: false
 description: GGUF assistant using Spark's full declared 8192-token context, with specialists swapped on demand; not an extended-context model.
 mode: long-context
 memory:

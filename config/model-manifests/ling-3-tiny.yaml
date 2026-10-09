@@ -35,12 +35,66 @@ artifacts:
     repository: inclusionAI/Ling-3.0-tiny-GGUF
     revision: 01b850e29ed5b44e2b810160ff980a9bb353296f
     reservation_gib: 8.0
+    memory_estimate:
+      basis: cached-GGUF-metadata-and-engine-layout
+      kv_status: verified
+      kv_groups:
+      - layers: 6
+        key_width: 576
+        value_width: 0
+      fixed_state_mb: 20.201472
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - llama.cpp MLA stores one compressed 576-value K row per full-attention layer; no separate V cache. KDA
+        state is F32.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 15.925248
+          q4_k_q8_v: 15.925248
+          q8_k_q4_v: 30.081024
+          q8_k_q8_v: 30.081024
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 31.850496
+          q4_k_q8_v: 31.850496
+          q8_k_q4_v: 60.162048
+          q8_k_q8_v: 60.162048
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 63.700992
+          q4_k_q8_v: 63.700992
+          q8_k_q4_v: 120.324096
+          q8_k_q8_v: 120.324096
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 135.364608
+          q4_k_q8_v: 135.364608
+          q8_k_q4_v: 255.688704
+          q8_k_q8_v: 255.688704
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 254.803968
+          q4_k_q8_v: 254.803968
+          q8_k_q4_v: 481.296384
+          q8_k_q8_v: 481.296384
+        layout_verified: true
     required_compatibility: [text-generation]
     minimum_engine_commit: 373336672029b12e09f272bc027cc801345a3fd6
     files:
       - role: model
         path: Ling-3.0-tiny-Q4_K_M.gguf
         size_bytes: 4823894944
+        estimated_memory_mb: 4823.894944
         sha256: 246d67d45f5b0c7447ca0ce0bdb8b46b8a47b593c5068635dc16422c051d7be9
   - id: q8
     compatible_engines: [llama-cpp]
@@ -49,10 +103,64 @@ artifacts:
     repository: inclusionAI/Ling-3.0-tiny-GGUF
     revision: 01b850e29ed5b44e2b810160ff980a9bb353296f
     reservation_gib: 12.0
+    memory_estimate:
+      basis: cached-GGUF-metadata-and-engine-layout
+      kv_status: verified
+      kv_groups:
+      - layers: 6
+        key_width: 576
+        value_width: 0
+      fixed_state_mb: 20.201472
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - llama.cpp MLA stores one compressed 576-value K row per full-attention layer; no separate V cache. KDA
+        state is F32.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 15.925248
+          q4_k_q8_v: 15.925248
+          q8_k_q4_v: 30.081024
+          q8_k_q8_v: 30.081024
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 31.850496
+          q4_k_q8_v: 31.850496
+          q8_k_q4_v: 60.162048
+          q8_k_q8_v: 60.162048
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 63.700992
+          q4_k_q8_v: 63.700992
+          q8_k_q4_v: 120.324096
+          q8_k_q8_v: 120.324096
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 135.364608
+          q4_k_q8_v: 135.364608
+          q8_k_q4_v: 255.688704
+          q8_k_q8_v: 255.688704
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 254.803968
+          q4_k_q8_v: 254.803968
+          q8_k_q4_v: 481.296384
+          q8_k_q8_v: 481.296384
+        layout_verified: true
     required_compatibility: [text-generation]
     minimum_engine_commit: 373336672029b12e09f272bc027cc801345a3fd6
     files:
       - role: model
         path: Ling-3.0-tiny-Q8_0.gguf
         size_bytes: 8408187808
+        estimated_memory_mb: 8408.187808
         sha256: 9299a9e5cbc540597619e252a41fd671faa4e84e619e3cea816542c84e19f0d6

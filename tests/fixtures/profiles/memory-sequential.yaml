@@ -1,0 +1,15 @@
+schema: 5
+id: memory-sequential-test
+description: Offline strategy admission fixture; not a published workload.
+memory: {strategy: sequential, limit_gib: 6, safety_reserve_gib: 0.5}
+models:
+  - id: spark-x25-4b
+    engine: llama-cpp
+    artifact: {id: q4}
+    context: {max_input_tokens: 7168, max_output_tokens: 1024, max_total_tokens: 8192}
+    kv_cache: {precision: q8}
+  - id: minicpm-v46-thinking
+    engine: llama-cpp
+    artifact: {id: q4}
+    context: {max_input_tokens: 7168, max_output_tokens: 1024, max_total_tokens: 8192}
+    kv_cache: {precision: q4}

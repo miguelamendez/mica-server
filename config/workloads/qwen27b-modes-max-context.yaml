@@ -1,5 +1,6 @@
 schema: 5
 id: qwen27b-modes-max-context
+catalog_visible: false
 description: Experimental full 256K declared Qwen window (224K input plus 32K output), Q4 KV and eight of 64 decoder blocks on CPU. Single request, no projector/drafter. Slower than all-GPU. Memory validation does not establish retrieval quality or output-length reliability.
 selection:
   defaults:

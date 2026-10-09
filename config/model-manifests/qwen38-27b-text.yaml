@@ -33,6 +33,57 @@ artifacts:
     repository: ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF
     revision: d562806dbafae37109975e970aae91b43e73b440
     reservation_gib: 10.5
+    memory_estimate:
+      basis: cached-GGUF-metadata-and-engine-layout
+      kv_status: verified
+      kv_groups:
+      - layers: 16
+        key_width: 1024
+        value_width: 1024
+      fixed_state_mb: 156.893184
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 150.994944
+          q4_k_q8_v: 218.103808
+          q8_k_q4_v: 218.103808
+          q8_k_q8_v: 285.212672
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 301.989888
+          q4_k_q8_v: 436.207616
+          q8_k_q4_v: 436.207616
+          q8_k_q8_v: 570.425344
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 603.979776
+          q4_k_q8_v: 872.415232
+          q8_k_q4_v: 872.415232
+          q8_k_q8_v: 1140.850688
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 1283.457024
+          q4_k_q8_v: 1853.882368
+          q8_k_q4_v: 1853.882368
+          q8_k_q8_v: 2424.307712
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 2415.919104
+          q4_k_q8_v: 3489.660928
+          q8_k_q4_v: 3489.660928
+          q8_k_q8_v: 4563.402752
+        layout_verified: true
     kv_bytes_per_token_f16: 65536
     gguf_block_count: 64
     required_compatibility: [text-generation]
@@ -41,4 +92,5 @@ artifacts:
       - role: model
         path: Qwen3.8-27B-GSQ-RCO-IQ3_XXS.gguf
         size_bytes: 10094357632
+        estimated_memory_mb: 10094.357632
         sha256: fdfcb6a29b11188956dfbfd904223588a6c1b77eb250c3e8a36e1bd269df91f7

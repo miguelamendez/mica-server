@@ -1,5 +1,6 @@
 schema: 5
 id: long-context
+catalog_visible: false
 description: MLX assistant using Spark's full declared 8192-token context, with specialists swapped on demand; not an extended-context model.
 mode: long-context
 memory:

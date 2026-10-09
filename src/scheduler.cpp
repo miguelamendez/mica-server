@@ -1,4 +1,5 @@
 #include "mica_server/scheduler.hpp"
+#include "mica_server/memory.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -92,13 +93,19 @@ ResolvedModelPlacement resolve_model_placement(
     for (const auto& file : artifact.files) file_bytes += file.size_bytes;
   }
   const double file_gib = static_cast<double>(file_bytes) / (1024.0 * 1024 * 1024);
-  const double cache_factor = policy.kv_cache_precision == "q4" ? 0.3125 :
-                              policy.kv_cache_precision == "q8" ? 0.5625 : 1.0;
+  const double cache_factor = policy.kv_cache_precision == "q4" ? 0.28125 :
+                              policy.kv_cache_precision == "q8" ? 0.53125 : 1.0;
   const double kv_gib = static_cast<double>(artifact.kv_bytes_per_token_f16) *
       policy.max_total_tokens * policy.max_concurrent_requests * cache_factor /
       (1024.0 * 1024 * 1024);
   const double base_gib = std::max(artifact.reservation_gib, file_gib * 1.1 + 0.25);
-  const double footprint = base_gib + kv_gib;
+  const double footprint = artifact.memory_estimate.is_object()
+      ? estimate_artifact_memory(artifact, policy.max_total_tokens, policy.max_concurrent_requests,
+          policy.kv_cache_k_precision.empty() ? policy.kv_cache_precision : policy.kv_cache_k_precision,
+          policy.kv_cache_v_precision.empty() ? policy.kv_cache_precision : policy.kv_cache_v_precision,
+          policy.speculative_method, policy.micro_batch_size > 0 ? policy.micro_batch_size : 512)
+          .at("estimated_total_gib").get<double>()
+      : base_gib + kv_gib;
   const double host_cache_gib = policy.ram_cache_mib > 0 ? policy.ram_cache_mib / 1024.0 : 0;
   if (system_memory_only) {
     // A discrete profile may declare only its small host-side overhead. If

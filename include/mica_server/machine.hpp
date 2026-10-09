@@ -37,6 +37,9 @@ MachinePolicy machine_policy_from_document(const nlohmann::json& document);
 MachinePolicy load_machine_policy(const std::filesystem::path& path);
 ResolvedMachinePolicy resolve_machine_policy(const HardwareInfo& hardware,
                                              const MachinePolicy& policy);
+// Preserve detected facts while narrowing automatic runtime targets to policy.
+HardwareInfo hardware_for_machine_policy(const HardwareInfo& hardware,
+                                        const ResolvedMachinePolicy& policy);
 // Imports the last resolved legacy limits once, when no user policy exists.
 std::optional<MachinePolicy> legacy_machine_policy_from_runtime(
     const std::filesystem::path& path, const HardwareInfo& hardware);

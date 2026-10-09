@@ -35,9 +35,50 @@ artifacts:
     repository: miguelamendez/mica-audio8-tts-06b
     revision: 610e0202c26f581678e5544aae2be2ef3f71adb9
     reservation_gib: 2.5
+    memory_estimate:
+      basis: publisher-DualAR-config-slow-24-layers-2-KV-heads-width-64
+      kv_status: unknown
+      kv_groups:
+      - layers: 24
+        key_width: 128
+        value_width: 128
+      fixed_state_mb: 0.02048
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - DualAR fast decoder cache and codec scratch are provisional; cache quantization must be checked per
+        audio engine. Packed audio/text positions are not words or seconds.
+      checkpoints:
+      - total_tokens: 2048
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 7.077888
+          q4_k_q8_v: 10.223616
+          q8_k_q4_v: 10.223616
+          q8_k_q8_v: 13.369344
+        layout_verified: false
+      - total_tokens: 8192
+        supported: false
+        kv_mb: {}
+        layout_verified: false
+      - total_tokens: 16384
+        supported: false
+        kv_mb: {}
+        layout_verified: false
+      - total_tokens: 32768
+        supported: false
+        kv_mb: {}
+        layout_verified: false
+      - total_tokens: 69632
+        supported: false
+        kv_mb: {}
+        layout_verified: false
+      - total_tokens: 131072
+        supported: false
+        kv_mb: {}
+        layout_verified: false
     required_compatibility: [tts]
     files:
-      - {role: model, path: q4, repository_path: mlx/q4, size_bytes: 1965243688}
+      - {role: model, path: q4, repository_path: mlx/q4, size_bytes: 1965243688, estimated_memory_mb: 1965.243688}
   - id: q8
     compatible_engines: [mlx-audio]
     format: mlx
@@ -45,9 +86,50 @@ artifacts:
     repository: miguelamendez/mica-audio8-tts-06b
     revision: 610e0202c26f581678e5544aae2be2ef3f71adb9
     reservation_gib: 3.0
+    memory_estimate:
+      basis: publisher-DualAR-config-slow-24-layers-2-KV-heads-width-64
+      kv_status: unknown
+      kv_groups:
+      - layers: 24
+        key_width: 128
+        value_width: 128
+      fixed_state_mb: 0.02048
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - DualAR fast decoder cache and codec scratch are provisional; cache quantization must be checked per
+        audio engine. Packed audio/text positions are not words or seconds.
+      checkpoints:
+      - total_tokens: 2048
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 7.077888
+          q4_k_q8_v: 10.223616
+          q8_k_q4_v: 10.223616
+          q8_k_q8_v: 13.369344
+        layout_verified: false
+      - total_tokens: 8192
+        supported: false
+        kv_mb: {}
+        layout_verified: false
+      - total_tokens: 16384
+        supported: false
+        kv_mb: {}
+        layout_verified: false
+      - total_tokens: 32768
+        supported: false
+        kv_mb: {}
+        layout_verified: false
+      - total_tokens: 69632
+        supported: false
+        kv_mb: {}
+        layout_verified: false
+      - total_tokens: 131072
+        supported: false
+        kv_mb: {}
+        layout_verified: false
     required_compatibility: [tts]
     files:
-      - {role: model, path: q8, repository_path: mlx/q8, size_bytes: 2173975882}
+      - {role: model, path: q8, repository_path: mlx/q8, size_bytes: 2173975882, estimated_memory_mb: 2173.975882}
   - id: q4
     compatible_engines: [audio-cpp]
     format: gguf
@@ -55,9 +137,50 @@ artifacts:
     repository: miguelamendez/mica-audio8-tts-06b
     revision: 610e0202c26f581678e5544aae2be2ef3f71adb9
     reservation_gib: 1.6
+    memory_estimate:
+      basis: publisher-DualAR-config-slow-24-layers-2-KV-heads-width-64
+      kv_status: unknown
+      kv_groups:
+      - layers: 24
+        key_width: 128
+        value_width: 128
+      fixed_state_mb: 0.02048
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - DualAR fast decoder cache and codec scratch are provisional; cache quantization must be checked per
+        audio engine. Packed audio/text positions are not words or seconds.
+      checkpoints:
+      - total_tokens: 2048
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 7.077888
+          q4_k_q8_v: 10.223616
+          q8_k_q4_v: 10.223616
+          q8_k_q8_v: 13.369344
+        layout_verified: false
+      - total_tokens: 8192
+        supported: false
+        kv_mb: {}
+        layout_verified: false
+      - total_tokens: 16384
+        supported: false
+        kv_mb: {}
+        layout_verified: false
+      - total_tokens: 32768
+        supported: false
+        kv_mb: {}
+        layout_verified: false
+      - total_tokens: 69632
+        supported: false
+        kv_mb: {}
+        layout_verified: false
+      - total_tokens: 131072
+        supported: false
+        kv_mb: {}
+        layout_verified: false
     required_compatibility: [tts]
     files:
-      - {role: model, path: audio8-tts-preview-0.6b-q4_0.gguf, repository_path: gguf/audio8-tts-preview-0.6b-q4_0.gguf, size_bytes: 1092886528}
+      - {role: model, path: audio8-tts-preview-0.6b-q4_0.gguf, repository_path: gguf/audio8-tts-preview-0.6b-q4_0.gguf, size_bytes: 1092886528, estimated_memory_mb: 1092.886528}
   - id: q8
     compatible_engines: [audio-cpp]
     format: gguf
@@ -65,6 +188,47 @@ artifacts:
     repository: miguelamendez/mica-audio8-tts-06b
     revision: 610e0202c26f581678e5544aae2be2ef3f71adb9
     reservation_gib: 1.9
+    memory_estimate:
+      basis: publisher-DualAR-config-slow-24-layers-2-KV-heads-width-64
+      kv_status: unknown
+      kv_groups:
+      - layers: 24
+        key_width: 128
+        value_width: 128
+      fixed_state_mb: 0.02048
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - DualAR fast decoder cache and codec scratch are provisional; cache quantization must be checked per
+        audio engine. Packed audio/text positions are not words or seconds.
+      checkpoints:
+      - total_tokens: 2048
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 7.077888
+          q4_k_q8_v: 10.223616
+          q8_k_q4_v: 10.223616
+          q8_k_q8_v: 13.369344
+        layout_verified: false
+      - total_tokens: 8192
+        supported: false
+        kv_mb: {}
+        layout_verified: false
+      - total_tokens: 16384
+        supported: false
+        kv_mb: {}
+        layout_verified: false
+      - total_tokens: 32768
+        supported: false
+        kv_mb: {}
+        layout_verified: false
+      - total_tokens: 69632
+        supported: false
+        kv_mb: {}
+        layout_verified: false
+      - total_tokens: 131072
+        supported: false
+        kv_mb: {}
+        layout_verified: false
     required_compatibility: [tts]
     files:
-      - {role: model, path: audio8-tts-preview-0.6b-q8_0.gguf, repository_path: gguf/audio8-tts-preview-0.6b-q8_0.gguf, size_bytes: 1429544960}
+      - {role: model, path: audio8-tts-preview-0.6b-q8_0.gguf, repository_path: gguf/audio8-tts-preview-0.6b-q8_0.gguf, size_bytes: 1429544960, estimated_memory_mb: 1429.54496}

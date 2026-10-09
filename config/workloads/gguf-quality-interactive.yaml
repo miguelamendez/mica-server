@@ -1,5 +1,6 @@
 schema: 5
 id: gguf-quality-interactive
+catalog_visible: false
 description: Interactive GGUF assistant favoring higher-quality model variants over minimum memory use.
 mode: interactive
 memory:

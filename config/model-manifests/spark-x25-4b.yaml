@@ -41,12 +41,68 @@ artifacts:
     repository: miguelamendez/mica-spark-x25-4b
     revision: 6c242d2945f11bb3587c437a1bf1088666ca6e2f
     reservation_gib: 3.2
+    memory_estimate:
+      basis: publisher-config-36-layers-4-KV-heads-width-256-9-full-27-sliding
+      kv_status: verified
+      kv_groups:
+      - layers: 9
+        key_width: 1024
+        value_width: 1024
+      - layers: 27
+        key_width: 1024
+        value_width: 1024
+      fixed_state_mb: 0
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - Sliding layers conservatively reserve full context; engine-specific rotating/SWA allocation may be smaller.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 339.738624
+          q4_k_q8_v: 490.733568
+          q8_k_q4_v: 490.733568
+          q8_k_q8_v: 641.728512
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 679.477248
+          q4_k_q8_v: 981.467136
+          q8_k_q4_v: 981.467136
+          q8_k_q8_v: 1283.457024
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 1358.954496
+          q4_k_q8_v: 1962.934272
+          q8_k_q4_v: 1962.934272
+          q8_k_q8_v: 2566.914048
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 2887.778304
+          q4_k_q8_v: 4171.235328
+          q8_k_q4_v: 4171.235328
+          q8_k_q8_v: 5454.692352
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 5435.817984
+          q4_k_q8_v: 7851.737088
+          q8_k_q4_v: 7851.737088
+          q8_k_q8_v: 10267.656192
+        layout_verified: true
     required_compatibility: [text-generation]
     files:
       - role: model
         path: q4
         repository_path: mlx/q4
         size_bytes: 2327288292
+        estimated_memory_mb: 2327.288292
   - id: q8
     compatible_engines: [mlx-lm]
     format: mlx
@@ -54,12 +110,68 @@ artifacts:
     repository: miguelamendez/mica-spark-x25-4b
     revision: 6c242d2945f11bb3587c437a1bf1088666ca6e2f
     reservation_gib: 5.4
+    memory_estimate:
+      basis: publisher-config-36-layers-4-KV-heads-width-256-9-full-27-sliding
+      kv_status: verified
+      kv_groups:
+      - layers: 9
+        key_width: 1024
+        value_width: 1024
+      - layers: 27
+        key_width: 1024
+        value_width: 1024
+      fixed_state_mb: 0
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - Sliding layers conservatively reserve full context; engine-specific rotating/SWA allocation may be smaller.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 339.738624
+          q4_k_q8_v: 490.733568
+          q8_k_q4_v: 490.733568
+          q8_k_q8_v: 641.728512
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 679.477248
+          q4_k_q8_v: 981.467136
+          q8_k_q4_v: 981.467136
+          q8_k_q8_v: 1283.457024
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 1358.954496
+          q4_k_q8_v: 1962.934272
+          q8_k_q4_v: 1962.934272
+          q8_k_q8_v: 2566.914048
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 2887.778304
+          q4_k_q8_v: 4171.235328
+          q8_k_q4_v: 4171.235328
+          q8_k_q8_v: 5454.692352
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 5435.817984
+          q4_k_q8_v: 7851.737088
+          q8_k_q4_v: 7851.737088
+          q8_k_q8_v: 10267.656192
+        layout_verified: true
     required_compatibility: [text-generation]
     files:
       - role: model
         path: q8
         repository_path: mlx/q8
         size_bytes: 4383234908
+        estimated_memory_mb: 4383.234908
   - id: q4
     compatible_engines: [llama-cpp]
     format: gguf
@@ -67,9 +179,64 @@ artifacts:
     repository: miguelamendez/mica-spark-x25-4b
     revision: 6c242d2945f11bb3587c437a1bf1088666ca6e2f
     reservation_gib: 4.8
+    memory_estimate:
+      basis: publisher-config-36-layers-4-KV-heads-width-256-9-full-27-sliding
+      kv_status: verified
+      kv_groups:
+      - layers: 9
+        key_width: 1024
+        value_width: 1024
+      - layers: 27
+        key_width: 1024
+        value_width: 1024
+      fixed_state_mb: 0
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - Sliding layers conservatively reserve full context; engine-specific rotating/SWA allocation may be smaller.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 339.738624
+          q4_k_q8_v: 490.733568
+          q8_k_q4_v: 490.733568
+          q8_k_q8_v: 641.728512
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 679.477248
+          q4_k_q8_v: 981.467136
+          q8_k_q4_v: 981.467136
+          q8_k_q8_v: 1283.457024
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 1358.954496
+          q4_k_q8_v: 1962.934272
+          q8_k_q4_v: 1962.934272
+          q8_k_q8_v: 2566.914048
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 2887.778304
+          q4_k_q8_v: 4171.235328
+          q8_k_q4_v: 4171.235328
+          q8_k_q8_v: 5454.692352
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 5435.817984
+          q4_k_q8_v: 7851.737088
+          q8_k_q4_v: 7851.737088
+          q8_k_q8_v: 10267.656192
+        layout_verified: true
     required_compatibility: [text-generation]
     files:
-      - {role: model, path: Spark-X2.5-4B-Q4_K_M.gguf, repository_path: gguf/Spark-X2.5-4B-Q4_K_M.gguf, size_bytes: 2600223552}
+      - {role: model, path: Spark-X2.5-4B-Q4_K_M.gguf, repository_path: gguf/Spark-X2.5-4B-Q4_K_M.gguf, size_bytes: 2600223552, estimated_memory_mb: 2600.223552}
   - id: q8
     compatible_engines: [llama-cpp]
     format: gguf
@@ -77,6 +244,61 @@ artifacts:
     repository: miguelamendez/mica-spark-x25-4b
     revision: 6c242d2945f11bb3587c437a1bf1088666ca6e2f
     reservation_gib: 6.7
+    memory_estimate:
+      basis: publisher-config-36-layers-4-KV-heads-width-256-9-full-27-sliding
+      kv_status: verified
+      kv_groups:
+      - layers: 9
+        key_width: 1024
+        value_width: 1024
+      - layers: 27
+        key_width: 1024
+        value_width: 1024
+      fixed_state_mb: 0
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - Sliding layers conservatively reserve full context; engine-specific rotating/SWA allocation may be smaller.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 339.738624
+          q4_k_q8_v: 490.733568
+          q8_k_q4_v: 490.733568
+          q8_k_q8_v: 641.728512
+        layout_verified: true
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 679.477248
+          q4_k_q8_v: 981.467136
+          q8_k_q4_v: 981.467136
+          q8_k_q8_v: 1283.457024
+        layout_verified: true
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 1358.954496
+          q4_k_q8_v: 1962.934272
+          q8_k_q4_v: 1962.934272
+          q8_k_q8_v: 2566.914048
+        layout_verified: true
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 2887.778304
+          q4_k_q8_v: 4171.235328
+          q8_k_q4_v: 4171.235328
+          q8_k_q8_v: 5454.692352
+        layout_verified: true
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 5435.817984
+          q4_k_q8_v: 7851.737088
+          q8_k_q4_v: 7851.737088
+          q8_k_q8_v: 10267.656192
+        layout_verified: true
     required_compatibility: [text-generation]
     files:
-      - {role: model, path: Spark-X2.5-4B-Q8_0.gguf, repository_path: gguf/Spark-X2.5-4B-Q8_0.gguf, size_bytes: 4375020352}
+      - {role: model, path: Spark-X2.5-4B-Q8_0.gguf, repository_path: gguf/Spark-X2.5-4B-Q8_0.gguf, size_bytes: 4375020352, estimated_memory_mb: 4375.020352}

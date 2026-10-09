@@ -1,5 +1,6 @@
 schema: 5
 id: vision-quality
+catalog_visible: false
 description: Vision-focused MLX profile favoring higher-quality image and video analysis variants.
 mode: vision
 memory:

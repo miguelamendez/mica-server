@@ -123,6 +123,17 @@ MachinePolicy load_machine_policy(const std::filesystem::path& path) {
   return machine_policy_from_document(read_profile_file(path));
 }
 
+HardwareInfo hardware_for_machine_policy(const HardwareInfo& hardware,
+                                        const ResolvedMachinePolicy& policy) {
+  auto runtime = hardware;
+  if (policy.allowed_devices == std::set<std::string>{"cpu"}) {
+    runtime.gguf_target = "cpu";
+    runtime.audio_target = "cpu";
+    runtime.vllm_target = "cpu";
+  }
+  return runtime;
+}
+
 ResolvedMachinePolicy resolve_machine_policy(const HardwareInfo& hardware,
                                              const MachinePolicy& policy) {
   if (hardware.ram_gib <= 0) {

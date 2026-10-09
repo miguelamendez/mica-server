@@ -1,0 +1,36 @@
+schema: 5
+id: gpu_16g_visual_extraction
+description: 16 GiB CUDA image and rendered-document extraction using Qwen 27B IQ3_XXS with its BF16 projector and external MTP head. Qwen3.5 9B Q4 handles videos because the registered Qwen 27B bundle declares text/images only. One resident worker; no ASR or TTS.
+catalog_visible: true
+selection:
+  engine_policy: explicit-only
+  defaults:
+    - {operation: chat.generate, required_inputs: [text], model: qwen38-27b-vision-mtp}
+    - {operation: chat.generate, required_inputs: [text, image], model: qwen38-27b-vision-mtp}
+    - {operation: chat.generate, required_inputs: [text, video], model: qwen35-9b}
+mode: visual-extraction
+memory: {required_ram_gib: 16, required_vram_gib: 15.5, maximum_resident_workers: 1, safety_reserve_gib: 0.5}
+models:
+  - id: qwen38-27b-vision-mtp
+    engine: llama-cpp
+    artifact: {id: iq3_xxs}
+    context: {max_input_tokens: 49152, max_output_tokens: 16384, max_total_tokens: 65536}
+    batching: {max_concurrent_requests: 1, token_batch_size: 512, micro_batch_size: 128}
+    kv_cache: {precision: q4, context_checkpoints: 2, ram_cache_mib: 0}
+    speculative: {method: mtp, max_draft_tokens: 7, gpu_layers: 99, kv_cache_precision: q4}
+    placement: {device: 'cuda:0', mode: fixed, gpu_layers: 99, ram_reservation_gib: 12}
+    priority: 100
+    residency: warm
+    startup: true
+    idle_seconds: 120
+  - id: qwen35-9b
+    engine: llama-cpp
+    artifact: {id: q4}
+    context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: q8}
+    placement: {device: 'cuda:0', mode: fixed, gpu_layers: 99}
+    priority: 80
+    residency: on-demand
+    startup: false
+    idle_seconds: 120

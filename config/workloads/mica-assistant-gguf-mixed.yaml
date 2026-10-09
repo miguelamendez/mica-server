@@ -1,5 +1,6 @@
 schema: 5
 id: mica-assistant-gguf-mixed
+catalog_visible: false
 description: Mixed CPU/GPU GGUF assistant for validating per-model placement and memory reservations.
 mode: interactive-mixed
 memory:

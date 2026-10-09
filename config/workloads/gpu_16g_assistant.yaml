@@ -1,0 +1,59 @@
+schema: 5
+id: gpu_16g_assistant
+description: CUDA multimodal assistant with Spark for text and tool calls, MiniCPM for images/video and rendered document pages, Granite ASR and Audio8 Q8 speech. Speech utilities stay on CPU to preserve GPU capacity. Warm models may be evicted when a specialist needs memory.
+catalog_visible: true
+selection:
+  engine_policy: explicit-only
+  defaults:
+    - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
+    - {operation: chat.generate, required_inputs: [text, image], model: minicpm-v46-thinking}
+    - {operation: chat.generate, required_inputs: [text, video], model: minicpm-v46-thinking}
+    - {operation: audio.transcribe, required_inputs: [audio], model: granite-speech-5}
+    - {operation: audio.synthesize_speech, required_inputs: [text], model: audio8-tts-06b}
+mode: assistant
+memory: {required_ram_gib: 8, required_vram_gib: 15.5, maximum_resident_workers: 0, safety_reserve_gib: 0.5}
+models:
+  - id: spark-x25-4b
+    engine: llama-cpp
+    artifact: {id: q4}
+    context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: q8}
+    placement: {device: 'cuda:0', mode: fixed, gpu_layers: 99}
+    priority: 100
+    residency: warm
+    startup: true
+    idle_seconds: 120
+  - id: granite-speech-5
+    engine: audio-cpp
+    artifact: {id: q8}
+    context: {max_input_tokens: 1, max_output_tokens: 1, max_total_tokens: 2}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: not-applicable}
+    placement: {device: 'cpu', mode: fixed, gpu_layers: 0}
+    priority: 90
+    residency: warm
+    startup: true
+    idle_seconds: 120
+  - id: audio8-tts-06b
+    engine: audio-cpp
+    artifact: {id: q8}
+    context: {max_input_tokens: 1024, max_output_tokens: 1024, max_total_tokens: 2048}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: runtime-managed}
+    placement: {device: 'cpu', mode: fixed, gpu_layers: 0}
+    priority: 70
+    residency: warm
+    startup: true
+    idle_seconds: 120
+  - id: minicpm-v46-thinking
+    engine: llama-cpp
+    artifact: {id: q4}
+    context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: q4}
+    placement: {device: 'cuda:0', mode: fixed, gpu_layers: 99}
+    priority: 60
+    residency: on-demand
+    startup: false
+    idle_seconds: 120

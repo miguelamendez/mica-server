@@ -39,6 +39,59 @@ artifacts:
     repository: ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF
     revision: d562806dbafae37109975e970aae91b43e73b440
     reservation_gib: 12.5
+    memory_estimate:
+      basis: cached-GGUF-metadata-and-engine-layout
+      kv_status: unknown
+      kv_groups:
+      - layers: 16
+        key_width: 1024
+        value_width: 1024
+      fixed_state_mb: 156.893184
+      notes:
+      - Workspace allowance is the existing conservative reservation, not a measured peak.
+      - DFlash drafter cache layout not independently verified; existing bundle reservation provides provisional
+        allowance only.
+      checkpoints:
+      - total_tokens: 8192
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 150.994944
+          q4_k_q8_v: 218.103808
+          q8_k_q4_v: 218.103808
+          q8_k_q8_v: 285.212672
+        layout_verified: false
+      - total_tokens: 16384
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 301.989888
+          q4_k_q8_v: 436.207616
+          q8_k_q4_v: 436.207616
+          q8_k_q8_v: 570.425344
+        layout_verified: false
+      - total_tokens: 32768
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 603.979776
+          q4_k_q8_v: 872.415232
+          q8_k_q4_v: 872.415232
+          q8_k_q8_v: 1140.850688
+        layout_verified: false
+      - total_tokens: 69632
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 1283.457024
+          q4_k_q8_v: 1853.882368
+          q8_k_q4_v: 1853.882368
+          q8_k_q8_v: 2424.307712
+        layout_verified: false
+      - total_tokens: 131072
+        supported: true
+        kv_mb:
+          q4_k_q4_v: 2415.919104
+          q4_k_q8_v: 3489.660928
+          q8_k_q4_v: 3489.660928
+          q8_k_q8_v: 4563.402752
+        layout_verified: false
     kv_bytes_per_token_f16: 65536
     gguf_block_count: 64
     required_compatibility: [text-generation, speculative-dflash]
@@ -47,9 +100,11 @@ artifacts:
       - role: model
         path: Qwen3.8-27B-GSQ-RCO-IQ3_XXS.gguf
         size_bytes: 10094357632
+        estimated_memory_mb: 10094.357632
         sha256: fdfcb6a29b11188956dfbfd904223588a6c1b77eb250c3e8a36e1bd269df91f7
       - role: dflash-drafter
         path: Qwen3.8-27B-DFlash2-Q4_K_M.gguf
         source: {repository: z-lab/Qwen3.8-27B-DFlash2-GGUF, revision: 2d9571f8ce46e151f61c6499c99dee6079e1d610, license: apache-2.0}
         size_bytes: 1143006816
+        estimated_memory_mb: 1143.006816
         sha256: 1a25c56858e1ebe93f2718ac1d49d1151f9323325c1bbfd6209370f4db131ebd

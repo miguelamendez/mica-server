@@ -1,5 +1,6 @@
 schema: 5
 id: mica-coder-spark-ling-qwen4b-macos
+catalog_visible: false
 description: Local Apple Silicon coding workspace with Spark Q4 as the default assistant, Ling Q4 as an alternate coder, and Qwen3.5 4B Q4 for image, video, and document-page analysis. Models swap on demand within a 14 GiB unified-memory allocation.
 selection:
   engine_policy: explicit-only

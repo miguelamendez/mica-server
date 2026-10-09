@@ -1,4 +1,5 @@
 #include "mica_server/catalog.hpp"
+#include "mica_server/memory.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -1025,6 +1026,7 @@ nlohmann::json registry_catalog(const Registry& registry,
             {"download_size_bytes", download_bytes},
             {"download_size_gib", bytes_to_gib(download_bytes)},
             {"memory_reservation_gib", artifact.reservation_gib}};
+        variant["memory_estimate"] = artifact.memory_estimate;
         if (!artifact.files.empty()) {
           variant["files"] = json::array();
           for (const auto& file : artifact.files) {
@@ -1032,6 +1034,7 @@ nlohmann::json registry_catalog(const Registry& registry,
                 {"role", file.role}, {"path", file.repository_path},
                 {"repository", file.repository}, {"revision", file.revision},
                 {"size_bytes", file.size_bytes}, {"sha256", file.sha256}});
+            variant["files"].back()["estimated_memory_mb"] = file.estimated_memory_mb >= 0 ? file.estimated_memory_mb : file.size_bytes / 1e6;
           }
         }
         if (!artifact.projector_repository_pattern.empty()) {
@@ -1073,15 +1076,23 @@ nlohmann::json registry_catalog(const Registry& registry,
       const auto has_input = [&](const std::string& value) {
         return std::find(interaction.required_inputs.begin(),
                          interaction.required_inputs.end(), value) !=
-                   interaction.required_inputs.end();
+                   interaction.required_inputs.end() ||
+               std::find(interaction.optional_inputs.begin(),
+                         interaction.optional_inputs.end(), value) !=
+                   interaction.optional_inputs.end();
       };
       if (interaction.operation == "chat.generate" ||
           interaction.operation == "text.generate") {
         if (has_input("image")) add_modality("image-text-to-text");
-        else if (has_input("video")) add_modality("video-text-to-text");
-        else add_modality("text-to-text");
+        if (has_input("video")) add_modality("video-text-to-text");
+        if (has_input("audio")) add_modality("audio-text-to-text");
+        if (std::find(interaction.required_inputs.begin(), interaction.required_inputs.end(), "image") == interaction.required_inputs.end() &&
+            std::find(interaction.required_inputs.begin(), interaction.required_inputs.end(), "video") == interaction.required_inputs.end() &&
+            std::find(interaction.required_inputs.begin(), interaction.required_inputs.end(), "audio") == interaction.required_inputs.end()) add_modality("text-to-text");
       } else if (interaction.operation == "audio.transcribe") {
         add_modality("asr");
+      } else if (interaction.operation == "embedding.generate") {
+        add_modality("embedding");
       } else if (interaction.operation == "audio.diarize") {
         add_modality("diar");
       } else if (interaction.operation == "audio.synthesize_speech") {

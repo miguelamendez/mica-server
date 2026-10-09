@@ -1,5 +1,6 @@
 schema: 5
 id: mica-assistant-mlx
+catalog_visible: false
 description: General Apple Silicon MLX assistant combining text chat, visual understanding, speech recognition, and speech replies.
 selection:
   engine_policy: explicit-only

@@ -1,5 +1,6 @@
 #include "mica_server/setup.hpp"
 #include "mica_server/profiles.hpp"
+#include "mica_server/memory.hpp"
 
 #include <algorithm>
 #include <array>
@@ -887,19 +888,21 @@ ResolvedSetup resolve_setup(Registry& registry, SetupOptions options) {
                                             resolved.source_machine_policy);
   // Automatic placement must honor a CPU-only machine policy even when a GPU
   // is physically present. Keep detected accelerator facts; narrow runtime targets.
-  if (resolved.machine.allowed_devices == std::set<std::string>{"cpu"}) {
-    resolved.hardware.gguf_target = "cpu";
-    resolved.hardware.audio_target = "cpu";
-    resolved.hardware.vllm_target = "cpu";
-    registry.resolution_hardware = resolved.hardware;
-  }
+  resolved.hardware = hardware_for_machine_policy(resolved.hardware, resolved.machine);
+  registry.resolution_hardware = resolved.hardware;
   if (options.profile == "auto") {
     options.profile = resolved.hardware.supports_mlx() &&
                               resolved.machine.allowed_devices.contains("metal:0")
                           ? "mica-assistant-mlx"
                           : "mica-assistant-gguf";
   }
-  auto& profile = registry.profiles.at(options.profile);
+  const auto selected = registry.profiles.find(options.profile);
+  if (selected == registry.profiles.end()) {
+    throw std::runtime_error("workload '" + options.profile + "' was not found in " +
+        options.config_directory.string() +
+        "; install matching binary/configuration files or choose an available workload with mica-server workload list");
+  }
+  auto& profile = selected->second;
   resolve_profile_engines(registry, profile, resolved.hardware, options.root);
   if (profile.schema >= 3) {
     if (options.quantizations_explicit) {
@@ -1034,6 +1037,7 @@ ResolvedSetup resolve_setup(Registry& registry, SetupOptions options) {
                                     largest_allowed->second);
   }
   if (options.max_vram_gib < 0) throw std::runtime_error("VRAM budget cannot be negative");
+  validate_memory_strategy(registry, profile, options.max_ram_gib + options.max_vram_gib);
   if (!registry.allow_partial_workload && options.max_ram_gib + 1e-9 < profile.required_ram_gib) {
     throw std::runtime_error("global RAM allocation is below workload profile requirement");
   }
@@ -1101,6 +1105,10 @@ ResolvedSetup resolve_setup(Registry& registry, SetupOptions options) {
           "task cannot serve all models with its pinned-worker count");
     }
     const auto check_footprint = [&](const Footprint& footprint) {
+      double combined = footprint.ram;
+      for (const auto& [_, amount] : footprint.vram) combined += amount;
+      if (profile.memory_limit_gib > 0 && combined > profile.memory_limit_gib - profile.memory_safety_reserve_gib + 1e-9)
+        throw std::runtime_error("model allocation exceeds workload memory.limit_gib");
       const double usable_ram = std::max(
           0.0, options.max_ram_gib - profile.memory_safety_reserve_gib);
       if (footprint.ram > usable_ram + 1e-9) {

@@ -1,900 +1,73 @@
+# Generated from visible config/workloads/*.yaml. Do not edit model policies here.
+# Regenerate: mica-server profile export-catalog --from config/workloads --output profiles/catalog.yaml
+schema: 1
 profiles:
   - schema: 5
-    id: mica-qwen27b-q3
-    available: true
-    description: Qwen3.8 27B GSQ-RCO IQ3_XXS chat and vision on a 16 GiB CUDA GPU, with its BF16 projector, Q4 KV cache, 64K input and 16K output allocation. One model worker; no speculative drafter. Memory allocation is not long-context quality certification.
+    id: gpu_16g_assistant
+    description: CUDA multimodal assistant with Spark for text and tool calls, MiniCPM for images/video and rendered document pages, Granite ASR and Audio8 Q8 speech. Speech utilities stay on CPU to preserve GPU capacity. Warm models may be evicted when a specialist needs memory.
+    catalog_visible: true
     selection:
       engine_policy: explicit-only
       defaults:
-        - {operation: chat.generate, required_inputs: [text], model: qwen38-27b-gsq-rco}
-        - {operation: chat.generate, required_inputs: [text, image], model: qwen38-27b-gsq-rco}
-    mode: coding
-    memory: {required_ram_gib: 16, required_vram_gib: 15.5, maximum_resident_workers: 1, safety_reserve_gib: 0.5}
+        - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
+        - {operation: chat.generate, required_inputs: [text, image], model: minicpm-v46-thinking}
+        - {operation: chat.generate, required_inputs: [text, video], model: minicpm-v46-thinking}
+        - {operation: audio.transcribe, required_inputs: [audio], model: granite-speech-5}
+        - {operation: audio.synthesize_speech, required_inputs: [text], model: audio8-tts-06b}
+    mode: assistant
+    memory: {required_ram_gib: 8, required_vram_gib: 15.5, maximum_resident_workers: 0, safety_reserve_gib: 0.5}
     models:
-      - id: qwen38-27b-gsq-rco
+      - id: spark-x25-4b
         engine: llama-cpp
-        artifact: {id: iq3_xxs}
+        artifact: {id: q4}
         context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
         batching: {max_concurrent_requests: 1}
-        kv_cache: {precision: q4}
+        kv_cache: {precision: q8}
         placement: {device: 'cuda:0', mode: fixed, gpu_layers: 99}
         priority: 100
         residency: warm
         startup: true
-        idle_seconds: 300
-  - schema: 5
-    id: mica-spark-small-gguf
-    description: Lightweight text-only Spark Q4 inference on llama.cpp with hardware-aware placement and Q8 KV cache.
-    available: true
-    selection:
-      engine_policy: explicit-only
-      defaults:
-        - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
-    mode: interactive
-    memory: {required_ram_gib: 6, required_vram_gib: 0, maximum_resident_workers: 1, safety_reserve_gib: 0.5}
-    models:
-      - id: spark-x25-4b
-        engine: llama-cpp
-        artifact: {id: q4}
-        context: {max_input_tokens: 8192, max_output_tokens: 4096, max_total_tokens: 12288}
-        batching: {max_concurrent_requests: 1}
-        kv_cache: {precision: q8}
-        placement: {device: auto, mode: auto}
-        priority: 100
-        residency: warm
-        startup: true
-        idle_seconds: 300
-  - schema: 5
-    id: diarization
-    description: Nemotron Q8 speaker turns without transcription; automatically selects an installed compatible engine or the hardware-compatible manifest default.
-    available: true
-    memory: {required_ram_gib: 2, required_vram_gib: 0, safety_reserve_gib: 0.5}
-    models:
-      - id: nemotron-3-diarization
+        idle_seconds: 120
+      - id: granite-speech-5
+        engine: audio-cpp
         artifact: {id: q8}
         context: {max_input_tokens: 1, max_output_tokens: 1, max_total_tokens: 2}
+        batching: {max_concurrent_requests: 1}
         kv_cache: {precision: not-applicable}
-        startup: true
-        residency: warm
-        priority: 100
-  - schema: 5
-    id: mica-assistant-mlx
-    description: General Apple Silicon MLX assistant combining text chat, visual understanding, speech recognition, and speech replies.
-    selection:
-      engine_policy: explicit-only
-      defaults:
-        - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
-        - {operation: chat.generate, required_inputs: [text, image], model: minicpm-v46-thinking}
-        - {operation: chat.generate, required_inputs: [text, video], model: minicpm-v46-thinking}
-        - {operation: audio.transcribe, required_inputs: [audio], model: granite-speech-5}
-        - {operation: audio.synthesize_speech, required_inputs: [text], model: audio8-tts-06b}
-    available: true
-    mode: interactive
-    memory:
-      required_ram_gib: 8
-      maximum_resident_workers: 0
-      required_vram_gib: 0
-      safety_reserve_gib: 0.5
-    models:
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 7168
-          max_output_tokens: 1024
-          max_total_tokens: 8192
-        engine: mlx-lm
-        id: spark-x25-4b
-        idle_seconds: 0
-        kv_cache:
-          precision: q8
-        placement:
-          device: auto
-          mode: auto
-        priority: 100
-        residency: pinned
-        startup: true
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 1
-          max_output_tokens: 1
-          max_total_tokens: 2
-        engine: mlx-audio
-        id: granite-speech-5
-        idle_seconds: 600
-        kv_cache:
-          precision: not-applicable
-        placement:
-          device: auto
-          mode: auto
+        placement: {device: 'cpu', mode: fixed, gpu_layers: 0}
         priority: 90
         residency: warm
         startup: true
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 1024
-          max_output_tokens: 1024
-          max_total_tokens: 2048
-        engine: mlx-audio
-        id: audio8-tts-06b
-        idle_seconds: 180
-        kv_cache:
-          precision: runtime-managed
-        placement:
-          device: auto
-          mode: auto
+        idle_seconds: 120
+      - id: audio8-tts-06b
+        engine: audio-cpp
+        artifact: {id: q8}
+        context: {max_input_tokens: 1024, max_output_tokens: 1024, max_total_tokens: 2048}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: runtime-managed}
+        placement: {device: 'cpu', mode: fixed, gpu_layers: 0}
         priority: 70
         residency: warm
         startup: true
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 6144
-          max_output_tokens: 2048
-          max_total_tokens: 8192
-        engine: mlx-vlm
-        id: minicpm-v46-thinking
-        idle_seconds: 30
-        kv_cache:
-          precision: q4
-        placement:
-          device: auto
-          mode: auto
-        priority: 40
-        residency: on-demand
-        startup: false
-    catalog_visible: true
-  - schema: 5
-    id: mica-assistant-gguf
-    description: General GGUF assistant combining text chat, visual understanding, speech recognition, and speech replies.
-    selection:
-      engine_policy: explicit-only
-      defaults:
-        - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
-        - {operation: chat.generate, required_inputs: [text, image], model: minicpm-v46-thinking}
-        - {operation: chat.generate, required_inputs: [text, video], model: minicpm-v46-thinking}
-        - {operation: audio.transcribe, required_inputs: [audio], model: granite-speech-5}
-        - {operation: audio.synthesize_speech, required_inputs: [text], model: audio8-tts-06b}
-    available: true
-    mode: interactive
-    memory:
-      required_ram_gib: 8
-      maximum_resident_workers: 0
-      required_vram_gib: 0
-      safety_reserve_gib: 0.5
-    models:
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 7168
-          max_output_tokens: 1024
-          max_total_tokens: 8192
-        engine: llama-cpp
-        id: spark-x25-4b
-        idle_seconds: 0
-        kv_cache:
-          precision: q8
-        placement:
-          device: auto
-          mode: auto
-        priority: 100
-        residency: pinned
-        startup: true
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 1
-          max_output_tokens: 1
-          max_total_tokens: 2
-        engine: audio-cpp
-        id: granite-speech-5
-        idle_seconds: 600
-        kv_cache:
-          precision: not-applicable
-        placement:
-          device: auto
-          mode: auto
-        priority: 90
-        residency: warm
-        startup: true
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 1024
-          max_output_tokens: 1024
-          max_total_tokens: 2048
-        engine: audio-cpp
-        id: audio8-tts-06b
-        idle_seconds: 180
-        kv_cache:
-          precision: runtime-managed
-        placement:
-          device: auto
-          mode: auto
-        priority: 70
-        residency: warm
-        startup: true
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 6144
-          max_output_tokens: 2048
-          max_total_tokens: 8192
-        engine: llama-cpp
-        id: minicpm-v46-thinking
-        idle_seconds: 30
-        kv_cache:
-          precision: q4
-        placement:
-          device: auto
-          mode: auto
-        priority: 40
-        residency: on-demand
-        startup: false
-    catalog_visible: true
-  - schema: 5
-    id: mica-assistant-gguf-cpu
-    description: CPU-only GGUF assistant for validating text, speech, and vision without accelerator placement.
-    available: true
-    mode: interactive-cpu
-    memory:
-      required_ram_gib: 16
-      maximum_resident_workers: 0
-      required_vram_gib: 0
-      safety_reserve_gib: 0.5
-    models:
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 7168
-          max_output_tokens: 1024
-          max_total_tokens: 8192
-        engine: llama-cpp
-        id: spark-x25-4b
-        idle_seconds: 0
-        kv_cache:
-          precision: q8
-        placement:
-          device: cpu
-          gpu_layers: 0
-          mode: fixed
-        priority: 100
-        residency: pinned
-        startup: true
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 1
-          max_output_tokens: 1
-          max_total_tokens: 2
-        engine: audio-cpp
-        id: granite-speech-5
-        idle_seconds: 600
-        kv_cache:
-          precision: not-applicable
-        placement:
-          device: cpu
-          gpu_layers: 0
-          mode: fixed
-        priority: 90
-        residency: warm
-        startup: true
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 1024
-          max_output_tokens: 1024
-          max_total_tokens: 2048
-        engine: audio-cpp
-        id: audio8-tts-06b
-        idle_seconds: 180
-        kv_cache:
-          precision: runtime-managed
-        placement:
-          device: cpu
-          gpu_layers: 0
-          mode: fixed
-        priority: 70
-        residency: warm
-        startup: true
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 6144
-          max_output_tokens: 2048
-          max_total_tokens: 8192
-        engine: llama-cpp
-        id: minicpm-v46-thinking
-        idle_seconds: 30
-        kv_cache:
-          precision: q4
-        placement:
-          device: cpu
-          gpu_layers: 0
-          mode: fixed
-        priority: 40
-        residency: on-demand
-        startup: false
-    catalog_visible: true
-  - schema: 5
-    id: mica-assistant-gguf-gpu
-    description: GPU-placed GGUF assistant for validating accelerator-only model placement and serving.
-    available: true
-    mode: interactive-gpu
-    memory:
-      required_ram_gib: 8
-      maximum_resident_workers: 0
-      required_vram_gib: 16
-      safety_reserve_gib: 0.5
-    models:
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 7168
-          max_output_tokens: 1024
-          max_total_tokens: 8192
-        engine: llama-cpp
-        id: spark-x25-4b
-        idle_seconds: 0
-        kv_cache:
-          precision: q8
-        placement:
-          device: accelerator:0
-          gpu_layers: 99
-          mode: fixed
-          ram_reservation_gib: 0.5
-          vram_reservation_gib: 4.8
-        priority: 100
-        residency: pinned
-        startup: true
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 1
-          max_output_tokens: 1
-          max_total_tokens: 2
-        engine: audio-cpp
-        id: granite-speech-5
-        idle_seconds: 600
-        kv_cache:
-          precision: not-applicable
-        placement:
-          device: accelerator:0
-          gpu_layers: 99
-          mode: fixed
-          ram_reservation_gib: 0.5
-          vram_reservation_gib: 0.9
-        priority: 90
-        residency: warm
-        startup: true
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 1024
-          max_output_tokens: 1024
-          max_total_tokens: 2048
-        engine: audio-cpp
-        id: audio8-tts-06b
-        idle_seconds: 180
-        kv_cache:
-          precision: runtime-managed
-        placement:
-          device: accelerator:0
-          gpu_layers: 99
-          mode: fixed
-          ram_reservation_gib: 0.5
-          vram_reservation_gib: 1.6
-        priority: 70
-        residency: warm
-        startup: true
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 6144
-          max_output_tokens: 2048
-          max_total_tokens: 8192
-        engine: llama-cpp
-        id: minicpm-v46-thinking
-        idle_seconds: 30
-        kv_cache:
-          precision: q4
-        placement:
-          device: accelerator:0
-          gpu_layers: 99
-          mode: fixed
-          ram_reservation_gib: 0.5
-          vram_reservation_gib: 2.2
-        priority: 40
-        residency: on-demand
-        startup: false
-    catalog_visible: true
-  - schema: 5
-    id: mica-assistant-gguf-mixed
-    description: Mixed CPU/GPU GGUF assistant for validating per-model placement and memory reservations.
-    available: true
-    mode: interactive-mixed
-    memory:
-      required_ram_gib: 8
-      maximum_resident_workers: 0
-      required_vram_gib: 12
-      safety_reserve_gib: 0.5
-    models:
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 7168
-          max_output_tokens: 1024
-          max_total_tokens: 8192
-        engine: llama-cpp
-        id: spark-x25-4b
-        idle_seconds: 0
-        kv_cache:
-          precision: q8
-        placement:
-          device: accelerator:0
-          gpu_layers: 99
-          mode: fixed
-          ram_reservation_gib: 0.5
-          vram_reservation_gib: 4.8
-        priority: 100
-        residency: pinned
-        startup: true
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 1
-          max_output_tokens: 1
-          max_total_tokens: 2
-        engine: audio-cpp
-        id: granite-speech-5
-        idle_seconds: 600
-        kv_cache:
-          precision: not-applicable
-        placement:
-          device: cpu
-          gpu_layers: 0
-          mode: fixed
-        priority: 90
-        residency: warm
-        startup: true
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 1024
-          max_output_tokens: 1024
-          max_total_tokens: 2048
-        engine: audio-cpp
-        id: audio8-tts-06b
-        idle_seconds: 180
-        kv_cache:
-          precision: runtime-managed
-        placement:
-          device: cpu
-          gpu_layers: 0
-          mode: fixed
-        priority: 70
-        residency: warm
-        startup: true
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 6144
-          max_output_tokens: 2048
-          max_total_tokens: 8192
-        engine: llama-cpp
-        id: minicpm-v46-thinking
-        idle_seconds: 30
-        kv_cache:
-          precision: q4
-        placement:
-          device: accelerator:0
-          gpu_layers: 99
-          mode: fixed
-          ram_reservation_gib: 0.5
-          vram_reservation_gib: 2.2
-        priority: 40
-        residency: on-demand
-        startup: false
-    catalog_visible: true
-  - schema: 5
-    id: bonsai-pq2-vision-cpu
-    description: CPU-only Bonsai PQ2 vision validation profile for checking image input without GPU offload.
-    available: true
-    mode: vision-cpu-validation
-    memory:
-      required_ram_gib: 16
-      maximum_resident_workers: 0
-      required_vram_gib: 0
-      safety_reserve_gib: 0.5
-    models:
-      - artifact:
-          id: pq2_0
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 6144
-          max_output_tokens: 2048
-          max_total_tokens: 8192
-        engine: prism-llama-cpp
-        id: ternary-bonsai-2-27b
-        idle_seconds: 30
-        kv_cache:
-          precision: q8
-        placement:
-          device: cpu
-          gpu_layers: 0
-          mode: fixed
-        priority: 100
-        residency: on-demand
-        startup: false
-    catalog_visible: true
-  - schema: 5
-    id: bonsai-pq2-vision-gpu
-    description: GPU-offloaded Bonsai PQ2 vision validation profile for checking image input and device placement.
-    available: true
-    mode: vision-gpu-validation
-    memory:
-      required_ram_gib: 8
-      maximum_resident_workers: 0
-      required_vram_gib: 16
-      safety_reserve_gib: 0.5
-    models:
-      - artifact:
-          id: pq2_0
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 6144
-          max_output_tokens: 2048
-          max_total_tokens: 8192
-        engine: prism-llama-cpp
-        id: ternary-bonsai-2-27b
-        idle_seconds: 30
-        kv_cache:
-          precision: q8
-        placement:
-          device: accelerator:0
-          gpu_layers: 99
-          mode: fixed
-          ram_reservation_gib: 0.75
-          vram_reservation_gib: 12
-        priority: 100
-        residency: on-demand
-        startup: false
-    catalog_visible: true
-  - schema: 5
-    id: mica-coder-bonsai-macos
-    description: Apple Silicon coding workspace with Spark as the default chat model, Bonsai and Ling as alternate coders, and MiniCPM for image or PDF-page analysis.
-    selection:
-      engine_policy: explicit-only
-      defaults:
-        - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
-        - {operation: chat.generate, required_inputs: [text, image], model: minicpm-v46-thinking}
-        - {operation: chat.generate, required_inputs: [text, video], model: minicpm-v46-thinking}
-    available: true
-    mode: coding
-    memory:
-      required_ram_gib: 16
-      maximum_resident_workers: 1
-      required_vram_gib: 0
-      safety_reserve_gib: 0.5
-    models:
-      - artifact:
-          id: pq2_0
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 65536
-          max_output_tokens: 16384
-          max_total_tokens: 81920
-        engine: prism-llama-cpp
-        id: ternary-bonsai-2-27b
         idle_seconds: 120
-        kv_cache:
-          precision: q8
-        placement:
-          device: metal:0
-          gpu_layers: 99
-          mode: fixed
-        priority: 100
-        residency: on-demand
-        startup: false
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 65536
-          max_output_tokens: 16384
-          max_total_tokens: 81920
-        engine: mlx-lm
-        id: spark-x25-4b
-        idle_seconds: 120
-        kv_cache:
-          precision: q8
-        placement:
-          device: metal:0
-          mode: fixed
-        priority: 110
-        residency: warm
-        startup: true
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 65536
-          max_output_tokens: 16384
-          max_total_tokens: 81920
-        engine: llama-cpp
-        id: ling-3-tiny
-        idle_seconds: 120
-        kv_cache:
-          precision: q8
-        placement:
-          device: metal:0
-          gpu_layers: 99
-          mode: fixed
-        priority: 75
-        residency: on-demand
-        startup: false
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 65536
-          max_output_tokens: 16384
-          max_total_tokens: 81920
-        engine: mlx-vlm
-        id: minicpm-v46-thinking
-        idle_seconds: 60
-        kv_cache:
-          precision: q4
-        placement:
-          device: metal:0
-          mode: fixed
-        priority: 70
-        residency: on-demand
-        startup: false
-    catalog_visible: true
-  - schema: 5
-    id: mica-xing-q4-baseline-macos
-    description: Experimental Xing IQ4_NL baseline for 24 GiB Apple Silicon; 20 GiB admission budget is not a physical memory hard cap.
-    selection:
-      engine_policy: explicit-only
-      defaults:
-        - {operation: chat.generate, required_inputs: [text], model: xing4-29b-a4b}
-    available: false
-    mode: evaluation
-    memory:
-      required_ram_gib: 20
-      maximum_resident_workers: 1
-      required_vram_gib: 0
-      safety_reserve_gib: 0.5
-    models:
-      - artifact:
-          format: gguf
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 2048
-          max_output_tokens: 512
-          max_total_tokens: 2560
-        engine: xing-llama-cpp
-        id: xing4-29b-a4b
-        idle_seconds: 120
-        kv_cache:
-          precision: q8
-        placement:
-          device: metal:0
-          gpu_layers: 99
-          mode: fixed
-        priority: 100
-        residency: warm
-        startup: true
-    reason: Awaiting explicit baseline download, Xing fork Metal load test, and measured peak memory under an external 20 GiB guard.
-    status: blocked
-  - available: false
-    description: Target vLLM/GPTQ assistant containing the same text, ASR, TTS, and vision capabilities.
-    id: mica-assistant-gptq
-    reason: The four GPTQ candidates have not passed native vLLM architecture, modality, and quality certification. The profile remains non-installable until they do.
-    schema: 3
-    status: blocked
-    target_models:
-      - spark-x25-4b
-      - granite-speech-5
-      - audio8-tts-06b
-      - minicpm-v46-thinking
-  - schema: 5
-    id: mica-coder-gguf
-    description: GGUF coding workspace for CPU or GPU hardware, with Spark as default, Bonsai and Ling as alternate coders, and MiniCPM for images and video.
-    selection:
-      engine_policy: explicit-only
-      defaults:
-        - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
-        - {operation: chat.generate, required_inputs: [text, image], model: minicpm-v46-thinking}
-        - {operation: chat.generate, required_inputs: [text, video], model: minicpm-v46-thinking}
-    mode: coding
-    memory:
-      required_ram_gib: 16
-      maximum_resident_workers: 1
-      required_vram_gib: 0
-      safety_reserve_gib: 0.5
-    models:
-      - artifact:
-          id: pq2_0
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 65536
-          max_output_tokens: 16384
-          max_total_tokens: 81920
-        engine: prism-llama-cpp
-        id: ternary-bonsai-2-27b
-        idle_seconds: 120
-        kv_cache:
-          precision: q8
-        placement:
-          device: auto
-          gpu_layers: 99
-          mode: auto
-        priority: 100
-        residency: on-demand
-        startup: false
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 65536
-          max_output_tokens: 16384
-          max_total_tokens: 81920
-        engine: llama-cpp
-        id: spark-x25-4b
-        idle_seconds: 120
-        kv_cache:
-          precision: q8
-        placement:
-          device: auto
-          mode: auto
-        priority: 110
-        residency: warm
-        startup: true
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 65536
-          max_output_tokens: 16384
-          max_total_tokens: 81920
-        engine: llama-cpp
-        id: ling-3-tiny
-        idle_seconds: 120
-        kv_cache:
-          precision: q8
-        placement:
-          device: auto
-          gpu_layers: 99
-          mode: auto
-        priority: 75
-        residency: on-demand
-        startup: false
-      - artifact:
-          id: q4
-        batching:
-          max_concurrent_requests: 1
-        context:
-          max_input_tokens: 65536
-          max_output_tokens: 16384
-          max_total_tokens: 81920
-        engine: llama-cpp
-        id: minicpm-v46-thinking
-        idle_seconds: 60
-        kv_cache:
-          precision: q4
-        placement:
-          device: auto
-          mode: auto
-        priority: 70
-        residency: on-demand
-        startup: false
-    available: true
-    catalog_visible: true
-  - schema: 5
-    id: mica-coder-qwen-gguf
-    description: Single-engine coding workspace with Spark Q4 as default, Qwen3.8 27B GSQ-RCO IQ3_XXS as alternate coder, and Qwen3.5 9B Q4 for images and video. One resident worker keeps GPU usage bounded.
-    selection:
-      engine_policy: explicit-only
-      defaults:
-        - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
-        - {operation: chat.generate, required_inputs: [text, image], model: qwen35-9b}
-        - {operation: chat.generate, required_inputs: [text, video], model: qwen35-9b}
-    mode: coding
-    memory: {required_ram_gib: 16, required_vram_gib: 0, maximum_resident_workers: 1, safety_reserve_gib: 0.5}
-    models:
-      - id: spark-x25-4b
+      - id: minicpm-v46-thinking
         engine: llama-cpp
         artifact: {id: q4}
-        context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
-        batching: {max_concurrent_requests: 1}
-        kv_cache: {precision: q8}
-        placement: {device: auto, mode: auto, gpu_layers: 99}
-        priority: 110
-        residency: warm
-        startup: true
-        idle_seconds: 120
-      - id: qwen38-27b-gsq-rco
-        engine: llama-cpp
-        artifact: {id: iq3_xxs}
         context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
         batching: {max_concurrent_requests: 1}
         kv_cache: {precision: q4}
-        placement: {device: auto, mode: auto, gpu_layers: 99}
-        priority: 90
-        residency: on-demand
-        startup: false
-        idle_seconds: 120
-      - id: qwen35-9b
-        engine: llama-cpp
-        artifact: {id: q4}
-        context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
-        batching: {max_concurrent_requests: 1}
-        kv_cache: {precision: q8}
-        placement: {device: auto, mode: auto, gpu_layers: 99}
-        priority: 70
+        placement: {device: 'cuda:0', mode: fixed, gpu_layers: 99}
+        priority: 60
         residency: on-demand
         startup: false
         idle_seconds: 120
     available: true
-    catalog_visible: true
   - schema: 5
-    id: qwen27b-modes
-    description: RTX 16 GiB Qwen 27B modes, one worker at a time. Text-only DFlash has 80K input plus 32K output; vision uses a GPU projector and MTP with 48K input plus 16K output. Q4 KV, single request. Input/output limits include framing and media tokens, not just user text.
+    id: gpu_16g_coder
+    description: 16 GiB CUDA coding workspace using Qwen 27B IQ3_XXS with DFlash2 for text and its BF16 projector plus external MTP for images. Spark is an optional compact tool-call/text alternative. One resident worker; projector and DFlash are never loaded together.
+    catalog_visible: true
     selection:
+      engine_policy: explicit-only
       defaults:
         - {operation: chat.generate, required_inputs: [text], model: qwen38-27b-text-dflash}
         - {operation: chat.generate, required_inputs: [text, image], model: qwen38-27b-vision-mtp}
@@ -902,6 +75,7 @@ profiles:
     memory: {required_ram_gib: 16, required_vram_gib: 15.5, maximum_resident_workers: 1, safety_reserve_gib: 0.5}
     models:
       - id: qwen38-27b-text-dflash
+        engine: llama-cpp
         artifact: {id: iq3_xxs}
         context: {max_input_tokens: 81920, max_output_tokens: 32768, max_total_tokens: 114688}
         batching: {max_concurrent_requests: 1, token_batch_size: 512, micro_batch_size: 128}
@@ -913,6 +87,7 @@ profiles:
         startup: true
         idle_seconds: 120
       - id: qwen38-27b-vision-mtp
+        engine: llama-cpp
         artifact: {id: iq3_xxs}
         context: {max_input_tokens: 49152, max_output_tokens: 16384, max_total_tokens: 65536}
         batching: {max_concurrent_requests: 1, token_batch_size: 512, micro_batch_size: 128}
@@ -923,47 +98,298 @@ profiles:
         residency: on-demand
         startup: false
         idle_seconds: 120
+      - id: spark-x25-4b
+        engine: llama-cpp
+        artifact: {id: q4}
+        context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: q8}
+        placement: {device: 'cuda:0', mode: fixed, gpu_layers: 99}
+        priority: 60
+        residency: on-demand
+        startup: false
+        idle_seconds: 120
     available: true
   - schema: 5
-    id: qwen27b-modes-long
-    description: Qwen 27B text-only 160K input plus 32K output reservation (192K total), Q4 KV, single request, no projector and no drafter. All GPU layers are faster than the tested CPU-drafter alternative on the 16 GiB RTX card. Long-input memory test only, not a long-context quality guarantee.
+    id: gpu_16g_meetings
+    description: CUDA meeting analysis with Granite transcription, Nemotron Q8 anonymous speaker turns and Spark summaries. No TTS or vision weights. Transcription and diarization are separate operations; this workload does not align transcript words to speakers automatically.
+    catalog_visible: true
     selection:
+      engine_policy: explicit-only
       defaults:
-        - {operation: chat.generate, required_inputs: [text], model: qwen38-27b-text}
-    mode: coding
+        - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
+        - {operation: audio.transcribe, required_inputs: [audio], model: granite-speech-5}
+    mode: meetings
+    memory: {required_ram_gib: 8, required_vram_gib: 9, maximum_resident_workers: 0, safety_reserve_gib: 0.5}
+    models:
+      - id: spark-x25-4b
+        engine: llama-cpp
+        artifact: {id: q4}
+        context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: q8}
+        placement: {device: 'cuda:0', mode: fixed, gpu_layers: 99}
+        priority: 100
+        residency: warm
+        startup: true
+        idle_seconds: 120
+      - id: granite-speech-5
+        engine: audio-cpp
+        artifact: {id: q8}
+        context: {max_input_tokens: 1, max_output_tokens: 1, max_total_tokens: 2}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: not-applicable}
+        placement: {device: 'cpu', mode: fixed, gpu_layers: 0}
+        priority: 90
+        residency: warm
+        startup: true
+        idle_seconds: 120
+      - id: nemotron-3-diarization
+        engine: audio-cpp
+        artifact: {id: q8}
+        context: {max_input_tokens: 1, max_output_tokens: 1, max_total_tokens: 2}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: not-applicable}
+        placement: {device: 'cpu', mode: fixed, gpu_layers: 0}
+        priority: 80
+        residency: warm
+        startup: true
+        idle_seconds: 120
+    available: true
+  - schema: 5
+    id: gpu_16g_visual_extraction
+    description: 16 GiB CUDA image and rendered-document extraction using Qwen 27B IQ3_XXS with its BF16 projector and external MTP head. Qwen3.5 9B Q4 handles videos because the registered Qwen 27B bundle declares text/images only. One resident worker; no ASR or TTS.
+    catalog_visible: true
+    selection:
+      engine_policy: explicit-only
+      defaults:
+        - {operation: chat.generate, required_inputs: [text], model: qwen38-27b-vision-mtp}
+        - {operation: chat.generate, required_inputs: [text, image], model: qwen38-27b-vision-mtp}
+        - {operation: chat.generate, required_inputs: [text, video], model: qwen35-9b}
+    mode: visual-extraction
     memory: {required_ram_gib: 16, required_vram_gib: 15.5, maximum_resident_workers: 1, safety_reserve_gib: 0.5}
     models:
-      - id: qwen38-27b-text
+      - id: qwen38-27b-vision-mtp
+        engine: llama-cpp
         artifact: {id: iq3_xxs}
-        context: {max_input_tokens: 163840, max_output_tokens: 32768, max_total_tokens: 196608}
+        context: {max_input_tokens: 49152, max_output_tokens: 16384, max_total_tokens: 65536}
         batching: {max_concurrent_requests: 1, token_batch_size: 512, micro_batch_size: 128}
         kv_cache: {precision: q4, context_checkpoints: 2, ram_cache_mib: 0}
-        speculative: {method: none}
+        speculative: {method: mtp, max_draft_tokens: 7, gpu_layers: 99, kv_cache_precision: q4}
         placement: {device: 'cuda:0', mode: fixed, gpu_layers: 99, ram_reservation_gib: 12}
         priority: 100
         residency: warm
         startup: true
         idle_seconds: 120
+      - id: qwen35-9b
+        engine: llama-cpp
+        artifact: {id: q4}
+        context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: q8}
+        placement: {device: 'cuda:0', mode: fixed, gpu_layers: 99}
+        priority: 80
+        residency: on-demand
+        startup: false
+        idle_seconds: 120
     available: true
   - schema: 5
-    id: qwen27b-modes-max-context
-    description: Experimental full 256K declared Qwen window (224K input plus 32K output), Q4 KV and eight of 64 decoder blocks on CPU. Single request, no projector/drafter. Slower than all-GPU. Memory validation does not establish retrieval quality or output-length reliability.
+    id: mac_assistant
+    description: Apple Silicon multimodal assistant with Spark for text and tool calls, MiniCPM for images/video and rendered document pages, Granite ASR and Audio8 Q8 speech. Uses MLX speech/text/vision engines. Warm models may be evicted when a specialist needs memory.
+    catalog_visible: true
     selection:
+      engine_policy: explicit-only
       defaults:
-        - {operation: chat.generate, required_inputs: [text], model: qwen38-27b-text}
-    mode: coding
-    memory: {required_ram_gib: 16, required_vram_gib: 15.5, maximum_resident_workers: 1, safety_reserve_gib: 0.5}
+        - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
+        - {operation: chat.generate, required_inputs: [text, image], model: minicpm-v46-thinking}
+        - {operation: chat.generate, required_inputs: [text, video], model: minicpm-v46-thinking}
+        - {operation: audio.transcribe, required_inputs: [audio], model: granite-speech-5}
+        - {operation: audio.synthesize_speech, required_inputs: [text], model: audio8-tts-06b}
+    mode: assistant
+    memory: {required_ram_gib: 14, required_vram_gib: 0, maximum_resident_workers: 0, safety_reserve_gib: 0.5}
     models:
-      - id: qwen38-27b-text
-        artifact: {id: iq3_xxs}
-        context: {max_input_tokens: 229376, max_output_tokens: 32768, max_total_tokens: 262144}
-        batching: {max_concurrent_requests: 1, token_batch_size: 512, micro_batch_size: 128}
-        kv_cache: {precision: q4, context_checkpoints: 2, ram_cache_mib: 0}
-        speculative: {method: none}
-        placement: {device: 'cuda:0', mode: fixed, gpu_layers: 56, ram_reservation_gib: 12}
+      - id: spark-x25-4b
+        engine: mlx-lm
+        artifact: {id: q4}
+        context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: q8}
+        placement: {device: 'metal:0', mode: fixed}
         priority: 100
         residency: warm
         startup: true
         idle_seconds: 120
+      - id: granite-speech-5
+        engine: mlx-audio
+        artifact: {id: q8}
+        context: {max_input_tokens: 1, max_output_tokens: 1, max_total_tokens: 2}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: not-applicable}
+        placement: {device: 'metal:0', mode: fixed}
+        priority: 90
+        residency: warm
+        startup: true
+        idle_seconds: 120
+      - id: audio8-tts-06b
+        engine: mlx-audio
+        artifact: {id: q8}
+        context: {max_input_tokens: 1024, max_output_tokens: 1024, max_total_tokens: 2048}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: runtime-managed}
+        placement: {device: 'metal:0', mode: fixed}
+        priority: 70
+        residency: warm
+        startup: true
+        idle_seconds: 120
+      - id: minicpm-v46-thinking
+        engine: mlx-vlm
+        artifact: {id: q8}
+        context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: q8}
+        placement: {device: 'metal:0', mode: fixed}
+        priority: 60
+        residency: on-demand
+        startup: false
+        idle_seconds: 120
     available: true
-schema: 1
+  - schema: 5
+    id: mac_coder
+    description: Apple Silicon coding workspace with Spark as the default text/tool-call assistant, Ling as an alternate coder and Qwen3.5 4B for image/video or rendered document analysis. One resident model at a time; no slow Qwen 27B target.
+    catalog_visible: true
+    selection:
+      engine_policy: explicit-only
+      defaults:
+        - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
+        - {operation: chat.generate, required_inputs: [text, image], model: qwen35-4b}
+        - {operation: chat.generate, required_inputs: [text, video], model: qwen35-4b}
+    mode: coding
+    memory: {required_ram_gib: 14, required_vram_gib: 0, maximum_resident_workers: 1, safety_reserve_gib: 0.5}
+    models:
+      - id: spark-x25-4b
+        engine: mlx-lm
+        artifact: {id: q4}
+        context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: q8}
+        placement: {device: 'metal:0', mode: fixed}
+        priority: 110
+        residency: warm
+        startup: true
+        idle_seconds: 120
+      - id: ling-3-tiny
+        engine: llama-cpp
+        artifact: {id: q4}
+        context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: q8}
+        placement: {device: 'metal:0', mode: fixed, gpu_layers: 99}
+        priority: 90
+        residency: on-demand
+        startup: false
+        idle_seconds: 120
+      - id: qwen35-4b
+        engine: llama-cpp
+        artifact: {id: q4}
+        context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: q8}
+        placement: {device: 'metal:0', mode: fixed, gpu_layers: 99}
+        priority: 70
+        residency: on-demand
+        startup: false
+        idle_seconds: 120
+    available: true
+  - schema: 5
+    id: mac_meetings
+    description: Apple Silicon meeting analysis with Granite transcription, Nemotron Q8 anonymous speaker turns and Spark summaries. No TTS or vision weights. Transcription and diarization are separate operations; this workload does not align transcript words to speakers automatically.
+    catalog_visible: true
+    selection:
+      engine_policy: explicit-only
+      defaults:
+        - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
+        - {operation: audio.transcribe, required_inputs: [audio], model: granite-speech-5}
+    mode: meetings
+    memory: {required_ram_gib: 12, required_vram_gib: 0, maximum_resident_workers: 0, safety_reserve_gib: 0.5}
+    models:
+      - id: spark-x25-4b
+        engine: mlx-lm
+        artifact: {id: q4}
+        context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: q8}
+        placement: {device: 'metal:0', mode: fixed}
+        priority: 100
+        residency: warm
+        startup: true
+        idle_seconds: 120
+      - id: granite-speech-5
+        engine: mlx-audio
+        artifact: {id: q8}
+        context: {max_input_tokens: 1, max_output_tokens: 1, max_total_tokens: 2}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: not-applicable}
+        placement: {device: 'metal:0', mode: fixed}
+        priority: 90
+        residency: warm
+        startup: true
+        idle_seconds: 120
+      - id: nemotron-3-diarization
+        engine: mlx-audio-diarization
+        artifact: {id: q8}
+        context: {max_input_tokens: 1, max_output_tokens: 1, max_total_tokens: 2}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: not-applicable}
+        placement: {device: 'metal:0', mode: fixed}
+        priority: 80
+        residency: warm
+        startup: true
+        idle_seconds: 120
+    available: true
+  - schema: 5
+    id: mac_visual_extraction
+    description: Apple Silicon image/video and rendered-document extraction with MiniCPM Q8 as default, Qwen3.5 4B Q4 as an alternate and Qwen3.5 9B Q4 as the larger slower quality-oriented option. Select the model explicitly for comparisons; one resident worker. No ASR or TTS.
+    catalog_visible: true
+    selection:
+      engine_policy: explicit-only
+      defaults:
+        - {operation: chat.generate, required_inputs: [text], model: minicpm-v46-thinking}
+        - {operation: chat.generate, required_inputs: [text, image], model: minicpm-v46-thinking}
+        - {operation: chat.generate, required_inputs: [text, video], model: minicpm-v46-thinking}
+    mode: visual-extraction
+    memory: {required_ram_gib: 14, required_vram_gib: 0, maximum_resident_workers: 1, safety_reserve_gib: 0.5}
+    models:
+      - id: minicpm-v46-thinking
+        engine: mlx-vlm
+        artifact: {id: q8}
+        context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: q8}
+        placement: {device: 'metal:0', mode: fixed}
+        priority: 100
+        residency: warm
+        startup: true
+        idle_seconds: 120
+      - id: qwen35-4b
+        engine: llama-cpp
+        artifact: {id: q4}
+        context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: q8}
+        placement: {device: 'metal:0', mode: fixed, gpu_layers: 99}
+        priority: 90
+        residency: on-demand
+        startup: false
+        idle_seconds: 120
+      - id: qwen35-9b
+        engine: llama-cpp
+        artifact: {id: q4}
+        context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+        batching: {max_concurrent_requests: 1}
+        kv_cache: {precision: q8}
+        placement: {device: 'metal:0', mode: fixed, gpu_layers: 99}
+        priority: 80
+        residency: on-demand
+        startup: false
+        idle_seconds: 120
+    available: true

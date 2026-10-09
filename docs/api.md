@@ -173,6 +173,51 @@ the token budget provides a hard thinking cap.
 `POST /v1/completions` is a legacy adapter. It accepts one string `prompt`,
 translates it to a user chat message, and returns `choices[].text`.
 
+## Embeddings
+
+`POST /v1/embeddings` selects an `embedding.generate` model in the active
+workload. It uses the same authentication, lazy loading, memory admission and
+sequential swapping as chat; an embedding model is not eligible for chat.
+
+```json
+{
+  "model": "embeddinggemma-2",
+  "input": [
+    "task: search result | query: Why is the sky blue?",
+    "title: none | text: Air molecules scatter blue sunlight strongly."
+  ],
+  "encoding_format": "float"
+}
+```
+
+Each input returns an indexed, normalized 768-dimensional vector under
+`data[].embedding`. Text batches are supported in one request. To embed media,
+use an input object with a `content` array, for example:
+
+```json
+{
+  "model": "embeddinggemma-2",
+  "input": [{"content": [
+    {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}}
+  ]}],
+  "encoding_format": "float"
+}
+```
+
+`input_audio` and `input_video` use the same content parts as the native chat
+engine. EmbeddingGemma-2 shares an 8192-token input budget across modalities;
+the GGUF's larger architectural position limit is **not** the publisher's
+supported embedding input budget. Its workload uses 8192 input tokens and zero
+output-token reservation. Only embedding models may use a zero output budget.
+Embeddings do not decode an output token or maintain an autoregressive KV cache.
+
+Streaming and generation token parameters are rejected. The current route
+returns native dimensions: `dimensions` is rejected rather than silently
+ignored. For Matryoshka retrieval, truncate vectors client-side to 512, 256 or
+128 dimensions, then L2-normalize again; use matching dimensions for queries
+and documents. Model task prefixes are explicit client input, never silently
+injected by Mica. See [researcher validation](researcher-validation.md).
+
 ## Speech recognition
 
 `POST /v1/audio/transcriptions` accepts multipart form data:

@@ -1,5 +1,6 @@
 schema: 5
 id: mica-assistant-gguf-cpu
+catalog_visible: false
 description: CPU-only GGUF assistant for validating text, speech, and vision without accelerator placement.
 mode: interactive-cpu
 memory:

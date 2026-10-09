@@ -1,5 +1,6 @@
 schema: 5
 id: balanced-all
+catalog_visible: false
 description: Balanced four-model assistant for text chat, image and video understanding, speech recognition, and speech replies.
 mode: interactive
 memory:

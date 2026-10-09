@@ -1,5 +1,6 @@
 schema: 5
 id: mica-spark-small-gguf
+catalog_visible: false
 description: Lightweight text-only inference with Spark Q4 on llama.cpp, one warm worker, Q8 KV cache, and an 8K input plus 4K output budget. Device placement follows detected hardware and machine policy.
 selection:
   engine_policy: explicit-only

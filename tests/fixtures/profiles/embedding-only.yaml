@@ -1,0 +1,21 @@
+schema: 5
+id: embedding-only
+description: Isolated native EmbeddingGemma-2 Q8 acceptance, not a chat workload.
+catalog_visible: false
+selection:
+  engine_policy: prefer-installed
+  defaults:
+    - {operation: embedding.generate, required_inputs: [text], model: embeddinggemma-2}
+memory: {strategy: sequential, limit_gib: 4, safety_reserve_gib: 0.5}
+models:
+  - id: embeddinggemma-2
+    artifact: {id: q8}
+    context: {max_input_tokens: 8192, max_output_tokens: 0, max_total_tokens: 8192}
+    batching: {max_concurrent_requests: 1, token_batch_size: 8192, micro_batch_size: 8192}
+    kv_cache: {precision: not-applicable}
+    speculative: {method: none}
+    placement: {device: auto, mode: auto}
+    priority: 100
+    residency: warm
+    startup: true
+    idle_seconds: 300

@@ -1,5 +1,6 @@
 schema: 5
 id: interactive
+catalog_visible: false
 description: Interactive MLX assistant for text chat with speech and vision utilities loaded as needed.
 mode: interactive
 memory:

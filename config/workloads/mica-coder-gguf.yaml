@@ -1,5 +1,6 @@
 schema: 5
 id: mica-coder-gguf
+catalog_visible: false
 description: GGUF coding workspace for CPU or GPU hardware, with Spark as default, Bonsai and Ling as alternate coders, and MiniCPM for images and video.
 selection:
   engine_policy: explicit-only
