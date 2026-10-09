@@ -45,3 +45,101 @@ The public chat streaming route initially buffered SSE until generation complete
 - The 8192-token context was configured but not filled; tasks up to about 4100 actual input tokens passed through the profile, while the full ceiling, batch throughput, and peak unified-memory allocation remain unmeasured.
 - Prism logs recommend at least 1024 image tokens for Qwen-VL grounding tasks. These simple color/OCR fixtures passed at the current defaults; more demanding grounding should be tested before claiming broad vision quality.
 - A combined color-and-text prompt returned only the colors once, while the targeted OCR prompt returned the exact text. The smoke tests establish basic functionality, not comprehensive instruction-following quality.
+
+## Separate DFlash2 text-only attempt (2026-10-06)
+
+The original cached PQ2 target remains unchanged. The requested experiment
+uses a separate community Bonsai-adapted DFlash2 Q8 drafter, with **no vision
+projector and no MTP head**. The combined MTP target is not used for this test.
+
+- [Community Bonsai DFlash2](https://huggingface.co/ProCreations/Ternary-Bonsai-2-27B-DFlash2), pinned revision `4cfb6ad03268fed0f60ca96c1a659c0b1c77e50b`.
+- File: `Bonsai-2-27B-DFlash2-Q8_0.gguf`, 2,056,415,104 bytes;
+  SHA-256 `9dd11c8adb910058faf9fb77b10d90c1c048a4f3c2887a890f592cbd882deb9a`.
+- Community patched source archive SHA-256:
+  `8c0f589673b25574f27f013bb3278824384eb35eb984034a2445af3c437b9d05`.
+  Provenance is Prism commit `d8f26eec76da6d09bb708bcba51ef64b8cd868a3`
+  plus the publisher's patches. Archive checksum, not its inherited build
+  version string, identifies this test source.
+
+The installed pinned Prism runtime lacks the DFlash2 selector implementation,
+despite advertising a generic DFlash CLI flag. A separate patched runtime was
+therefore built for Metal, with CUDA off, one compiler job, and a monitored
+2 GiB process-tree cap. Compilation passed, peaking at **0.79 GiB RSS**.
+This does not establish inference compatibility.
+
+The planned comparison uses an 8,192-token window, Q4 target KV, one worker,
+four CPU threads, temperature zero, thinking disabled, and a 2,304-token coding
+generation cap. DFlash uses Q8 draft KV and three draft tokens. Baseline and
+DFlash run serially against the same target and prompt.
+
+The first **baseline** attempt was stopped during model loading when macOS
+pressure reached critical (4). Observed worker-tree RSS peaked at 5,165.84 MiB;
+minimum reported system free memory was 23%. These are different metrics:
+RSS is not total Metal/unified memory pressure. No inference finished in
+that initial attempt.
+
+The local runner stops above 14 GiB worker-tree RSS, at critical system memory
+pressure, or below 12% reported free memory. Existing unrelated System1
+workers were left running. Permission was requested to pause and restore
+them before retrying; the safeguard was not bypassed. Production workloads
+and engine registrations were not changed. The single-model workload has not
+been published or certified: the community archive source also needs an
+honest installation recipe before automatic Mica setup can reproduce it.
+
+Build log and the latest attempts' exact command/JSON are retained locally
+under the ignored `build/bonsai-spec-test/` directory. The test runner is
+`build/bonsai-spec-test/run_text.py`, and outputs are in its `results/` folder.
+
+### Retry after memory pressure returned to normal
+
+The baseline was retried without pausing unrelated servers. It passed the
+arithmetic check (`391`) and generated 2,304 coding tokens with no reasoning
+content. DFlash was then attempted serially, after the baseline worker exited.
+
+| Mode | Actual input tokens | Generated tokens | Decode tokens/s | Peak worker-tree RSS GiB | Outcome |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Original Bonsai PQ2, no drafter | 124 | 2,304 | 9.556 | 4.951 | Length/arithmetic smoke checks passed |
+| Same target + separate Bonsai DFlash2 Q8 | — | — | — | 9.449 | Critical-pressure guard stopped model loading |
+
+Baseline prompt processing took 2.791 seconds, decode took 241.000 seconds,
+and the complete coding request took 243.803 seconds. Output reached its cap;
+these checks do not certify a complete, correct parsing module. The 8,192-token
+window was reserved, not filled.
+
+The DFlash attempt was stopped after about three seconds, at system pressure
+4 and 13% reported free memory. It did not reach readiness or generate any
+tokens. Therefore **no DFlash speedup, acceptance rate, or quality comparison
+has been measured**. Both runs used no projector or MTP. After cleanup, system
+pressure returned to normal. The two unrelated System1 servers were still
+running; permission to pause and restore them was still needed at that checkpoint for a retry with
+more memory headroom. No unrelated process was stopped.
+
+The retry supersedes the baseline `none.json`/`none.log` files; the initial
+pressure-stop observation is recorded above. Exact requests and raw responses
+for the successful baseline, plus `dflash.json`/`dflash.log` for the stopped
+drafter attempt, remain in `build/bonsai-spec-test/results/`.
+
+### Retry after stopping the old System1 servers
+
+The user subsequently authorized stopping the two old local System1 workers
+on ports 18158 and 18159. Both workers exited and the ports were confirmed
+closed; no model files were deleted. Docker, the frontend, and the ongoing
+Linux benchmark were left untouched. The old workers are not automatically
+restored, because the user requested stopping them rather than pausing them.
+
+The same DFlash test was retried with all safeguards unchanged. This time the
+original PQ2 target and separate DFlash2 Q8 drafter loaded successfully. The
+arithmetic check returned `391`, with three drafted tokens accepted. The
+2,304-token coding generation started successfully. The previous pressure-stop JSON/log were preserved as
+`first-pressure-stop-dflash.json` and `first-pressure-stop-dflash.log`.
+
+The user then requested stopping local inference and conducting experiments
+only on Linux for the remainder of the day. The DFlash worker was stopped
+after 1,369 generated tokens; its last logged cumulative rate was 5.68 tokens/s.
+This is a **partial, user-interrupted measurement**, not a completed 2,304-token
+benchmark or a final coding-quality/acceptance result. The code request did not
+return its final response. SIGTERM closed the listener but left cleanup stuck,
+so the same verified worker was subsequently killed to release its allocations.
+Local ports 8109 and 8092 were confirmed closed, and the local Mica launch job
+was unloaded to prevent a restart. No model/cache files were deleted. The Linux
+benchmark service remained active and untouched.

@@ -1,0 +1,49 @@
+schema: 5
+id: mica-coder-spark-ling-qwen4b-macos
+description: Local Apple Silicon coding workspace with Spark Q4 as the default assistant, Ling Q4 as an alternate coder, and Qwen3.5 4B Q4 for image, video, and document-page analysis. Models swap on demand within a 14 GiB unified-memory allocation.
+selection:
+  engine_policy: explicit-only
+  defaults:
+    - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
+    - {operation: chat.generate, required_inputs: [text, image], model: qwen35-4b}
+    - {operation: chat.generate, required_inputs: [text, video], model: qwen35-4b}
+mode: coding
+memory:
+  required_ram_gib: 14
+  required_vram_gib: 0
+  maximum_resident_workers: 1
+  safety_reserve_gib: 0.5
+models:
+  - id: spark-x25-4b
+    engine: mlx-lm
+    artifact: {id: q4}
+    context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: q8}
+    placement: {device: metal:0, mode: fixed}
+    priority: 110
+    residency: warm
+    startup: true
+    idle_seconds: 120
+  - id: ling-3-tiny
+    engine: llama-cpp
+    artifact: {id: q4}
+    context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: q8}
+    placement: {device: metal:0, mode: fixed, gpu_layers: 99}
+    priority: 90
+    residency: on-demand
+    startup: false
+    idle_seconds: 120
+  - id: qwen35-4b
+    engine: llama-cpp
+    artifact: {id: q4}
+    context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: q8}
+    placement: {device: metal:0, mode: fixed, gpu_layers: 99}
+    priority: 70
+    residency: on-demand
+    startup: false
+    idle_seconds: 120
