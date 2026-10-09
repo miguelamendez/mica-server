@@ -67,6 +67,10 @@ engine only when a selected task resolves to it. `latest` must resolve to and
 record a concrete revision; an installed engine changes only on explicit
 refresh. A manifest cannot supply arbitrary shell commands.
 
+Its required `description` explains the runtime in natural language. Worker
+endpoint contracts define callable operations; compatibility tags do not create
+endpoints.
+
 ## Model contract
 
 A model manifest describes one logical model and any number of concrete
@@ -76,12 +80,16 @@ drafter), integrity checks, required engine features, and an ordered list of
 compatible engines. The first listed engine is only a preference: selection
 also requires compatible hardware, feature support, and certification.
 
+The current schema requires a natural-language `description`, modalities,
+abilities, `supported_tasks` and `supported_interactions`. Tasks are declared
+intended uses for discovery; operation/input contracts still govern routing.
+The [task index](../schema-vocabulary.md#descriptions-and-task-index) separates
+coding, OCR, transcription and other uses from their underlying operations.
+
 The following metadata is optional, never fabricated, and accompanied by a
 source when the value is not directly measured by Mica:
 
 - identity, source model, license and commercial-use terms;
-- input and output modalities and task capabilities (text, image, video,
-  audio, ASR, TTS, image/audio generation, etc.); a model may have several;
 - supported context ceiling, disclosed training context, supported output
   ceiling, and disclosed training output span as **four distinct values**;
 - exact model-specific reasoning modes, budget controls, tool-call format,

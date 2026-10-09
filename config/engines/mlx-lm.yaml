@@ -1,5 +1,6 @@
 schema: 2
 id: mlx-lm
+description: Apple Silicon text inference using MLX. The current Spark adapter launches mlx-vlm.server for its custom architecture and shares the MLX Python environment.
 status: current
 backend: mlx
 installer: python-mlx

@@ -17,6 +17,12 @@ modalities to a model ID. A request can name another eligible model in the
 active profile. With no explicit model or matching default, Mica chooses the
 highest-priority eligible model, breaking ties by model ID.
 
+Use natural-language `description`, not a `purpose` identifier. The collection's
+individual model blocks contain only runtime overrides; model descriptions,
+modalities, abilities and supported tasks belong in the model manifests. The
+[TUI](tui.md) displays those summaries separately from workload memory policy and
+per-model engine/artifact/context/KV/residency settings.
+
 An inference profile is one layer of Mica's resolver, not an installation
 script. It composes:
 

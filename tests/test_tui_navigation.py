@@ -46,7 +46,7 @@ class NavigationTests(unittest.TestCase):
 
             try:
                 read_until("Stored data")
-                key(b"2", "Purpose")
+                key(b"2", "Workload · Overview")
                 key(b"/", "Filter")
                 os.write(master, b"local-researcher-gguf")
                 time.sleep(0.15)
@@ -54,8 +54,8 @@ class NavigationTests(unittest.TestCase):
                 key(b"\r", "Models in local-researcher-gguf")
                 key(b"\r", "Supported engines for")
                 # Escape restores the selection/scope; message may be unchanged.
-                key(b"\x1b", "Artifact and component")
-                key(b"\x1b", "Purpose")
+                key(b"\x1b", "Model · Overview")
+                key(b"\x1b", "Workload · Overview")
                 key(b"1", "Stored data")
                 key(b"\x1b[B", "Choose workload")
                 key(b"\r", "Choose a workload")

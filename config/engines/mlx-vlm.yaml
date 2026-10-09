@@ -1,5 +1,6 @@
 schema: 2
 id: mlx-vlm
+description: Apple Silicon MLX inference for compatible image/video-and-text-to-text models, using the shared MLX Python environment.
 status: current
 backend: mlx
 installer: python-mlx

@@ -1,5 +1,6 @@
 schema: 2
 id: embeddinggemma-2
+supported_tasks: [embedding, retrieval]
 description: Google's multimodal retrieval model. Text, images, sampled video and audio produce normalized 768-dimensional
   embeddings, not generated chat replies. Use retrieval task prefixes for text.
 source_repository: google/embeddinggemma-2

@@ -1,5 +1,6 @@
 schema: 2
 id: llama-cpp
+description: Native llama.cpp HTTP inference for compatible GGUF text, vision, audio-understanding and embedding models. Builds for the detected CPU or accelerator.
 status: current
 backend: gguf
 installer: cmake-llama

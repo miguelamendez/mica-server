@@ -113,6 +113,7 @@ execution mechanism.
 ```yaml
 schema: 2
 id: prism-llama-cpp
+description: Prism runtime for ternary Bonsai GGUF weights and their optional vision projector.
 status: candidate
 backend: gguf
 installer: cmake-llama
@@ -185,6 +186,7 @@ record includes both the language weights and the BF16 vision projector:
 schema: 2
 id: ternary-bonsai-2-27b
 description: Ternary multimodal coding model with a vision projector.
+supported_tasks: [chat, coding, ocr, visual_question_answering, structured_extraction]
 source_repository: prism-ml/Ternary-Bonsai-2-27B-gguf
 input_modalities: [text, image]
 output_modalities: [text]

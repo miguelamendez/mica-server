@@ -23,6 +23,7 @@ extern "C" {
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cctype>
 #include <fstream>
 #include <functional>
 #include <iostream>
@@ -221,7 +222,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       }
     json engines = json::array();
     for (const auto& [id, engine] : data.registry.engines)
-      engines.push_back({{"id", id}, {"availability", data.engines[id]}, {"hardware", engine.hardware}});
+      engines.push_back({{"id", id}, {"description", engine.description}, {"availability", data.engines[id]}, {"hardware", engine.hardware}});
     std::cout << json{{"sections", navigation}, {"server", data.server}, {"machine", data.hardware},
                      {"settings", data.settings}, {"disk_usage_bytes", data.disk}, {"workloads", workloads},
                      {"server_subsections", {"Overview", "Choose workload", "Machine"}},
@@ -278,7 +279,18 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
                 "Dedicated GPU limit (GiB)", "Import API key file", "Rotate API key"};
     }
     values.erase(std::remove_if(values.begin(), values.end(), [&](const auto& value) {
-      return !search.empty() && value.find(search) == std::string::npos;
+      std::string searchable = value;
+      if (section == "models") {
+        const auto& model = data.registry.model(value);
+        searchable += " " + model.description;
+        for (const auto& task : model.supported_tasks) searchable += " " + task;
+      } else if (section == "engines") searchable += " " + data.registry.engine(value).description;
+      else if (section == "workloads" || (section == "server" && server_picker)) searchable += " " + data.registry.profile(value).description;
+      std::string query = search;
+      const auto lower = [](unsigned char c) { return static_cast<char>(std::tolower(c)); };
+      std::transform(searchable.begin(), searchable.end(), searchable.begin(), lower);
+      std::transform(query.begin(), query.end(), query.begin(), lower);
+      return !query.empty() && searchable.find(query) == std::string::npos;
     }), values.end());
     return values;
   };
@@ -307,8 +319,15 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     const auto heading = [&](const std::string& title) {
       lines.push_back(text(" " + title) | bold | color(accent));
     };
+    const auto section_heading = [&](const std::string& title) {
+      if (!lines.empty()) { lines.push_back(text("")); lines.push_back(separator()); }
+      heading(title);
+    };
     const auto row = [&](const std::string& label, const json& value) {
-      lines.push_back(paragraph(" " + label + ": " + compact(value)));
+      auto readable = label;
+      std::replace(readable.begin(), readable.end(), '_', ' ');
+      if (!readable.empty()) readable[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(readable[0])));
+      lines.push_back(paragraph(" " + readable + ": " + compact(value)));
     };
     std::function<void(const json&, std::string)> tree;
     tree = [&](const json& value, std::string prefix) {
@@ -324,30 +343,32 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     const auto object = [&](const json& value) { tree(value, ""); };
     const auto& section = sections[section_index].id;
     if (section == "server" && !server_picker && selected != "Machine") {
-      heading("Local inference server");
+      section_heading("Server · Overview");
       row("Status", data.server.value("status", "stopped"));
       row("Default workload", data.settings.value("default_workload", "not configured"));
-      heading("Stored data (logical file size; not RAM)");
-      for (const auto& item : data.disk.items()) row(item.key(), gib_text(item.value().get<std::uintmax_t>()));
       if (data.server.contains("profile")) {
         row("Workload", data.server["profile"]["name"]);
+        row("Listening", compact(data.server["host"]) + ":" + compact(data.server["port"]));
+        section_heading("Memory allocation (planning reservations)");
         row("RAM reserved / allocated (GiB)", compact(data.server["reserved_ram_gib"]) + " / " + compact(data.server["max_ram_gib"]));
         row("VRAM reserved / allocated (GiB)", compact(data.server["reserved_vram_gib"]) + " / " + compact(data.server["max_vram_gib"]));
-        row("Listening", compact(data.server["host"]) + ":" + compact(data.server["port"]));
-        heading("Loaded models");
+        section_heading("Loaded models");
         for (const auto& w : data.server["workers"]) lines.push_back(text(" " + w.at("id").get<std::string>()));
         if (data.server["workers"].empty()) row("Workers", "none resident");
       } else if (data.server.contains("error")) row("Error", data.server["error"]);
       else row("Loaded models", "none — server stopped");
-      lines.push_back(separator()); row("Actions", "Choose workload + Enter to start or swap · s choose/start · x stop · r refresh");
+      section_heading("Stored data (logical file size; not RAM)");
+      for (const auto& item : data.disk.items()) row(item.key(), gib_text(item.value().get<std::uintmax_t>()));
+      section_heading("Actions"); row("Controls", "Choose workload + Enter to start or swap · s choose/start · x stop · r refresh");
       row("Memory accounting", "Reservations are planning estimates, not measurements or a universal hard RSS/VRAM cap.");
     } else if (section == "server" && !server_picker && selected == "Machine") {
-      heading("Detected machine (facts)"); object(data.hardware);
-      heading("User limits (machine.yaml)"); object(data.machine);
+      section_heading("Detected machine (facts)"); object(data.hardware);
+      section_heading("User limits (machine.yaml)"); object(data.machine);
       row("Edit limits", "Use Settings. Changes require stopping and reconciling the workload.");
     } else if (section == "settings") {
-      heading("Server configuration"); object(data.settings);
-      heading("Machine policy"); object(data.machine);
+      section_heading("Server configuration"); object(data.settings);
+      section_heading("Machine policy"); object(data.machine);
+      section_heading("Editing and application");
       row("Selected", selected);
       row("Actions", "Enter edits the selected setting. API keys stay hidden; import a file or generate a replacement.");
       row("Apply", "Stop first. Settings are saved for the next start; a workload is reconciled against the new limits.");
@@ -355,8 +376,13 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     } else if (selected.empty()) row("Entries", "No matches");
     else if (section == "workloads" || (section == "server" && server_picker)) {
       const auto& profile = data.registry.profile(selected);
-      heading(selected); row("Purpose", profile.description);
+      section_heading("Workload · Overview"); row("ID", selected); row("Description", profile.description);
+      section_heading("Memory and residency policy");
       row("RAM required (GiB)", profile.required_ram_gib); row("VRAM required (GiB)", profile.required_vram_gib);
+      row("Resident worker limit", profile.maximum_resident_workers);
+      row("Strategy", profile.residency_strategy.empty() ? "per-model residency policy" : profile.residency_strategy);
+      if (profile.memory_limit_gib > 0) row("Workload ceiling (GiB)", profile.memory_limit_gib);
+      section_heading("Availability");
       const auto active = data.server.value("profile", json::object()).value("name", "");
       row("Active", active == selected);
       row("Prepared selection", data.runtime.value("profile", "") == selected);
@@ -364,31 +390,40 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       const auto& availability = data.workloads[selected];
       row("Hardware compatible", availability["compatible"]); row("Compatibility", availability["reason"]);
       row("Engines installed", availability["engines_installed"]); row("Models cached", availability["models_cached"]);
-      row("Resident worker limit", profile.maximum_resident_workers);
       row("Memory/policy eligibility", availability["allocation_fits"]);
       row("Allocation check", availability["allocation_reason"]);
-      row("Strategy", profile.residency_strategy.empty() ? "per-model residency policy" : profile.residency_strategy);
-      if (profile.memory_limit_gib > 0) row("Workload ceiling (GiB)", profile.memory_limit_gib);
+      section_heading("Models in this workload");
       for (const auto& policy : profile.model_policies) {
+        lines.push_back(text("")); lines.push_back(separator());
         heading(policy.id);
-        row("Engine / artifact", policy.engine + " / " + to_string(policy.quantization));
+        const auto& model = data.registry.model(policy.id);
+        row("Description", model.description);
+        row("Supported tasks", model.supported_tasks);
+        row("Engine", policy.engine.empty() ? "automatic (compatible installed engine, then manifest order)" : policy.engine);
+        row("Artifact / quantization", to_string(policy.quantization));
         row("Input / output / total", std::to_string(policy.max_input_tokens) + " / " + std::to_string(policy.max_output_tokens) + " / " + std::to_string(policy.max_total_tokens));
         row("KV cache", policy.kv_cache_precision); row("Residency", to_string(policy.residency));
         row("Priority / startup", std::to_string(policy.priority) + " / " + (policy.startup ? "yes" : "no"));
       }
-      lines.push_back(separator()); row("Actions", server_picker ? "Enter start/swap selected workload · Esc back" : "Enter browse models · i install · s start · a hot-swap · e edit YAML · c clone");
+      section_heading("Actions"); row("Controls", server_picker ? "Enter start/swap selected workload · Esc back" : "Enter browse models · i install · s start · a hot-swap · e edit YAML · c clone");
     } else if (section == "models") {
       for (const auto& model : data.models["data"]) if (model["id"] == selected) {
-        heading(selected);
-        row("Category", model["group"]); row("Hardware compatible", model["compatible"]);
-        row("Any complete artifact cached", model["cached"]); row("Supported engines", model["supported_engines"]);
-        for (const auto* key : {"description", "license", "input_modalities", "output_modalities", "abilities",
-                               "native_context_tokens", "recommended_context_tokens", "max_output_tokens", "thinking_modes",
-                               "thinking_budget_supported", "tool_call_formats", "source_repository", "quantizations"})
+        section_heading("Model · Overview"); row("ID", selected);
+        row("Description", model["description"]); row("Category", model["group"]);
+        section_heading("Capabilities and intended tasks");
+        for (const auto* key : {"supported_tasks", "input_modalities", "output_modalities", "abilities", "tool_call_formats"})
           if (model.contains(key)) row(key, model[key]);
-        heading("Artifact and component records");
+        row("Task declarations", "Intended uses, not quality certification or endpoint permissions.");
+        section_heading("Context and generation guidance");
+        for (const auto* key : {"native_context_tokens", "recommended_context_tokens", "max_output_tokens", "thinking_modes", "thinking_budget_supported"})
+          if (model.contains(key)) row(key, model[key]);
+        section_heading("Availability and supported engines");
+        row("Hardware compatible", model["compatible"]);
+        row("Any complete artifact cached", model["cached"]); row("Supported engines", model["supported_engines"]);
+        section_heading("Artifact and component records");
         if (model.contains("variants")) for (const auto& family : model["variants"].items())
           for (const auto& variant : family.value()) {
+            lines.push_back(text("")); lines.push_back(separator());
             heading(compact(variant["engine"]) + " / " + compact(variant["quantization_type"]));
             row("Format", variant["format"]);
             row("Download (GiB)", variant["download_size_gib"]);
@@ -403,31 +438,51 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
               heading("Memory estimates (planning, not measured peaks)"); object(variant["memory_estimate"]);
             }
           }
-        heading("Supported interactions and references");
-        for (const auto* key : {"supported_interactions", "references"})
-          if (model.contains(key)) object(json{{key, model[key]}});
+        section_heading("Supported interactions (operation and input/output shape)");
+        if (model.contains("supported_interactions")) object(json{{"supported_interactions", model["supported_interactions"]}});
+        section_heading("Provenance and references");
+        for (const auto* key : {"license", "source_repository"})
+          if (model.contains(key)) row(key, model[key]);
+        if (model.contains("references")) object(json{{"references", model["references"]}});
         const auto downloads = data.runtime.value("downloads", json::object());
         for (const auto& download : downloads.items())
           if (download.value().value("model", "") == selected) row("Cached " + download.key(), download.value().value("local_path", ""));
-        row("Actions", "Enter browses supported engines · Esc back. Browsing never changes a workload engine pin.");
+        section_heading("Actions"); row("Controls", "Enter browses supported engines · Esc back. Browsing never changes a workload engine pin.");
         row("Loading", "Choose a workload to install exact model/engine/quantization selections.");
       }
     } else if (section == "engines") {
-      heading(selected);
+      section_heading("Engine · Overview"); row("ID", selected);
+      row("Description", data.registry.engine(selected).description);
+      section_heading("Availability");
       row("Hardware compatible", data.engines[selected]["compatible"]);
       row("Compatibility", data.engines[selected]["reason"]);
       row("Installed", data.engines[selected]["installed"]);
       row("Executable / environment", data.engines[selected]["path"]);
-      heading("Engine manifest: installation recipe and endpoint contracts");
       const auto path = config / "engines" / (selected + ".yaml");
-      if (std::filesystem::exists(path)) object(read_profile_file(path));
+      if (std::filesystem::exists(path)) {
+        const auto manifest = read_profile_file(path);
+        section_heading("Runtime and artifact compatibility");
+        for (const auto* key : {"status", "backend", "device_target", "hardware", "artifact_formats", "compatibility_tags"})
+          if (manifest.contains(key)) row(key, manifest[key]);
+        section_heading("Implemented operation contracts (worker endpoints)");
+        if (manifest.contains("endpoint_contracts")) object(json{{"endpoint_contracts", manifest["endpoint_contracts"]}});
+        section_heading("Installation recipe");
+        for (const auto* key : {"installer", "launcher"}) if (manifest.contains(key)) row(key, manifest[key]);
+        for (const auto* key : {"source", "install"}) if (manifest.contains(key)) object(json{{key, manifest[key]}});
+      }
       const auto resolved = data.runtime.value("resolved", json::object()).value("engines", json::object());
-      if (resolved.contains(selected)) { heading("Installed runtime"); object(resolved[selected]); }
+      if (resolved.contains(selected)) { section_heading("Installed runtime"); object(resolved[selected]); }
+      section_heading("Actions");
       row("Installation", "Workload installation prepares missing engines. Installed does not mean inference-certified.");
     } else if (section == "endpoints") {
       for (const auto& endpoint : endpoint_catalog["endpoints"])
         if (selected == endpoint.at("method").get<std::string>() + " " + endpoint.at("path").get<std::string>()) {
-          heading(selected); object(endpoint);
+          section_heading("Endpoint · Overview"); row("Route", selected);
+          row("Description", endpoint["description"]);
+          section_heading("Access and availability");
+          row("Authentication required", endpoint["authentication_required"]);
+          row("Availability", "Inference requires a compatible model interaction and the selected engine's implemented operation, not a task label alone.");
+          section_heading("Usage example"); row("example", endpoint["example"]);
         }
       row("Availability", "Listed routes exist globally. Inference needs a compatible active model; see Models and Server.");
     }

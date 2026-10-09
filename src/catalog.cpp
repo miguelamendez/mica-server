@@ -16,6 +16,7 @@
 
 #include "mica_server/command.hpp"
 #include "mica_server/config.hpp"
+#include "mica_server/tasks.hpp"
 
 namespace mica {
 namespace {
@@ -971,7 +972,10 @@ nlohmann::json registry_catalog(const Registry& registry,
                                 const std::optional<Backend>& backend,
                                 bool check_remote,
                                 const std::optional<std::string>& engine,
-                                const std::optional<std::string>& modality) {
+                                const std::optional<std::string>& modality,
+                                const std::optional<std::string>& task) {
+  if (task && !task_requirements().contains(*task))
+    throw std::invalid_argument("unknown supported task: " + *task);
   json models = json::array();
   std::map<std::string, bool> remote_status;
   const auto modality_for = [](const std::string& value) {
@@ -981,6 +985,7 @@ nlohmann::json registry_catalog(const Registry& registry,
   };
   for (const auto& model : registry.models) {
     if (!model.catalog_visible) continue;
+    if (task && std::find(model.supported_tasks.begin(), model.supported_tasks.end(), *task) == model.supported_tasks.end()) continue;
     if (capability && model.capability != *capability) continue;
     json repositories = json::object();
     json revisions = json::object();
@@ -1138,6 +1143,7 @@ nlohmann::json registry_catalog(const Registry& registry,
                  {"input_modalities", model.input_modalities},
                  {"output_modalities", model.output_modalities},
                  {"abilities", model.abilities},
+                 {"supported_tasks", model.supported_tasks},
                  {"supported_interactions", interactions},
                  {"tool_call_formats", model.tool_call_formats},
                  {"license", license.empty() ? "unknown" : license},

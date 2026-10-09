@@ -1706,6 +1706,7 @@ class WorkerManager {
                           {"input_modalities", definition.input_modalities},
                           {"output_modalities", definition.output_modalities},
                           {"abilities", definition.abilities},
+                          {"supported_tasks", definition.supported_tasks},
                           {"supported_interactions", interactions},
                           {"thinking_modes", artifact.engine == "prism-llama-cpp" ||
                               (backend == Backend::mlx &&

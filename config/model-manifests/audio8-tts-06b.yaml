@@ -1,5 +1,6 @@
 schema: 2
 id: audio8-tts-06b
+supported_tasks: [text_to_speech, voice_cloning]
 input_modalities: [text, audio]
 output_modalities: [audio]
 abilities: [speech_synthesis, voice_conditioning]

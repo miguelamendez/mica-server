@@ -1,5 +1,6 @@
 schema: 2
 id: prism-llama-cpp
+description: Prism llama.cpp fork for ternary Bonsai GGUF weights and their optional vision projector. Builds the activation-transform runtime for compatible hardware.
 status: candidate
 backend: gguf
 installer: cmake-llama

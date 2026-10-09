@@ -20,7 +20,7 @@ Below 120 columns, navigation moves above the list/details panes.
 | `Esc` | Return to the previous workload/model/engine view or close a dialog |
 | `g` in Models | Cycle All, LLM, VLM, ASR, TTS, Embeddings, Diarization and future generation categories |
 | `u` | Show all hardware targets / restore compatible-only lists |
-| `/`, `r` | Filter names / refresh the inventory |
+| `/`, `r` | Filter IDs, descriptions and model tasks (case-insensitive) / refresh the inventory |
 | `PgUp`, `PgDn` | Scroll details |
 | `?`, `q` | Help / close the TUI; closing does not stop Mica |
 
@@ -81,11 +81,29 @@ driver/toolchain readiness, or proof that a workload fits its measured peak.
 
 ## Model, engine and endpoint information
 
-Model details own modalities, abilities, training/context guidance, quantizations,
+Model details own modalities, abilities, supported tasks, training/context guidance, quantizations,
 references, supported engine IDs and artifact components such as projectors,
 MTP/DFlash drafters or codecs. Workload details own runtime policy: selected
 artifact/engine, input/output/total context, KV precision, priority and residency.
 Engine details own install/build recipes, targets and endpoint contracts.
+
+Each details pane separates information with named sections and horizontal rules:
+
+| View | Sections |
+| --- | --- |
+| Server | Overview → memory allocation → loaded models → stored data → actions |
+| Workloads | Overview/description → memory and residency → availability → individual model blocks → actions |
+| Models | Overview/description → capabilities and tasks → context/generation → availability/engines → artifact/component blocks → interactions → provenance → actions |
+| Engines | Overview/description → availability → runtime/artifact compatibility → implemented worker operations → installation recipe → installed runtime → actions |
+| Endpoints | Overview/description → access/availability → usage example |
+| Settings | Server configuration → machine policy → editing/application |
+
+Workload model blocks summarize model descriptions and tasks alongside **that
+workload's** engine, artifact, context, KV cache and residency policy. Enter opens
+the selectable model list for full model-owned information. `Description` replaces
+the old UI label `Purpose`; all three manifest kinds use `description` in YAML.
+Task declarations help discovery, but do not change API routing or certify model
+quality. See the [task vocabulary and endpoint mapping](schema-vocabulary.md#descriptions-and-task-index).
 
 Endpoints are drawn from Mica's route-discovery catalog with descriptions,
 authentication requirements and example curl calls. Set `MICA_BASE_URL` and

@@ -1,5 +1,6 @@
 schema: 2
 id: ternary-bonsai-2-27b
+supported_tasks: [chat, coding, ocr, visual_question_answering, structured_extraction]
 input_modalities: [text, image]
 output_modalities: [text]
 abilities: [text_generation, instruction_following, reasoning, image_understanding]

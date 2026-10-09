@@ -1,5 +1,6 @@
 schema: 2
 id: xing-llama-cpp
+description: Candidate llama.cpp fork for Xing GGUF architecture support. Installation does not certify model inference or its performance.
 status: candidate
 backend: gguf
 installer: cmake-llama

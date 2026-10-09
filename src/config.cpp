@@ -13,6 +13,7 @@
 #include <nlohmann/json.hpp>
 
 #include "mica_server/profiles.hpp"
+#include "mica_server/tasks.hpp"
 
 extern "C" {
 #include <lauxlib.h>
@@ -487,7 +488,7 @@ void load_engine_manifests(Registry& registry,
       throw std::runtime_error("engine manifest must use schema 2: " + path.string());
     }
     reject_unknown_fields(document,
-        {"schema", "id", "status", "backend", "installer", "launcher",
+        {"schema", "id", "description", "status", "backend", "installer", "launcher",
          "device_target", "hardware", "artifact_formats", "compatibility_tags",
          "endpoint_contracts",
          "source", "install"}, "engine manifest " + path.string());
@@ -500,6 +501,9 @@ void load_engine_manifests(Registry& registry,
     }
     EngineDefinition engine;
     engine.id = id;
+    engine.description = document.at("description").get<std::string>();
+    if (engine.description.find_first_not_of(" \t\r\n") == std::string::npos)
+      throw std::invalid_argument("engine description must be natural-language text: " + id);
     engine.status = document.value("status", engine.status);
     engine.backend = parse_backend(document.at("backend").get<std::string>());
     engine.installer = document.at("installer").get<std::string>();
@@ -645,7 +649,7 @@ void load_model_manifests(Registry& registry,
     }
     reject_unknown_fields(
         document,
-        {"schema", "id", "abilities", "supported_interactions",
+        {"schema", "id", "abilities", "supported_tasks", "supported_interactions",
          "description", "source_repository", "references",
          "native_context_tokens", "recommended_context_tokens", "max_output_tokens",
          "tags", "thinking_modes",
@@ -687,6 +691,8 @@ void load_model_manifests(Registry& registry,
       throw std::runtime_error("model capability mismatch: " + id);
     }
     model->description = document.at("description").get<std::string>();
+    if (model->description.find_first_not_of(" \t\r\n") == std::string::npos)
+      throw std::invalid_argument("model description must be natural-language text: " + id);
     model->source_repo = document.at("source_repository").get<std::string>();
     model->references.clear();
     model->memory_profile.reset();
@@ -743,6 +749,9 @@ void load_model_manifests(Registry& registry,
     model->output_modalities =
         document.value("output_modalities", std::vector<std::string>{});
     model->abilities = checked_values(document, "abilities", kAbilities);
+    std::set<std::string> tasks;
+    for (const auto& [task, rule] : task_requirements()) tasks.insert(task);
+    model->supported_tasks = checked_values(document, "supported_tasks", tasks);
     model->supported_interactions.clear();
     if (!document.contains("supported_interactions") ||
         !document.at("supported_interactions").is_array() ||
@@ -841,6 +850,7 @@ void load_model_manifests(Registry& registry,
       }
       model->supported_interactions.push_back(std::move(interaction));
     }
+    validate_model_tasks(*model);
     model->tool_call_formats =
         document.value("tool_call_formats", std::vector<std::string>{});
     model->recommended_context_tokens = optional_token_limit(document, "recommended_context_tokens");

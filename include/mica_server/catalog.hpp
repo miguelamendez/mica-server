@@ -58,6 +58,7 @@ nlohmann::json registry_catalog(
     const std::optional<Backend>& backend = std::nullopt,
     bool check_remote = false,
     const std::optional<std::string>& engine = std::nullopt,
-    const std::optional<std::string>& modality = std::nullopt);
+    const std::optional<std::string>& modality = std::nullopt,
+    const std::optional<std::string>& task = std::nullopt);
 
 }  // namespace mica

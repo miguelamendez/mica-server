@@ -1,5 +1,6 @@
 schema: 2
 id: vllm
+description: Python vLLM serving for compatible models and accelerator targets. Engine compatibility is separate from hardware-specific installation and inference certification.
 status: current
 backend: vllm
 installer: python-vllm

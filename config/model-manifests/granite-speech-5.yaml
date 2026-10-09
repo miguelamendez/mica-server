@@ -1,5 +1,6 @@
 schema: 2
 id: granite-speech-5
+supported_tasks: [transcription]
 input_modalities: [audio]
 output_modalities: [text]
 abilities: [speech_recognition]

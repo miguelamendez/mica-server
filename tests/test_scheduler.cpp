@@ -20,6 +20,7 @@
 #include "mica_server/machine.hpp"
 #include "mica_server/profiles.hpp"
 #include "mica_server/scheduler.hpp"
+#include "mica_server/tasks.hpp"
 
 int main() {
   {
@@ -75,6 +76,65 @@ int main() {
                    "text_generation") != spark.abilities.end());
   assert(!spark.supported_interactions.empty());
   assert(spark.supported_interactions.front().operation == "chat.generate");
+  assert(std::find(spark.supported_tasks.begin(), spark.supported_tasks.end(), "coding") != spark.supported_tasks.end());
+  for (const auto& [id, engine] : registry.engines) assert(!engine.description.empty());
+  {
+    std::ifstream input(config.parent_path() / "schemas/vocabulary-v1.schema.json");
+    const auto vocabulary = nlohmann::json::parse(input);
+    const auto task_values = vocabulary.at("$defs").at("task").at("enum").get<std::vector<std::string>>();
+    assert(task_values.size() == mica::task_requirements().size());
+    for (const auto& task : task_values) assert(mica::task_requirements().contains(task));
+    std::ifstream schema_input(config.parent_path() / "schemas/model-v2.schema.json");
+    const auto schema = nlohmann::json::parse(schema_input);
+    assert(schema.at("allOf").size() == mica::task_requirements().size());
+    for (const auto& clause : schema.at("allOf")) {
+      const auto task = clause.at("if").at("properties").at("supported_tasks").at("contains").at("const").get<std::string>();
+      const auto& rule = mica::task_requirements().at(task);
+      const auto& properties = clause.at("then").at("properties");
+      std::vector<std::string> abilities;
+      for (const auto& requirement : properties.at("abilities").at("allOf"))
+        abilities.push_back(requirement.at("contains").at("const").get<std::string>());
+      assert(abilities == rule.abilities);
+      const auto& interaction = properties.at("supported_interactions").at("contains");
+      assert(interaction.at("properties").at("operation").at("enum") == rule.operations);
+      std::vector<std::string> inputs;
+      for (const auto& requirement : interaction.value("allOf", nlohmann::json::array())) {
+        const auto& alternatives = requirement.at("anyOf");
+        auto required = alternatives.at(0).at("properties").at("required_inputs").at("contains").at("const").get<std::string>();
+        auto optional = alternatives.at(1).at("properties").at("optional_inputs").at("contains").at("const").get<std::string>();
+        assert(required == optional);
+        inputs.push_back(required);
+      }
+      assert(inputs == rule.inputs); // Schema and native task requirements cannot drift.
+    }
+    auto invalid = spark;
+    invalid.supported_tasks = {"transcription"};
+    bool rejected = false;
+    try { mica::validate_model_tasks(invalid); } catch (const std::invalid_argument&) { rejected = true; }
+    assert(rejected); // A task label cannot turn a text model into ASR.
+    auto omni = registry.model("gemma4-12b");
+    omni.supported_tasks = {"transcription"};
+    rejected = false;
+    try { mica::validate_model_tasks(omni); } catch (const std::invalid_argument&) { rejected = true; }
+    assert(rejected); // Audio understanding is not a verified speech-recognition claim.
+    omni.abilities.push_back("speech_recognition");
+    mica::validate_model_tasks(omni); // A verified chat-based transcription interaction is valid.
+    auto vision = registry.model("qwen35-4b");
+    vision.supported_tasks = {"ocr"};
+    for (auto& interaction : vision.supported_interactions) {
+      interaction.required_inputs = {"text"}; interaction.optional_inputs.clear();
+    }
+    rejected = false;
+    try { mica::validate_model_tasks(vision); } catch (const std::invalid_argument&) { rejected = true; }
+    assert(rejected); // Broad image modality alone cannot satisfy an interaction.
+    const auto filtered = mica::registry_catalog(registry, {}, {}, false, {}, {}, "transcription");
+    assert(filtered.at("data").size() == 1);
+    assert(filtered.at("data")[0].at("id") == "granite-speech-5");
+    rejected = false;
+    try { (void)mica::registry_catalog(registry, {}, {}, false, {}, {}, "not-a-task"); }
+    catch (const std::invalid_argument&) { rejected = true; }
+    assert(rejected);
+  }
   {
     const auto& researcher = registry.profile("local-researcher-gguf");
     assert(researcher.residency_strategy == "sequential");
@@ -195,6 +255,34 @@ int main() {
                           std::filesystem::copy_options::recursive);
     const auto manifest = copied_config / "model-manifests/qwen38-27b-gsq-rco.yaml";
     const auto original = mica::read_profile_file(manifest);
+    for (const auto& tasks : std::vector<nlohmann::json>{nlohmann::json::array(),
+         {"chat", "chat"}, {"not-a-task"}, {"transcription"}, {"tool_calling"}, true}) {
+      auto document = original;
+      document["supported_tasks"] = tasks;
+      mica::write_profile_file(manifest, document);
+      bool rejected = false;
+      try { (void)mica::load_registry(copied_config); } catch (const std::exception&) { rejected = true; }
+      assert(rejected);
+    }
+    {
+      auto document = original;
+      document.erase("supported_tasks");
+      mica::write_profile_file(manifest, document);
+      bool rejected = false;
+      try { (void)mica::load_registry(copied_config); } catch (const std::exception&) { rejected = true; }
+      assert(rejected);
+    }
+    mica::write_profile_file(manifest, original);
+    const auto engine_path = copied_config / "engines/llama-cpp.yaml";
+    const auto engine_original = mica::read_profile_file(engine_path);
+    for (const auto& description : {nlohmann::json(""), nlohmann::json(" \t\n"), nlohmann::json(true)}) {
+      auto document = engine_original; document["description"] = description;
+      mica::write_profile_file(engine_path, document);
+      bool rejected = false;
+      try { (void)mica::load_registry(copied_config); } catch (const std::exception&) { rejected = true; }
+      assert(rejected);
+    }
+    mica::write_profile_file(engine_path, engine_original);
     const auto invalid_references = std::vector<nlohmann::json>{
         nlohmann::json::object(),
         nlohmann::json::array({{{"kind", "unknown"}, {"title", "test"}, {"url", "https://example.com"}}}),
@@ -724,6 +812,7 @@ int main() {
     assert(spark_entry != ledger.at("data").end());
     assert(spark_entry->at("description").is_string());
     assert(spark_entry->at("abilities").at(0) == "text_generation");
+    assert(spark_entry->at("supported_tasks") == spark.supported_tasks);
     assert(spark_entry->at("supported_interactions").at(0).at("operation") ==
            "chat.generate");
     assert(spark_entry->at("license") == "apache-2.0");

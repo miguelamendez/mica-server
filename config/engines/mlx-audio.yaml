@@ -1,5 +1,6 @@
 schema: 2
 id: mlx-audio
+description: Apple Silicon MLX speech recognition and speech synthesis for supported audio models, using the shared MLX Python environment.
 status: current
 backend: mlx
 installer: python-mlx

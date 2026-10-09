@@ -5,10 +5,11 @@
   "description": "Endpoint contracts describe callable adapter surfaces; compatibility tags only gate artifact loading and do not imply an operation.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "id", "backend", "installer", "launcher", "device_target", "hardware", "artifact_formats", "endpoint_contracts"],
+  "required": ["schema", "id", "description", "backend", "installer", "launcher", "device_target", "hardware", "artifact_formats", "endpoint_contracts"],
   "properties": {
     "schema": {"const": 2},
     "id": {"$ref": "vocabulary-v1.schema.json#/$defs/id"},
+    "description": {"type": "string", "pattern": "\\S", "description": "Natural-language explanation of what this engine runs and its installation/runtime constraints."},
     "status": {"enum": ["current", "candidate"]},
     "backend": {"type": "string", "minLength": 1},
     "installer": {"type": "string", "minLength": 1},

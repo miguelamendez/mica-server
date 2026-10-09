@@ -1,5 +1,6 @@
 schema: 2
 id: nemotron-3-diarization
+supported_tasks: [speaker_diarization]
 description: Nemotron 3 speaker diarization; identifies up to eight anonymous speakers and their turns, not transcribed words.
 source_repository: nvidia/Nemotron-3-Diarization
 native_context_tokens: null

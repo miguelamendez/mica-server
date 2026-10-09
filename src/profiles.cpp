@@ -911,7 +911,7 @@ Profile profile_from_document(Registry& registry, const json& document) {
   profile.schema = document.at("schema").get<int>();
   profile.name = document.at("id").get<std::string>();
   profile.description = document.value("description", std::string());
-  if (profile.schema >= 5 && profile.description.empty()) {
+  if (profile.schema >= 5 && profile.description.find_first_not_of(" \t\r\n") == std::string::npos) {
     throw std::invalid_argument("schema-5 workload profile needs an intended-use description");
   }
   profile.catalog_visible = document.value("catalog_visible", true);

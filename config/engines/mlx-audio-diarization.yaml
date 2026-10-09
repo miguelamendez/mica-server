@@ -1,5 +1,6 @@
 schema: 2
 id: mlx-audio-diarization
+description: Apple Silicon MLX speaker diarization through Mica's audio adapter. Produces speaker turns rather than generated chat text.
 status: current
 backend: mlx
 installer: python-mlx

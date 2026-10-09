@@ -1,5 +1,6 @@
 schema: 2
 id: audio-cpp
+description: Native audio.cpp HTTP inference for supported GGUF speech recognition and speech synthesis models; does not require a Python environment.
 status: current
 backend: gguf
 installer: cmake-audio

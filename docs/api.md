@@ -39,6 +39,12 @@ The same `api_key` or `api_key_file` fields may be set in
 
 Endpoint discovery lists the route contract, not a claim that all modalities
 are available. Inspect `/v1/models` for the active models' usable capabilities.
+Model entries also expose `supported_tasks` (intended uses such as coding or
+OCR), separately from `abilities` and `supported_interactions`. Tasks do not
+enable routes: coding and OCR may share chat completions, while speech
+transcription needs the appropriate model interaction and engine adapter.
+The offline registry supports `mica-server registry list --task ocr`; this does
+not add a `task` query parameter to the HTTP catalog.
 `serve --host 0.0.0.0 --port 8092` listens on all IPv4 interfaces with the same
 authentication rules. Use a trusted LAN and firewall; HTTP is not TLS.
 

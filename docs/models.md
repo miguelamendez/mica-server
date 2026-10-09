@@ -243,6 +243,8 @@ illustrates a multi-file artifact:
 ```yaml
 schema: 2
 id: ternary-bonsai-2-27b
+description: Ternary Bonsai for local coding, chat and visual document analysis with the Prism runtime.
+supported_tasks: [chat, coding, ocr, visual_question_answering, structured_extraction]
 input_modalities: [text, image]
 output_modalities: [text]
 abilities: [text_generation, instruction_following, reasoning, image_understanding]
@@ -291,6 +293,12 @@ loading. See [System, engine, model, and inference
 profiles](engines-and-profiles.md).
 
 ## Curated assistant models
+
+Model manifests also declare intended uses through `supported_tasks`, separately
+from modalities and abilities. Find models with `mica-server registry list --task
+coding` or search tasks in the TUI. These labels do not promise benchmark quality
+or enable endpoints. The selected model interaction and engine's implemented
+operation determine routing. See the [task index](schema-vocabulary.md#descriptions-and-task-index).
 
 | Model | Modality | MLX | GGUF | License |
 | --- | --- | --- | --- | --- |

@@ -11,17 +11,27 @@ can resolve outside the local repository too.
 | --- | --- | --- | --- |
 | Hardware facts | `~/.mica/state/hardware.yaml` | [hardware v1](../schemas/hardware-v1.schema.json) | OS, CPU, RAM/unified memory, accelerators, runtime APIs, toolchains |
 | Machine policy | `~/.mica/config/machine.yaml` | [machine policy v1](../schemas/machine-policy-v1.schema.json) | Allowed devices, global inference allocations, CPU/build limits |
-| Engine | `config/engines/ID.yaml` | [engine v2](../schemas/engine-v2.schema.json) | Hardware support, installation/build recipes, launchers, endpoint contracts |
-| Model | `config/model-manifests/ID.yaml` | [model v2](../schemas/model-v2.schema.json) | Modalities, abilities, context guidance, engine-compatible artifacts, components, provenance and memory metadata |
+| Engine | `config/engines/ID.yaml` | [engine v2](../schemas/engine-v2.schema.json) | Description, hardware support, installation/build recipes, launchers, endpoint contracts |
+| Model | `config/model-manifests/ID.yaml` | [model v2](../schemas/model-v2.schema.json) | Description, modalities, abilities, supported tasks/interactions, context guidance, engine-compatible artifacts, components, provenance and memory metadata |
 | Workload | `config/workloads/ID.yaml` or a user file | [workload v5](../schemas/workload-v5.schema.json) | Description, model collection, optional pins/defaults, context, batching, KV cache, placement, priority, residency and optional workload ceiling |
 | Server/client settings | `~/.mica/config/server.json` | [server config v1](../schemas/server-config-v1.schema.json) | Bind address, port, default workload, API-key file; optional browser-client settings |
 
 The workload catalog is an index of workload documents. Modality/ability/operation
-values share the [vocabulary schema](../schemas/vocabulary-v1.schema.json).
+and task values share the [vocabulary schema](../schemas/vocabulary-v1.schema.json).
 Compatibility, cache presence and installation status shown in the TUI are
 derived inventory—not fields to copy into all the manifests.
 
 ## Validation and versions
+
+Current model-v2 manifests require `supported_tasks`; engine-v2 manifests require
+`description`. Model, engine and workload descriptions must contain non-whitespace
+natural-language text. Install the matching binary and packaged configuration
+files together. `purpose` is not an alias for `description`.
+
+Model task declarations are constrained by abilities and supported interactions
+in both the native loader and JSON Schema. The [task index](schema-vocabulary.md#descriptions-and-task-index)
+explains how several tasks can share one operation/endpoint. They are discovery
+metadata, not inference certification or a replacement for runtime routing checks.
 
 Native loaders validate known fields, types and relationships. Model/workload
 resolution additionally checks context ceilings, engine/artifact compatibility,

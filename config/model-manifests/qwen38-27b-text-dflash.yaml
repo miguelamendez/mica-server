@@ -1,5 +1,6 @@
 schema: 2
 id: qwen38-27b-text-dflash
+supported_tasks: [chat, coding, structured_extraction]
 description: Qwen3.8 27B GSQ-RCO IQ3_XXS text-only bundle with the external DFlash2 Q4_K_M drafter. No vision projector is loaded. The target contains no embedded MTP head; this bundle uses DFlash2 instead of MTP.
 source_repository: ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF
 license: apache-2.0

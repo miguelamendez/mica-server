@@ -180,7 +180,9 @@
     },
     "description": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "\\S",
+      "description": "Natural-language intended use of this model collection; not a role, category or purpose identifier."
     },
     "available": {
       "type": "boolean"

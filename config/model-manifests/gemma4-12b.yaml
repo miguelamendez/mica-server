@@ -1,5 +1,6 @@
 schema: 2
 id: gemma4-12b
+supported_tasks: [chat, coding, ocr, visual_question_answering, video_question_answering, audio_question_answering, tool_calling, structured_extraction]
 description: Gemma 4 12B Unified QAT, a dense text/image/audio/video-to-text model. Trusted Unsloth Q4 weights,
   matching BF16 multimodal projector, and an optional separately downloaded Q4 MTP drafter.
 source_repository: google/gemma-4-12B-it

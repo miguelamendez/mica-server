@@ -1,5 +1,6 @@
 schema: 2
 id: qwen38-27b-gsq-rco
+supported_tasks: [chat, coding, ocr, visual_question_answering, structured_extraction]
 description: Qwen3.8 27B GSQ-RCO IQ3_XXS target with a separate BF16 vision projector. This target GGUF does not embed MTP; external MTP and text-only DFlash2 are available in separately registered bundles.
 source_repository: ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF
 license: apache-2.0

@@ -1,5 +1,6 @@
 schema: 2
 id: qwen38-27b-vision-mtp
+supported_tasks: [chat, coding, ocr, visual_question_answering, structured_extraction]
 description: Qwen3.8 27B GSQ-RCO IQ3_XXS bundle with its BF16 vision projector and an external Q4_0 MTP head. The target GGUF does not contain an embedded MTP head.
 source_repository: ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF
 license: apache-2.0

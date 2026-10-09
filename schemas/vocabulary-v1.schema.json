@@ -33,6 +33,16 @@
         "image.generate", "image.edit", "video.generate", "video.edit"
       ]
     },
+    "task": {
+      "enum": [
+        "chat", "coding", "ocr", "visual_question_answering", "video_question_answering",
+        "audio_question_answering", "tool_calling", "structured_extraction", "decision_scoring",
+        "transcription", "speech_translation", "speaker_diarization", "text_to_speech",
+        "voice_cloning", "embedding", "retrieval", "image_generation", "image_editing",
+        "video_generation", "video_editing", "audio_generation", "music_generation", "audio_transformation"
+      ],
+      "description": "Intended model uses. Several tasks can use one operation; one model can use several endpoints when its selected engine implements the interactions."
+    },
     "interaction": {
       "type": "object", "additionalProperties": false,
       "required": ["operation", "required_inputs", "outputs"],

@@ -25,10 +25,88 @@ See [context and generation limits](models.md#context-and-generation-limits).
 | --- | --- | --- |
 | Modality | `text`, `image`, `video`, `audio`, `embedding` | Physical input/output data; `embedding` is a vector output, not a media input. An interaction lists required and optional inputs separately. |
 | Model ability | `text_generation`, `instruction_following`, `tool_calling`, `reasoning`, `structured_output`, `image_understanding`, `video_understanding`, `audio_understanding`, `speech_recognition`, `speech_translation`, `speaker_diarization`, `speech_synthesis`, `voice_conditioning`, `general_audio_generation`, `music_generation`, `audio_transformation`, `image_generation`, `image_editing`, `video_generation`, `video_editing` | Properties of the weights, backed by a model card or validation. Coding and creativity are evaluation domains, not binary abilities. |
-| Operation | `text.generate`, `chat.generate`, `decisions.score`, `audio.transcribe`, `audio.translate`, `audio.diarize`, `audio.synthesize_speech`, `audio.generate`, `audio.transform`, `image.generate`, `image.edit`, `video.generate`, `video.edit` | A normalized callable contract. The engine must expose a real adapter call for it. Agent execution is a composition of operations, not a model operation. |
+| Supported task | `supported_tasks[]`; see the task index below | Declared intended uses for discovery and filtering, not a quality guarantee, an endpoint URL or a routing permission. |
+| Operation | `text.generate`, `chat.generate`, `embedding.generate`, `decisions.score`, `audio.transcribe`, `audio.translate`, `audio.diarize`, `audio.synthesize_speech`, `audio.generate`, `audio.transform`, `image.generate`, `image.edit`, `video.generate`, `video.edit` | A normalized callable contract. The engine must expose a real adapter call for it. Agent execution is a composition of operations, not a model operation. |
 | Engine interface | `endpoint_contracts[]` with operation, transport, adapter call, input/output shape, and optional streaming/tools flags | Describes **actual callable surfaces**, not hypothetical features inferred from the model type. Current adapters support HTTP POST only; unsupported transports and calls are rejected. |
 | Artifact compatibility | `compatible_engines[]`, `required_compatibility[]` | Loadability constraints such as architecture support or a vision projector. They do not imply an API operation. |
 | Workload profile | `models[]`, optional `selection.defaults[]` | A collection of model IDs and per-model policy. No fixed groups or roles. Priority selects among eligible models unless the caller specifies a model or an operation/input-specific default is set. |
+
+## Descriptions and task index
+
+Models, engines and workloads require a nonblank natural-language `description`.
+Use it to explain the intended use and relevant limitations. `purpose` is not a
+manifest field. Descriptions are separate from controlled identifiers, and are
+never parsed to enable inference.
+
+Every packaged model declares a nonempty, unique `supported_tasks` list. Schema
+and native validation require the associated abilities and a matching interaction
+with the necessary inputs. The task index is:
+
+| Task identifiers | Required abilities | Compatible operation(s) | Additional input |
+| --- | --- | --- | --- |
+| `chat` | `text_generation` | `chat.generate` | Text |
+| `coding`, `structured_extraction` | `text_generation` | `chat.generate` or `text.generate` | Text |
+| `ocr`, `visual_question_answering` | `text_generation`, `image_understanding` | `chat.generate` | Image |
+| `video_question_answering` | `text_generation`, `video_understanding` | `chat.generate` | Video |
+| `audio_question_answering` | `text_generation`, `audio_understanding` | `chat.generate` | Audio |
+| `tool_calling` | `tool_calling` | `chat.generate` | Text |
+| `decision_scoring` | `text_generation` | `decisions.score` | Text |
+| `transcription` | `speech_recognition` | `audio.transcribe` or `chat.generate` | Audio |
+| `speech_translation` | `speech_translation` | `audio.translate` or `chat.generate` | Audio |
+| `speaker_diarization` | `speaker_diarization` | `audio.diarize` | Audio |
+| `text_to_speech` | `speech_synthesis` | `audio.synthesize_speech` | Text |
+| `voice_cloning` | `speech_synthesis`, `voice_conditioning` | `audio.synthesize_speech` | Text and reference audio |
+| `embedding`, `retrieval` | `embedding_generation` | `embedding.generate` | Inputs declared by that interaction |
+| `image_generation` | `image_generation` | `image.generate` | Text |
+| `image_editing` | `image_editing` | `image.edit` | Image |
+| `video_generation` | `video_generation` | `video.generate` | Text |
+| `video_editing` | `video_editing` | `video.edit` | Video |
+| `audio_generation` | `general_audio_generation` | `audio.generate` | Text |
+| `music_generation` | `music_generation` | `audio.generate` | Text |
+| `audio_transformation` | `audio_transformation` | `audio.transform` | Audio |
+
+These are intended-use categories, not benchmark certification. In particular,
+`structured_extraction` does not promise grammar-enforced JSON; enforcement
+depends on the selected engine and request. `retrieval` describes embeddings
+usable for search, not a complete indexing or RAG service. Agent execution is a
+server orchestration feature using tool calls, not a separate model type.
+Future task/operation identifiers do not create new Mica routes or adapters.
+
+```yaml
+description: A vision-language model for chat, coding and visual document analysis.
+supported_tasks: [chat, coding, ocr, visual_question_answering]
+input_modalities: [text, image]
+output_modalities: [text]
+abilities: [text_generation, image_understanding]
+supported_interactions:
+  - operation: chat.generate
+    required_inputs: [text]
+    optional_inputs: [image]
+    outputs: [text]
+```
+
+Endpoints are operation-specific, not necessarily task-specific: chat, coding,
+OCR and visual Q&A can all use `/v1/chat/completions`. An omni-model can also
+declare transcription only when it supports speech recognition and a compatible
+audio interaction. Audio understanding alone is insufficient. A dedicated
+transcription endpoint additionally needs an `audio.transcribe` engine adapter;
+chat-based transcription does not automatically enable that endpoint.
+
+```text
+Model: modalities + abilities + declared tasks + supported interactions
+                                 ↓
+Selected artifact + engine's implemented operation/input contract
+                                 ↓
+Mica's public endpoint, within the active workload
+```
+
+Inspect declared tasks through `mica-server registry list --task ocr` (combinable
+with `--engine`, `--backend` and `--modality`), or search a task in the TUI Models
+view. The registry and `/v1/models` expose `supported_tasks`; endpoint eligibility
+continues to be resolved from interactions, not these labels. Filter results are
+manifest declarations, not proof that a selected engine implements every task.
+Externally added models without task metadata remain undeclared rather than
+having tasks inferred from a broad type label.
 
 The flow describes an interaction, not a single combined modality label:
 

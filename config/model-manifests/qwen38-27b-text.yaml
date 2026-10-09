@@ -1,5 +1,6 @@
 schema: 2
 id: qwen38-27b-text
+supported_tasks: [chat, coding, structured_extraction]
 description: Qwen3.8 27B GSQ-RCO IQ3_XXS text-only target, without projector or drafter, for long-context and partial-CPU-offload workloads. This target GGUF contains no embedded MTP head.
 source_repository: ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF
 license: apache-2.0

@@ -1,5 +1,6 @@
 schema: 2
 id: xing4-29b-a4b
+supported_tasks: [chat, coding, structured_extraction]
 input_modalities: [text]
 output_modalities: [text]
 abilities: [text_generation, instruction_following, reasoning]

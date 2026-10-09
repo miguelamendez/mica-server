@@ -1,5 +1,6 @@
 schema: 2
 id: qwen35-9b
+supported_tasks: [chat, coding, ocr, visual_question_answering, video_question_answering, structured_extraction]
 description: Qwen3.5 9B for text, image, video, and rendered document analysis; trusted Q4_K_M weights with an unquantized BF16 vision projector.
 source_repository: Qwen/Qwen3.5-9B
 license: apache-2.0

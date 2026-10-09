@@ -136,6 +136,7 @@ struct EngineDefinition {
     bool supports_tools{false};
   };
   std::string id;
+  std::string description;
   Backend backend{Backend::gguf};
   std::string status{"current"};
   std::string installer;
@@ -191,6 +192,7 @@ struct ModelDefinition {
   std::vector<std::string> input_modalities;
   std::vector<std::string> output_modalities;
   std::vector<std::string> abilities;
+  std::vector<std::string> supported_tasks;
   std::vector<Interaction> supported_interactions;
   std::vector<std::string> tool_call_formats;
   int gguf_parallel_slots{1};

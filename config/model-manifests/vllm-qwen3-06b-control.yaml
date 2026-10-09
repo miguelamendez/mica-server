@@ -1,5 +1,6 @@
 schema: 2
 id: vllm-qwen3-06b-control
+supported_tasks: [chat]
 input_modalities: [text]
 output_modalities: [text]
 abilities: [text_generation, instruction_following]

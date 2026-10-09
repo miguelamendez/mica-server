@@ -48,7 +48,7 @@ Usage:
   mica-server detect [--output PATH]
   mica-server memory model ID [--config-dir PATH]
   mica-server memory workload ID [--budget-gib N] [--global-limit-gib N]
-  mica-server registry list|ping [--modality VALUE] [--engine VALUE] [--backend VALUE]
+  mica-server registry list|ping [--task VALUE] [--modality VALUE] [--engine VALUE] [--backend VALUE]
   mica-server profile list [--remote] [--root PATH] [--catalog-url URL]
   mica-server profile show ID [--root PATH]
   mica-server profile export-all --output DIRECTORY [--config-dir PATH]
@@ -654,6 +654,7 @@ int main(int argc, char** argv) {
       std::filesystem::path root = default_root();
       std::optional<std::string> capability;
       std::optional<std::string> modality_filter;
+      std::optional<std::string> task_filter;
       std::optional<mica::Backend> backend;
       std::optional<std::string> engine;
       for (std::size_t i = 3; i < args.size(); ++i) {
@@ -662,6 +663,8 @@ int main(int argc, char** argv) {
           (void)mica::normalize_modality(*modality_filter);
         } else if (args[i] == "--capability") {
           capability = value_after(args, i);
+        } else if (args[i] == "--task") {
+          task_filter = value_after(args, i);
         } else if (args[i] == "--backend") {
           backend = mica::parse_backend(value_after(args, i));
         } else if (args[i] == "--engine") {
@@ -679,7 +682,7 @@ int main(int argc, char** argv) {
       mica::merge_installed_profiles(registry, root);
       std::cout << std::setw(2)
                 << mica::registry_catalog(registry, capability, backend,
-                                          args[2] == "ping", engine, modality_filter)
+                                          args[2] == "ping", engine, modality_filter, task_filter)
                 << '\n';
       return 0;
     }

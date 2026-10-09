@@ -76,6 +76,13 @@ to artifact bundles; runtime/context/residency choices belong to workloads.
 Machine policy is the global allocation. A workload's memory requirement must
 fit it; its optional memory limit cannot exceed it.
 
+Models describe their modalities, abilities and intended tasks (coding, OCR,
+transcription, etc.); engines describe implemented operations. Multiple tasks can
+share an endpoint, and one model can serve several endpoints when its engine
+supports them. Browse these separately in the TUI or run
+`mica-server registry list --task coding`. See the
+[task and operation vocabulary](docs/schema-vocabulary.md).
+
 The same workload can use `all`, `sequential`, or `balanced` residency when its
 budget and model policies permit. Inspect estimates before loading: component
 sizes and KV-cache estimates are not measurements of peak process memory.
