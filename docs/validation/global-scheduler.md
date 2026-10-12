@@ -33,3 +33,18 @@ additional accelerator backends still require acceptance testing.
 App installation and workload preparation remain separate explicit actions.
 This change does not implement automatic dependency preparation while Mica is
 running, publisher signatures, or a new release.
+
+## Dashboard and scoped-credential follow-up
+
+The subsequent dashboard change passed **94/94 CTest cases** and **95 schema/
+package checks** on Linux (2026-10-12). Dashboard cases cover admin/inference
+scope separation, cross-origin rejection, key revocation, accepted streams
+surviving admin rotation, inference revocation surviving restart, pause/resume,
+typed-job rejection, native workload cloning/app-file installation, and live
+settings. The guarded build peaked at **1.15 GiB**; static dashboard assets total
+**34,939 bytes** without frameworks, fonts or CDN dependencies.
+
+These remain mock-inference/control-plane tests. Actual two-demo-app inference
+and interactive browser acceptance are separate checks, not implied by the
+regression count. Dashboard workload preparation adds a maintenance pause that
+drains/unloads workers without terminating the control plane.

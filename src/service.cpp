@@ -55,7 +55,10 @@ void validate_server_configuration(const json& document) {
     for (const auto& item : object.items()) if (!allowed.contains(item.key()))
       throw std::invalid_argument("unknown server configuration field: " + item.key());
   };
-  check(document, {"schema", "host", "port", "default_workload", "api_key", "api_key_file", "ui", "scheduling_strategy"});
+  check(document, {"schema", "host", "port", "default_workload", "api_key", "api_key_file", "admin_api_key_file", "dashboard", "ui", "scheduling_strategy"});
+  if (document.contains("dashboard") && !document["dashboard"].is_boolean()) throw std::invalid_argument("dashboard must be boolean");
+  if (document.contains("admin_api_key_file") && (!document["admin_api_key_file"].is_string() || document["admin_api_key_file"].get<std::string>().empty()))
+    throw std::invalid_argument("admin_api_key_file must be a nonempty path");
   if (document.contains("scheduling_strategy") && document.at("scheduling_strategy") != "high" &&
       document.at("scheduling_strategy") != "single" && document.at("scheduling_strategy") != "balanced")
     throw std::invalid_argument("scheduling_strategy must be high, single or balanced");
@@ -123,7 +126,7 @@ json local_server_request(const std::filesystem::path& root,
   std::string host = control.at("host").get<std::string>();
   if (host == "0.0.0.0") host = "127.0.0.1";
   if (host == "::") host = "::1";
-  std::ifstream key_stream(control.at("api_key_file").get<std::string>());
+  std::ifstream key_stream((path.starts_with("/admin/") ? control.value("admin_api_key_file", control.at("api_key_file").get<std::string>()) : control.at("api_key_file").get<std::string>()));
   std::string key;
   std::getline(key_stream, key);
   while (!key.empty() && (key.back() == '\r' || key.back() == '\n')) key.pop_back();
@@ -149,6 +152,7 @@ json local_server_status(const std::filesystem::path& root) {
     result["host"] = control.at("host");
     result["port"] = control.at("port");
     result["pid"] = control.at("pid");
+    result["dashboard"] = control.value("dashboard", false);
     return result;
   } catch (const std::exception& e) { return {{"status", "starting_or_unreachable"}, {"error", e.what()}}; }
 }
@@ -167,6 +171,7 @@ int service_command(const std::string& action, const std::vector<std::string>& a
       serve_args.insert(serve_args.end(), {option, root.string()});
       install_args.insert(install_args.end(), {option, root.string()});
     } else if (option == "--workload") workload = next_value(arguments, i);
+    else if (action == "start" && (option == "--dashboard" || option == "--no-dashboard")) serve_args.push_back(option);
     else if (action == "start" && (option == "--host" || option == "--port" || option == "--server-config" || option == "--strategy")) {
       const auto value = next_value(arguments, i);
       serve_args.insert(serve_args.end(), {option, value});
@@ -251,12 +256,13 @@ int configuration_command(const std::vector<std::string>& args,
   auto root = default_root;
   json changes = json::object();
   std::filesystem::path import_key;
-  bool rotate = false, restart = false;
+  bool rotate = false, rotate_admin = false, restart = false;
   std::filesystem::path config_directory;
   for (std::size_t i = 1; i < args.size(); ++i) {
     const auto& option = args[i];
     if (option == "--root") root = next_value(args, i);
     else if (args[0] == "set" && option == "--rotate-api-key") rotate = true;
+    else if (args[0] == "set" && option == "--rotate-admin-api-key") rotate_admin = true;
     else if (args[0] == "set" && option == "--restart") restart = true;
     else if (args[0] == "set" && option == "--config-dir") config_directory = next_value(args, i);
     else if (args[0] == "set" && option == "--api-key-file") import_key = next_value(args, i);
@@ -281,13 +287,20 @@ int configuration_command(const std::vector<std::string>& args,
   }
   if (args[0] != "set") throw std::invalid_argument("config requires show or set");
   const bool running = local_server_running(root);
-  const bool live_change = running && !rotate && import_key.empty() && !changes.empty() &&
+  if (running && (rotate || rotate_admin) && changes.empty() && import_key.empty()) {
+    if (rotate && rotate_admin) throw std::invalid_argument("rotate one key at a time");
+    local_server_request(root, "POST", "/admin/keys/rotate", {{"kind", rotate_admin ? "admin" : "inference"}});
+    std::cout << "API key rotated live; saved in its private key file.\n";
+    return 0;
+  }
+  const bool live_change = running && !rotate && !rotate_admin && import_key.empty() && !changes.empty() &&
       std::all_of(changes.items().begin(), changes.items().end(), [](const auto& field) {
         return field.key() == "scheduling_strategy" || field.key() == "default_workload";
       });
   if (running && !restart && !live_change) throw std::runtime_error("stop Mica before changing server settings, or use --restart");
   if (restart && executable.empty()) throw std::runtime_error("restart needs the Mica executable path");
   const auto active_workload = running ? local_server_status(root).value("profile", json::object()).value("name", "") : "";
+  const bool restart_dashboard = running && local_server_status(root).value("dashboard", false);
   for (const auto* key : {"host", "port", "default_workload", "scheduling_strategy"})
     if (changes.contains(key)) server[key] = changes[key];
   server["schema"] = 1;
@@ -307,7 +320,14 @@ int configuration_command(const std::vector<std::string>& args,
   }
   // Validate before persisting. Global limits may not exceed detected capacity.
   resolve_machine_policy(detect_hardware(), machine_policy_from_document(machine));
-  if (rotate && !import_key.empty()) throw std::invalid_argument("choose import or rotation, not both");
+  if ((rotate || rotate_admin) && !import_key.empty()) throw std::invalid_argument("choose import or rotation, not both");
+  if (rotate && rotate_admin) throw std::invalid_argument("rotate one key at a time");
+  if (rotate_admin) {
+    if (running) throw std::invalid_argument("rotate admin separately from settings changes");
+    const auto path = server.value("admin_api_key_file", (root / "secrets/admin-api-key").string());
+    private_write(path, generate_api_key() + "\n");
+    server["admin_api_key_file"] = path;
+  }
   std::string replacement_key;
   if (rotate || !import_key.empty()) {
     replacement_key = rotate ? generate_api_key() : "";
@@ -341,6 +361,7 @@ int configuration_command(const std::vector<std::string>& args,
     std::vector<std::string> arguments{"--root", root.string()};
     if (!active_workload.empty()) arguments.insert(arguments.end(), {"--workload", active_workload});
     if (!config_directory.empty()) arguments.insert(arguments.end(), {"--config-dir", config_directory.string()});
+    if (restart_dashboard) arguments.push_back("--dashboard");
     try {
       const auto result = service_command("start", arguments, executable, root);
       if (result) throw std::runtime_error("setup exited with " + std::to_string(result));

@@ -1,5 +1,11 @@
 # Mica terminal interface
 
+The optional browser dashboard mirrors these seven sections using buttons,
+filters, dialogs and clickable model/engine relationships. Enable it with
+`mica-server start --dashboard` and open `/dashboard` on that host. It uses the
+same native inventory; no web-framework installation is required. Its admin
+key is distinct from inference keys. See [dashboard administration](api.md#dashboard-and-administration).
+
 Run `mica-server tui` after installing the binary **and its matching configuration
 files**. The interface is native C++/FTXUI with Lua presentation configuration;
 it does not install or invoke a Python UI framework. The server can be stopped

@@ -22,10 +22,14 @@ struct ServerOptions {
   bool ignore_context_limit{false};
   bool allow_partial_workload{false};
   std::string scheduling_strategy{"balanced"};
+  bool dashboard{false};
+  std::filesystem::path admin_api_key_file;
+  std::filesystem::path executable;
+  std::filesystem::path server_config_file;
 };
 
 int run_server(const Registry& registry, const ServerOptions& options);
-nlohmann::json server_endpoints();
+nlohmann::json server_endpoints(bool dashboard = false);
 void download_workload_models(const Registry& registry, const std::filesystem::path& root);
 
 }  // namespace mica

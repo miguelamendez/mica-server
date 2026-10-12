@@ -81,6 +81,7 @@ add_library(mica_server_core
   src/catalog.cpp
   src/download.cpp
   src/command.cpp
+  src/credentials.cpp
   src/build_guard.cpp
   src/config.cpp
   src/hardware.cpp
@@ -119,7 +120,7 @@ endif()
 
 target_compile_options(mica_server_core PRIVATE -Wall -Wextra -Wpedantic)
 
-add_executable(mica-server src/main.cpp src/server.cpp src/service.cpp src/tui.cpp src/update.cpp)
+add_executable(mica-server src/main.cpp src/server.cpp src/service.cpp src/tui.cpp src/update.cpp src/dashboard.cpp)
 target_include_directories(mica-server PRIVATE ${MICA_LUA_INCLUDE_DIR})
 target_link_libraries(mica-server PRIVATE mica_server_core ftxui::component ftxui::dom ftxui::screen)
 execute_process(COMMAND git describe --always --dirty --abbrev=12
@@ -137,6 +138,9 @@ include(GNUInstallDirs)
 if(MICA_SERVER_BUILD_TESTS)
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
   enable_testing()
+  add_test(NAME mica-server-dashboard
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_dashboard.py
+            $<TARGET_FILE:mica-server> ${CMAKE_CURRENT_SOURCE_DIR}/config)
   add_test(NAME mica-server-global-scheduler
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_global_scheduler.py
             $<TARGET_FILE:mica-server> ${CMAKE_CURRENT_SOURCE_DIR}/config)
@@ -949,6 +953,7 @@ install(FILES schemas/profile-v3.schema.json
 install(FILES apps/mica_playground.py apps/mica-logo.svg apps/mica-readme-header.svg apps/mica-capabilities.js apps/mica-chat-settings.js
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps)
 install(FILES apps/apps.yaml DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps)
+install(DIRECTORY apps/dashboard DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps)
 install(DIRECTORY apps/assistant apps/dictation DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps
         PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE PATTERN ".DS_Store" EXCLUDE)
 install(FILES schemas/app-v1.schema.json schemas/app-index-v1.schema.json

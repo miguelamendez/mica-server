@@ -275,6 +275,7 @@ int update_command(const std::vector<std::string>& arguments, const fs::path& ex
     throw std::runtime_error("installation prefix is not writable; use a user-owned --prefix");
   const bool running = local_server_running(root);
   const auto active = running ? local_server_status(root).value("profile", json::object()).value("name", "") : "";
+  const bool dashboard = running && local_server_status(root).value("dashboard", false);
   if (running) {
     if (!restart) throw std::runtime_error("server started during update preparation; retry with --restart");
     service_command("stop", {"--root", root.string()}, executable, root);
@@ -288,6 +289,7 @@ int update_command(const std::vector<std::string>& arguments, const fs::path& ex
   if (running) {
     std::vector<std::string> args{installed.string(), "start", "--root", root.string()};
     if (!active.empty()) args.insert(args.end(), {"--workload", active});
+    if (dashboard) args.push_back("--dashboard");
     const auto result = run_command(args, true);
     if (result.exit_code) throw std::runtime_error("Update installed but workload restart failed. Previous files remain in .mica-server.previous-" + transaction + "; " + result.output.substr(0, 1000));
   }

@@ -66,6 +66,32 @@ or private credentials.*
 Actions require confirmation. Closing the TUI leaves the server running.
 [TUI walkthrough](docs/tui.md).
 
+## Or manage each host from your browser
+
+```sh
+mica-server start --dashboard --host 0.0.0.0 --port 8092
+```
+
+Open `http://HOST:8092/dashboard` from a device that can reach that host.
+Each Mica instance serves its own dashboard: server/workload controls, model
+and engine inventory, optional apps, endpoint examples, settings and background
+job logs. Plain HTML/CSS/JavaScript uses Mica's existing C++ HTTP server:
+**no additional web framework, Python service, npm installation or CDN**.
+
+Dashboard access uses a distinct **admin key**, created in
+`~/.mica/secrets/admin-api-key` when enabled. The existing
+`~/.mica/secrets/api-key` remains the inference key for apps. Rotation applies
+live; rotating admin access does not change app credentials. The browser keeps
+its key in memory, not persistent storage.
+
+`Stop inference` drains requests and unloads workers while keeping the
+dashboard available. `Stop Mica` closes the whole process; use CLI/SSH to start
+it again. Network/allocation edits may restart Mica; workload preparation pauses
+inference without restarting the control plane. Use a trusted network or
+encrypted overlay; built-in HTTP does not provide TLS. Disabled by default;
+initial workload setup is still required.
+[Dashboard controls and authentication](docs/api.md#dashboard-and-administration).
+
 ## Configuration is the architecture
 
 ```text

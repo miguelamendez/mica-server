@@ -1,5 +1,8 @@
 #include "mica_server/server.hpp"
 #include "mica_server/apps.hpp"
+#include "mica_server/credentials.hpp"
+#include "mica_server/dashboard.hpp"
+#include "mica_server/config.hpp"
 #include "mica_server/inventory.hpp"
 #include "mica_server/generation_metrics.hpp"
 #include "mica_server/tool_calling.hpp"
@@ -1391,6 +1394,7 @@ class WorkerManager {
     bool queued = false;
     struct Unqueue { int& count; bool& queued; ~Unqueue() { if (queued) --count; } } unqueue{queued_requests_, queued};
     while (true) {
+      if (paused_) throw std::runtime_error("inference_paused_for_management");
       if (monotonic_ns() > app_interest_refreshed_ns_ + 2000000000ULL) {
         active_app_workloads_ = active_app_workloads(root_);
         for (const auto& workload : active_app_workloads_) {
@@ -1562,9 +1566,38 @@ class WorkerManager {
     return {{"strategy", strategy_}, {"applied", true}, {"restart_required", false}};
   }
 
+  void pause_inference() {
+    std::unique_lock lock(mutex_);
+    if (!ready_.load() && !paused_) throw std::runtime_error("wait for startup to complete before maintenance");
+    paused_ = true; ready_.store(false);
+    const auto deadline = std::chrono::steady_clock::now() + 30s;
+    if (!transition_cv_.wait_until(lock, deadline, [this] {
+          return std::none_of(workers_.begin(), workers_.end(), [](const auto& item) { return item.second->in_flight != 0; });
+        })) { paused_ = false; ready_.store(true); throw std::runtime_error("busy requests did not drain; maintenance cancelled"); }
+    std::vector<std::string> keys; for (const auto& [key, _] : workers_) keys.push_back(key);
+    for (const auto& key : keys) erase_worker_locked(key);
+  }
+  void resume_inference() {
+    std::lock_guard lock(mutex_); paused_ = false; ready_.store(true); transition_cv_.notify_all();
+  }
+  void reload_after_maintenance(const std::filesystem::path& config) {
+    std::lock_guard lock(mutex_);
+    if (!paused_ || !workers_.empty()) throw std::runtime_error("pause inference before reloading registries");
+    auto registry = load_registry(config, registry_.ignore_context_limit, registry_.allow_partial_workload);
+    merge_custom_models(registry, root_); merge_installed_profiles(registry, root_);
+    auto state = load_runtime_state(root_);
+    for (auto& [_, profile] : registry.profiles) resolve_profile_engines(registry, profile, runtime_hardware(state), root_);
+    validate_runtime_profile(state, registry.profile(state.profile));
+    registry_ = std::move(registry); state_ = std::move(state);
+    active_backends_.clear();
+    for (const auto& policy : registry_.profile(state_.profile).model_policies)
+      if (std::find(active_backends_.begin(), active_backends_.end(), policy.backend) == active_backends_.end()) active_backends_.push_back(policy.backend);
+    last_request_workload_.clear(); active_app_workloads_.clear(); app_interest_refreshed_ns_ = 0;
+  }
+
   json swap_profile(const std::string& target_id) {
     std::lock_guard lock(mutex_);
-    if (!ready()) throw std::runtime_error("server must be ready before changing its default workload");
+    if (!ready()) throw std::runtime_error("resume inference or wait for maintenance before changing the default workload");
     ensure_profile_locked(target_id);
     const auto& target = registry_.profile(target_id);
     if (target.schema < 4) throw std::invalid_argument("live selection requires a YAML workload");
@@ -1812,7 +1845,7 @@ class WorkerManager {
                                           {"vram_reservation_gib",
                                            policy.vram_reservation_gib}}}});
     }
-    return {{"ready", ready()}, {"active_backends", active},
+    return {{"ready", ready()}, {"inference_status", paused_ ? "paused" : ready() ? "ready" : "warming"}, {"active_backends", active},
             {"scheduler", {{"strategy", strategy_}, {"last_request_workload", last_request_workload_},
               {"queued_requests", queued_requests_}, {"high_priority_minimum", 100},
               {"active_app_workloads", active_app_workloads_},
@@ -2501,6 +2534,7 @@ class WorkerManager {
   mutable std::mutex mutex_;
   std::condition_variable transition_cv_;
   bool swapping_{false};
+  bool paused_{false};
   mutable std::mutex error_mutex_;
   std::unordered_map<std::string, std::shared_ptr<Worker>> workers_;
   double reserved_ram_gib_{0};
@@ -2905,7 +2939,7 @@ json load_session(const std::filesystem::path& path, const std::string& id) {
 
 }  // namespace
 
-nlohmann::json server_endpoints() {
+nlohmann::json server_endpoints(bool dashboard) {
   using nlohmann::json;
   json endpoints = json::array();
   const auto add = [&](const char* method, const char* path,
@@ -2924,6 +2958,15 @@ nlohmann::json server_endpoints() {
   add("POST", "/admin/profile/activate", "Select default workload; app-bound requests remain independent");
   add("POST", "/admin/scheduler", "Change global residency strategy without restarting");
   add("POST", "/admin/server/stop", "Gracefully stop the server and its model workers");
+  add("POST", "/admin/keys/rotate", "Rotate admin or inference credentials live; return the new key once");
+  if (dashboard) {
+    add("GET", "/admin/dashboard/inventory", "Host inventory shared with the native TUI");
+    add("POST", "/admin/dashboard/jobs", "Submit a validated native management operation");
+    add("GET", "/admin/dashboard/jobs/{id}", "Management job status and bounded log tail");
+    add("GET", "/admin/dashboard/workloads/{id}", "Editable workload YAML");
+    add("POST", "/admin/inference/pause", "Drain requests and unload workers; retain the dashboard");
+    add("POST", "/admin/inference/resume", "Resume on-demand inference without restarting Mica");
+  }
   add("POST", "/v1/chat/completions", "Chat, tools and supported multimodal inputs");
   add("POST", "/v1/completions", "Single-prompt text completion adapter");
   add("POST", "/v1/embeddings", "Text and supported multimodal embedding vectors");
@@ -2944,7 +2987,7 @@ nlohmann::json server_endpoints() {
     const auto method = endpoint.at("method").get<std::string>();
     std::string example = "curl \"$MICA_BASE_URL" + path + "\"";
     if (endpoint.at("authentication_required").get<bool>())
-      example += " -H \"Authorization: Bearer $MICA_API_KEY\"";
+      example += path.starts_with("/admin/") ? " -H \"Authorization: Bearer $MICA_ADMIN_KEY\"" : " -H \"Authorization: Bearer $MICA_API_KEY\"";
     if (method == "POST") {
       if (path == "/v1/audio/transcriptions" || path == "/v1/audio/diarizations")
         example += " -F 'model=MODEL_ID' -F 'file=@recording.wav'";
@@ -2954,6 +2997,7 @@ nlohmann::json server_endpoints() {
         json payload = json::object();
         if (path == "/admin/profile/activate") payload = {{"profile", "WORKLOAD_ID"}};
         if (path == "/admin/scheduler") payload = {{"strategy", "balanced"}};
+        if (path == "/admin/keys/rotate") payload = {{"kind", "inference"}};
         if (path == "/v1/chat/completions") payload = {{"model", "MODEL_ID"}, {"messages", json::array({{{"role", "user"}, {"content", "Hello"}}})}};
         if (path == "/v1/completions") payload = {{"model", "MODEL_ID"}, {"prompt", "Hello"}};
         if (path == "/v1/embeddings") payload = {{"model", "MODEL_ID"}, {"input", "A document to embed"}};
@@ -2963,6 +3007,7 @@ nlohmann::json server_endpoints() {
     }
     if (path == "/v1/audio/speech") example += " --output speech.wav";
     endpoint["example"] = example;
+    endpoint["credential_role"] = endpoint["authentication_required"].get<bool>() ? (path.starts_with("/admin/") ? "admin" : "inference or admin") : "none";
   }
   return {{"endpoints", endpoints},
           {"note", "Routes are registered globally. Inference requires an eligible model in the active workload; inspect /v1/models for capabilities."}};
@@ -3043,7 +3088,7 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
     throw std::runtime_error("profile " + selected_profile.name + " requires backend " +
                              to_string(*selected_profile.backend));
   }
-  const auto api_key_path = options.api_key_file.empty()
+  auto api_key_path = options.api_key_file.empty()
                                 ? state.api_key_file
                                 : options.api_key_file;
   const auto api_key = options.api_key.empty() ? read_trimmed(api_key_path)
@@ -3053,6 +3098,14 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
                   [](unsigned char value) { return std::iscntrl(value); })) {
     throw std::runtime_error("API-token file must contain 16 to 512 printable characters");
   }
+  const auto admin_key_path = options.admin_api_key_file.empty() ? options.root / "secrets/admin-api-key" : options.admin_api_key_file;
+  const bool separate_admin = options.dashboard || !options.admin_api_key_file.empty() || std::filesystem::exists(admin_key_path);
+  if (separate_admin && !options.api_key.empty()) {
+    api_key_path = options.root / "secrets/api-key";
+    write_private_file(api_key_path, api_key + "\n");
+  }
+  auto credentials = std::make_shared<Credentials>(api_key, api_key_path, admin_key_path, separate_admin,
+      separate_admin ? (options.server_config_file.empty() ? options.root / "config/server.json" : options.server_config_file) : std::filesystem::path());
   auto manager = std::make_shared<WorkerManager>(registry, state, options.root,
                                                  active_backends, options.scheduling_strategy);
   manager->start_background();
@@ -3079,16 +3132,43 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
     }
   });
 
-  auto require_auth = [api_key](const httplib::Request& request,
+  auto require_auth = [credentials](const httplib::Request& request,
                                 httplib::Response& response) {
-    if (authorized(request, api_key)) return true;
+    if (request.path.starts_with("/admin/") && request.has_header("Origin")) {
+      const auto origin = request.get_header_value("Origin"), authority = request.get_header_value("Host");
+      if (origin != "http://" + authority && origin != "https://" + authority) {
+        json_error(response, 403, "origin_rejected", "same-origin management request required"); return false;
+      }
+    }
+    if (credentials->allows(request.get_header_value("Authorization"), request.path.starts_with("/admin/"))) return true;
     json_error(response, 401, "invalid_api_key", "Bearer API key required");
     return false;
   };
-
-  server.Get("/v1/endpoints", [require_auth](const auto& request, auto& response) {
+  server.Post("/admin/keys/rotate", [credentials, require_auth](const auto& request, auto& response) {
     if (!require_auth(request, response)) return;
-    response.set_content(server_endpoints().dump(), "application/json");
+    if (request.has_header("Origin")) {
+      const auto origin = request.get_header_value("Origin"), host = request.get_header_value("Host");
+      if (origin != "http://" + host && origin != "https://" + host) { json_error(response, 403, "origin_rejected", "same-origin request required"); return; }
+    }
+    try {
+      const auto body = json::parse(request.body);
+      if (!body.is_object() || body.size() != 1 || !body.contains("kind") || !body["kind"].is_string())
+        throw std::invalid_argument("body must contain only kind: admin or inference");
+      const auto kind = body["kind"].template get<std::string>();
+      const auto replacement = credentials->rotate(kind);
+      response.set_header("Cache-Control", "no-store");
+      response.set_content(json{{"kind", kind}, {"api_key", replacement}, {"restart_required", false}}.dump(), "application/json");
+    } catch (const std::exception& error) { json_error(response, 400, "rotation_failed", error.what()); }
+  });
+  if (options.dashboard) register_dashboard(server, options, credentials, {
+    [manager, options] { auto status = manager->admin_json(); status["dashboard"] = true; status["host"] = options.host; status["port"] = options.port; status["pid"] = getpid(); return status; },
+    [manager] { manager->pause_inference(); }, [manager] { manager->resume_inference(); },
+    [manager, options] { manager->reload_after_maintenance(options.config_directory); }
+  });
+
+  server.Get("/v1/endpoints", [require_auth, dashboard=options.dashboard](const auto& request, auto& response) {
+    if (!require_auth(request, response)) return;
+    response.set_content(server_endpoints(dashboard).dump(), "application/json");
   });
   server.Post("/admin/server/stop", [require_auth, &server](const auto& request, auto& response) {
     if (!require_auth(request, response)) return;
@@ -4507,7 +4587,9 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
     const auto control_path = options.root / "run/server.json";
     write_json_atomic(control_path, {{"pid", getpid()}, {"host", options.host},
                                     {"port", options.port},
-                                    {"api_key_file", options.api_key.empty() ? api_key_path.string() : ""}});
+                                    {"dashboard", options.dashboard},
+                                    {"admin_api_key_file", separate_admin ? admin_key_path.string() : options.api_key.empty() ? api_key_path.string() : ""},
+                                    {"api_key_file", options.api_key.empty() || separate_admin ? api_key_path.string() : ""}});
     chmod(control_path.c_str(), 0600);
     std::clog << "Mica API listening on http://" << options.host << ':'
               << options.port << '\n';

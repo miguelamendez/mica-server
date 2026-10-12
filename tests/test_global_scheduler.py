@@ -115,7 +115,8 @@ models:
         self.log = self.root / "server.log"
         with self.log.open("wb") as output:
             self.server = subprocess.Popen([str(BINARY),"serve","--root",str(self.root),"--config-dir",str(CONFIG),
-                "--host","127.0.0.1","--port",str(self.port),"--api-key",TOKEN,"--strategy",strategy],stdout=output,stderr=output)
+                "--host","127.0.0.1","--port",str(self.port),"--api-key",TOKEN,"--strategy",strategy,
+                *getattr(self,"extra_server_args",[])],stdout=output,stderr=output)
         deadline=time.monotonic()+15
         while time.monotonic()<deadline:
             try:

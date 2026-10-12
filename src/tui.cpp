@@ -125,7 +125,8 @@ json disk_usage(const std::filesystem::path& root) {
   }
   return result;
 }
-ViewData refresh_data(const std::filesystem::path& root, const std::filesystem::path& config) {
+ViewData refresh_data(const std::filesystem::path& root, const std::filesystem::path& config,
+                      const json& server_override = nullptr) {
   ViewData data;
   data.registry = load_registry(config);
   data.registry.runtime_root = root.string();
@@ -135,7 +136,7 @@ ViewData refresh_data(const std::filesystem::path& root, const std::filesystem::
   data.hardware = hardware_to_json(hardware);
   data.machine = std::filesystem::exists(root / "config/machine.yaml")
                      ? read_profile_file(root / "config/machine.yaml") : json::object();
-  data.server = local_server_status(root);
+  data.server = server_override.is_null() ? local_server_status(root) : server_override;
   data.settings = redact_server_configuration(load_server_configuration(root / "config/server.json"));
   const bool configured = data.settings.value("api_key_configured", false) ||
                           std::filesystem::exists(root / "secrets/api-key");
@@ -219,12 +220,10 @@ ViewData refresh_data(const std::filesystem::path& root, const std::filesystem::
 }
 }
 
-int run_tui(const std::filesystem::path& executable, const std::filesystem::path& root,
-            const std::filesystem::path& config, bool snapshot) {
+json tui_inventory(const std::filesystem::path& root, const std::filesystem::path& config,
+                   const json& server_override) {
   const auto sections = sections_from_lua(config / "tui.lua");
-  const auto endpoint_catalog = server_endpoints();
-  auto data = refresh_data(root, config);
-  if (snapshot) {
+  auto data = refresh_data(root, config, server_override);
     json navigation = json::array();
     for (const auto& section : sections) navigation.push_back({{"id", section.id}, {"title", section.title}});
     json workloads = json::array();
@@ -234,11 +233,25 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       }
     json engines = json::array();
     for (const auto& [id, engine] : data.registry.engines)
-      engines.push_back({{"id", id}, {"description", engine.description}, {"availability", data.engines[id]}, {"hardware", engine.hardware}});
-    std::cout << json{{"sections", navigation}, {"server", data.server}, {"machine", data.hardware},
+      {
+        json entry{{"id", id}, {"description", engine.description}, {"availability", data.engines[id]}, {"hardware", engine.hardware}};
+        const auto manifest = config / "engines" / (id + ".yaml");
+        if (std::filesystem::is_regular_file(manifest)) entry["manifest"] = read_profile_file(manifest);
+        engines.push_back(std::move(entry));
+      }
+    return json{{"sections", navigation}, {"server", data.server}, {"machine", data.hardware},
                      {"settings", data.settings}, {"updates", data.update}, {"live_memory", data.live_memory}, {"disk_usage_bytes", data.disk}, {"workloads", workloads},
                      {"server_subsections", {"Overview", "Choose workload", "Machine", "Updates"}},
-                     {"models", data.models}, {"engines", engines}, {"apps", data.apps}, {"endpoints", server_endpoints()}}.dump(2) << '\n';
+                     {"models", data.models}, {"engines", engines}, {"apps", data.apps}, {"endpoints", server_endpoints()}};
+}
+
+int run_tui(const std::filesystem::path& executable, const std::filesystem::path& root,
+            const std::filesystem::path& config, bool snapshot) {
+  const auto sections = sections_from_lua(config / "tui.lua");
+  const auto endpoint_catalog = server_endpoints();
+  auto data = refresh_data(root, config);
+  if (snapshot) {
+    std::cout << tui_inventory(root, config).dump(2) << '\n';
     return 0;
   }
   if (!isatty(STDIN_FILENO) || !isatty(STDOUT_FILENO))
@@ -295,7 +308,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       for (const auto& app : data.apps["apps"]) values.push_back(app.at("id"));
     } else if (section == "settings") {
       values = {"Check for updates", "Update latest release", "Update latest source", "Bind address", "Port", "Default workload", "Scheduling strategy", "RAM limit (GiB)",
-                "Dedicated GPU limit (GiB)", "Import API key file", "Rotate API key"};
+                "Dedicated GPU limit (GiB)", "Import API key file", "Rotate API key", "Rotate admin API key"};
     }
     values.erase(std::remove_if(values.begin(), values.end(), [&](const auto& value) {
       std::string searchable = value;
@@ -324,14 +337,16 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     message = "Running " + display_command(command) + " — wait for completion";
     worker = std::thread([&, command] {
       CommandResult result;
-      const bool rotates_key = std::find(command.begin(), command.end(), "--rotate-api-key") != command.end();
+      const bool rotates_admin = std::find(command.begin(), command.end(), "--rotate-admin-api-key") != command.end();
+      const bool rotates_key = rotates_admin || std::find(command.begin(), command.end(), "--rotate-api-key") != command.end();
+      const auto key_path = root / "secrets" / (rotates_admin ? "admin-api-key" : "api-key");
       std::string previous_key;
-      if (rotates_key) { std::ifstream key(root / "secrets/api-key"); std::getline(key, previous_key); }
+      if (rotates_key) { std::ifstream key(key_path); std::getline(key, previous_key); }
       try { result = run_command(command, true); }
       catch (const std::exception& e) { result = {1, e.what()}; }
       std::string replacement_key;
       if (rotates_key) {
-        std::ifstream key(root / "secrets/api-key"); std::getline(key, replacement_key);
+        std::ifstream key(key_path); std::getline(key, replacement_key);
         if (replacement_key == previous_key || replacement_key.size() < 16 || replacement_key.size() > 512) replacement_key.clear();
         std::fill(previous_key.begin(), previous_key.end(), '\0');
       }
@@ -829,6 +844,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
           {"Default workload", "--default-workload"}, {"Scheduling strategy", "--strategy"}, {"RAM limit (GiB)", "--ram-gib"},
           {"Dedicated GPU limit (GiB)", "--vram-gib"}, {"Import API key file", "--api-key-file"}};
       if (selected == "Rotate API key") command({"config", "set", "--rotate-api-key", "--restart", "--config-dir", config.string()});
+      else if (selected == "Rotate admin API key") command({"config", "set", "--rotate-admin-api-key", "--config-dir", config.string()});
       else { edit_option = options.at(selected); edit_value.clear(); }
     } else if (event == Event::Return) list_focus = true;
     return true;

@@ -24,6 +24,7 @@
 #include "mica_server/setup.hpp"
 #include "mica_server/service.hpp"
 #include "mica_server/tui.hpp"
+#include "mica_server/dashboard.hpp"
 #include "mica_server/update.hpp"
 #include "mica_server/apps.hpp"
 
@@ -44,7 +45,7 @@ Usage:
   mica-server update [--check] [--channel release|source] [--restart] [--force]
                      [--prefix PATH] [--root PATH]
   mica-server tui [--root PATH] [--config-dir PATH]
-  mica-server start [--workload ID] [--host HOST] [--port PORT]
+  mica-server start [--workload ID] [--host HOST] [--port PORT] [--dashboard]
   mica-server stop|status [--root PATH]
   mica-server workload list|show|edit|create|validate|install-file [profile options]
   mica-server workload install ID [setup options]
@@ -52,7 +53,7 @@ Usage:
   mica-server config show [--root PATH]
   mica-server config set [--host HOST] [--port PORT] [--default-workload ID]
                          [--strategy high|single|balanced]
-                         [--ram-gib N] [--vram-gib N] [--rotate-api-key] [--restart] [--root PATH]
+                         [--ram-gib N] [--vram-gib N] [--rotate-api-key|--rotate-admin-api-key] [--restart] [--root PATH]
   mica-server endpoints     List public API routes; no running server required
   mica-server detect [--output PATH]
   mica-server memory model ID [--config-dir PATH]
@@ -73,6 +74,7 @@ Usage:
   mica-server quantize --model ID --backend mlx|gguf|vllm --quant q4|q8 [options]
   mica-server serve [--backend mlx|gguf|vllm] [--root PATH] [--host HOST] [--port PORT]
                     [--strategy high|single|balanced]
+                    [--dashboard] [--admin-api-key-file PATH]
 
 Setup options:
   --backends auto|mlx|gguf|vllm|LIST
@@ -204,6 +206,8 @@ void apply_server_config(mica::ServerOptions& options,
   if (document.contains("host")) options.host = document.at("host").get<std::string>();
   if (document.contains("port")) options.port = document.at("port").get<int>();
   if (document.contains("scheduling_strategy")) options.scheduling_strategy = document.at("scheduling_strategy").get<std::string>();
+  options.dashboard = document.value("dashboard", false);
+  if (document.contains("admin_api_key_file")) options.admin_api_key_file = expand_user_path(document.at("admin_api_key_file").get<std::string>());
   if (document.contains("api_key")) {
     options.api_key = document.at("api_key").get<std::string>();
   }
@@ -912,8 +916,10 @@ int main(int argc, char** argv) {
       mica::quantize_model(options);
       return 0;
     }
+    if (args[1] == "dashboard-job") return mica::dashboard_job_command({args.begin() + 2, args.end()});
     if (args[1] == "serve") {
       mica::ServerOptions options;
+      options.executable = locate_executable(args[0]);
       options.config_directory = default_config();
       options.root = default_root();
       std::filesystem::path server_config;
@@ -922,6 +928,7 @@ int main(int argc, char** argv) {
         else if (args[i] == "--server-config") server_config = value_after(args, i);
       }
       if (server_config.empty()) server_config = options.root / "config/server.json";
+      options.server_config_file = expand_user_path(server_config);
       apply_server_config(options, expand_user_path(server_config));
       for (std::size_t i = 2; i < args.size(); ++i) {
         if (args[i] == "--root") options.root = value_after(args, i);
@@ -930,6 +937,9 @@ int main(int argc, char** argv) {
         else if (args[i] == "--host") options.host = value_after(args, i);
         else if (args[i] == "--port") options.port = std::stoi(value_after(args, i));
         else if (args[i] == "--strategy") options.scheduling_strategy = value_after(args, i);
+        else if (args[i] == "--dashboard") options.dashboard = true;
+        else if (args[i] == "--no-dashboard") options.dashboard = false;
+        else if (args[i] == "--admin-api-key-file") options.admin_api_key_file = expand_user_path(value_after(args, i));
         else if (args[i] == "--api-key") options.api_key = value_after(args, i);
         else if (args[i] == "--ignore-context-limit") {
           options.ignore_context_limit = true;

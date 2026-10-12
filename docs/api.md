@@ -24,6 +24,71 @@ The same `api_key` or `api_key_file` fields may be set in
 `~/.mica/config/server.json`; CLI values take precedence. Tokens must contain
 16 to 512 printable characters.
 
+## Dashboard and administration
+
+Enable the bundled, buildless dashboard with `start --dashboard` or
+`"dashboard": true` in `~/.mica/config/server.json`. It shares the Mica listener
+at `/dashboard`; localhost remains the default. Add `--host 0.0.0.0` only when
+intentionally allowing trusted-network access. A third device needs only a
+browser; operations execute on the dashboard's host.
+
+Enabling it creates a private admin key at `~/.mica/secrets/admin-api-key`
+(override with `admin_api_key_file` or `serve --admin-api-key-file PATH`). The
+existing `api_key`/`api_key_file` remains the inference credential.
+**Inference keys cannot call `/admin/*`** once separate administration is
+enabled. Admin keys also allow inference for endpoint testing. Non-dashboard
+installations retain legacy single-key behavior until an admin file is
+configured/created; separation persists afterward, even with the dashboard
+disabled. The keys must be distinct.
+
+```sh
+mica-server start --dashboard --host 0.0.0.0 --port 8092
+mica-server config set --rotate-admin-api-key
+mica-server config set --rotate-api-key
+```
+
+Copy the admin key privately on its host for the initial browser login. The
+browser does not persist it. The TUI can reveal/copy a newly rotated key;
+normal inventory, status and job logs never include keys.
+
+`POST /admin/keys/rotate` accepts `{"kind":"admin"}` or
+`{"kind":"inference"}`. It saves the replacement atomically with private
+permissions and returns it once in an authenticated, `Cache-Control: no-store`
+response. Old keys stop authorizing new requests immediately; accepted streams
+continue. The dashboard replaces its in-memory admin key; other browser sessions
+must reconnect. Admin rotation leaves inference keys unchanged. Lost responses
+can be recovered through local CLI/SSH and the private key file. HTTP is not
+safe on an untrusted network; use an encrypted overlay or separately managed
+HTTPS reverse proxy.
+
+| Management route | Behavior |
+| --- | --- |
+| `GET /admin/dashboard/inventory` | Native TUI inventory, machine policy and dashboard route discovery. |
+| `GET /admin/dashboard/workloads/{id}` | Workload YAML; no arbitrary filesystem path. |
+| `POST /admin/dashboard/jobs` | Submit a typed action; return job ID after any required draining. |
+| `GET /admin/dashboard/jobs/{id}` | State, error/exit code and last 32 KiB of worker output. |
+| `POST /admin/inference/pause` | Drain workers (up to 30 seconds) and unload; keep HTTP/dashboard available. |
+| `POST /admin/inference/resume` | Resume lazy inference; blocked during maintenance. |
+
+Actions: `workload.prepare`, `workload.save`, `workload.clone`, `app.install`,
+`app.start`, `app.stop`, `app.uninstall`, `app.source-add`, `app.source-remove`,
+`settings.save`, `update.check`, `update.install`. No shell commands,
+caller-selected executables or arbitrary output paths are accepted. Job
+records/logs live privately in `~/.mica/state/dashboard-jobs/`; workers are
+native Mica processes. Downloads/builds retain hardware selection and memory
+safeguards. Workload preparation drains/unloads models for safe engine/artifact
+installation, restores the prior default and resumes serving on completion;
+models reload lazily. App installation/opening does not restart Mica.
+Installing app files and preparing its workload remain separate actions.
+Demo app HTTP interfaces remain loopback-only; the dashboard does not
+network-publish their UIs.
+
+Initial workload setup is required; this is not a zero-model bootstrap service.
+Stopping Mica also stops its dashboard; restart through CLI/SSH or an external
+supervisor. Listener, key import and allocation edits use restart handling;
+rotation, default workload and strategy changes apply live. Updates/listener
+changes may disconnect the browser; keep SSH access for recovery.
+
 ## Health and discovery
 
 | Method and route | Authentication | Purpose |

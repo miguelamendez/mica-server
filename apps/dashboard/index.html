@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en" data-theme="mocha">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mica · Dashboard</title><link rel="icon" href="/dashboard/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/dashboard/dashboard.css"><script defer src="/dashboard/dashboard.js"></script></head>
+<body>
+<div class="shell">
+<aside><a class="brand" href="/dashboard"><img src="/dashboard/logo.svg" alt="Mica diamond"><span><strong>Mica</strong><small>Local AI · Control plane</small></span></a>
+<nav aria-label="Main navigation" id="navigation"></nav>
+<div class="sidebar-foot"><span id="connection">Not connected</span><label>Appearance<select id="theme"><option value="mocha">Mocha</option><option value="macchiato">Macchiato</option><option value="frappe">Frappé</option><option value="latte">Latte</option></select></label><button id="logout">Disconnect</button></div></aside>
+<main><header><div><p class="eyebrow" id="host">THIS MICA INSTANCE</p><h1 id="title">Server</h1></div><div class="toolbar"><button id="refresh">↻ Refresh</button><button id="jobs">Jobs <span id="job-count">0</span></button></div></header>
+<p id="notice" class="notice" role="status" aria-live="polite">Connect with this server’s admin key to manage its models and workloads.</p>
+<section id="view" aria-label="Dashboard content"></section>
+<footer>Controls act on this server, not on your browser’s machine. Memory reservations are estimates, not hard RSS/VRAM limits.</footer></main>
+</div>
+<dialog id="login"><form id="login-form"><img class="login-logo" src="/dashboard/logo.svg" alt=""><h2>Connect to Mica</h2><p id="login-origin"></p><p>Use the <strong>admin key</strong> from this server. Inference keys cannot access management controls.</p><label>Admin API key<input id="key" type="password" required autocomplete="off" spellcheck="false" minlength="16"></label><p class="muted">Kept in memory only. Reloading this page requires signing in again.</p><p id="login-error" role="alert"></p><button class="primary" type="submit">Connect</button></form></dialog>
+<dialog id="editor"><form id="editor-form"><h2 id="editor-title">Edit</h2><div id="editor-fields"></div><p id="editor-help" class="muted"></p><div class="toolbar"><button type="button" id="editor-cancel">Cancel</button><button class="primary" type="submit">Apply</button></div></form></dialog>
+<dialog id="secret"><h2 id="secret-title">New API key</h2><p>Save this key now. It is shown only here, never in job logs or inventory.</p><input id="secret-value" type="password" readonly aria-label="New API key"><div class="toolbar"><button id="secret-reveal">Show / hide</button><button id="secret-copy">Copy key</button><button id="secret-close">Saved · close</button></div><p id="secret-help" class="muted"></p></dialog>
+</body></html>
