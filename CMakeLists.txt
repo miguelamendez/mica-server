@@ -946,7 +946,8 @@ install(FILES schemas/profile-v3.schema.json
 install(FILES apps/mica_playground.py apps/mica-logo.svg apps/mica-readme-header.svg apps/mica-capabilities.js apps/mica-chat-settings.js
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps)
 install(FILES apps/apps.yaml DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps)
-install(DIRECTORY apps/assistant apps/dictation DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps)
+install(DIRECTORY apps/assistant apps/dictation DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps
+        PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE PATTERN ".DS_Store" EXCLUDE)
 install(FILES schemas/app-v1.schema.json schemas/app-index-v1.schema.json
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/schemas)
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/docs
