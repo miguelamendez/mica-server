@@ -10,7 +10,7 @@ hardware: [cpu, cuda, rocm, xpu, tpu, metal]
 artifact_formats: [safetensors, compressed-tensors, mlx]
 compatibility_tags: [text-generation]
 endpoint_contracts:
-  - {id: chat, operation: chat.generate, transport: http, adapter_call: openai_chat, method: POST, path: /v1/chat/completions, required_inputs: [text], outputs: [text], streaming: true}
+  - {id: chat, operation: chat.generate, transport: http, adapter_call: openai_chat, method: POST, path: /v1/chat/completions, required_inputs: [text], outputs: [text], streaming: true, supports_tools: true}
   - {id: completion, operation: text.generate, transport: http, adapter_call: mica_completion_adapter, method: POST, path: /v1/chat/completions, required_inputs: [text], outputs: [text], streaming: true}
 install:
   environment_group: vllm

@@ -1,6 +1,7 @@
 #include "mica_server/server.hpp"
 #include "mica_server/inventory.hpp"
 #include "mica_server/generation_metrics.hpp"
+#include "mica_server/tool_calling.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -969,6 +970,8 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
         (root / "environments/vllm/bin/vllm").string(), "serve",
         worker.artifact_path.string(), "--served-model-name", worker.model->id,
         "--host", "127.0.0.1", "--port", port};
+    const auto tool_arguments = tool_call_runtime_arguments(*worker.model, *worker.engine);
+    command.insert(command.end(), tool_arguments.begin(), tool_arguments.end());
     if (worker.device == "cpu") {
       command.insert(command.end(), {"--device", "cpu"});
       if (worker.artifact.kv_bytes_per_token_f16 > 0) {
@@ -1014,6 +1017,8 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
         "-m", worker.artifact_path.string(), "--host", "127.0.0.1", "--port", port,
         "--ctx-size", std::to_string(total_context), "--parallel",
         std::to_string(parallel)};
+    const auto tool_arguments = tool_call_runtime_arguments(*worker.model, *worker.engine);
+    command.insert(command.end(), tool_arguments.begin(), tool_arguments.end());
     if (state.cpu_threads > 0) {
       command.insert(command.end(), {"--threads", std::to_string(state.cpu_threads),
                                      "--threads-batch", std::to_string(state.cpu_threads)});
@@ -1055,8 +1060,10 @@ std::vector<std::string> worker_command(const Worker& worker, const RuntimeState
       if (model_policy->ram_cache_mib >= 0)
         command.insert(command.end(), {"--cache-ram", std::to_string(model_policy->ram_cache_mib)});
       if (model_policy->projector_on_cpu) command.emplace_back("--no-mmproj-offload");
-      if (profile_native_options(*model_policy) != profile_native_options(ProfileModel{}))
-        command.insert(command.end(), {"--fit", "off", "--flash-attn", "on", "--jinja"});
+      if (profile_native_options(*model_policy) != profile_native_options(ProfileModel{})) {
+        command.insert(command.end(), {"--fit", "off", "--flash-attn", "on"});
+        if (std::find(command.begin(), command.end(), "--jinja") == command.end()) command.emplace_back("--jinja");
+      }
     }
     const auto method = model_policy ? model_policy->speculative_method : std::string("auto");
     if (method == "none") command.insert(command.end(), {"--spec-type", "none"});
@@ -1706,6 +1713,8 @@ class WorkerManager {
                           {"input_modalities", definition.input_modalities},
                           {"output_modalities", definition.output_modalities},
                           {"abilities", definition.abilities},
+                          {"tool_call_formats", definition.tool_call_formats},
+                          {"tool_call_parsers", definition.tool_call_parsers},
                           {"supported_tasks", definition.supported_tasks},
                           {"supported_interactions", interactions},
                           {"thinking_modes", artifact.engine == "prism-llama-cpp" ||
@@ -1757,9 +1766,12 @@ class WorkerManager {
                                  {"optional_inputs", endpoint.optional_inputs},
                                  {"outputs", endpoint.outputs},
                                  {"streaming", endpoint.streaming},
-                                 {"supports_tools", endpoint.supports_tools}});
+                                 {"supports_tools", supports_tool_calling(definition, engine, endpoint)},
+                                 {"engine_supports_tools", endpoint.supports_tools}});
           }
           item["endpoint_contracts"] = std::move(contracts);
+          item["supports_tools"] = std::any_of(engine.endpoint_contracts.begin(), engine.endpoint_contracts.end(),
+              [&](const auto& endpoint) { return supports_tool_calling(definition, engine, endpoint); });
           data.push_back(std::move(item));
         }
       }
@@ -2624,8 +2636,7 @@ std::string rewrite_json_model(const std::string& body, const Worker& worker,
     throw std::invalid_argument("selected engine endpoint does not support streaming");
   }
   if (parsed.contains("tools") && !parsed["tools"].empty() &&
-      (!endpoint.supports_tools || std::find(worker.model->abilities.begin(), worker.model->abilities.end(),
-          "tool_calling") == worker.model->abilities.end())) {
+      !supports_tool_calling(*worker.model, *worker.engine, endpoint)) {
     throw std::invalid_argument("selected model/engine does not support tool calling");
   }
   if (operation == "embedding.generate") {

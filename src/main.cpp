@@ -43,7 +43,7 @@ Usage:
   mica-server workload activate ID [--root PATH]
   mica-server config show [--root PATH]
   mica-server config set [--host HOST] [--port PORT] [--default-workload ID]
-                         [--ram-gib N] [--vram-gib N] [--rotate-api-key] [--root PATH]
+                         [--ram-gib N] [--vram-gib N] [--rotate-api-key] [--restart] [--root PATH]
   mica-server endpoints     List public API routes; no running server required
   mica-server detect [--output PATH]
   mica-server memory model ID [--config-dir PATH]
@@ -372,7 +372,7 @@ int main(int argc, char** argv) {
       return mica::service_command(args[1], {args.begin() + 2, args.end()},
                                     locate_executable(args[0]), default_root());
     if (args.size() >= 2 && args[1] == "config")
-      return mica::configuration_command({args.begin() + 2, args.end()}, default_root());
+      return mica::configuration_command({args.begin() + 2, args.end()}, default_root(), locate_executable(args[0]));
     if (args.size() >= 2 && args[1] == "tui") {
       auto root = default_root();
       auto config = default_config();

@@ -16,5 +16,6 @@ int service_command(const std::string& action, const std::vector<std::string>& a
                     const std::filesystem::path& executable,
                     const std::filesystem::path& default_root);
 int configuration_command(const std::vector<std::string>& arguments,
-                          const std::filesystem::path& default_root);
+                          const std::filesystem::path& default_root,
+                          const std::filesystem::path& executable = {});
 }

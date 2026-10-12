@@ -92,6 +92,16 @@ class LifecycleTests(unittest.TestCase):
                 state = json.loads(run("status").stdout)
                 self.assertIn(state["status"], ("ready", "warming"))
                 pid = state["pid"]
+                # Invalid proposed settings must not interrupt a running server.
+                run("config", "set", "--port", "65536", "--restart", success=False)
+                self.assertEqual(json.loads(run("status").stdout)["pid"], pid)
+                # The same operation used by the TUI preserves the active workload/key.
+                run("config", "set", "--host", "127.0.0.1", "--restart", "--config-dir", str(CONFIG))
+                restarted = json.loads(run("status").stdout)
+                self.assertNotEqual(restarted["pid"], pid)
+                self.assertEqual(restarted["profile"]["name"], "swap-a")
+                self.assertEqual((root / "secrets/api-key").read_text().strip(), token)
+                pid = restarted["pid"]
                 def workloads(key=token):
                     request = urllib.request.Request(f"http://127.0.0.1:{port}/v1/workloads",
                         headers={"Authorization": "Bearer " + key})

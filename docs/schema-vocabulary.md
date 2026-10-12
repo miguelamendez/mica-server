@@ -154,6 +154,15 @@ the model and endpoint support them. Streaming is an endpoint/request behavior,
 not a different model ability. `decisions.score` remains separate from normal
 chat and is not yet a Mica public endpoint.
 
+Tool-capable model YAMLs declare `tool_call_formats: [openai]`. Optional
+`tool_call_parsers` maps engine IDs to typed parser names (currently vLLM), for
+example `{vllm: qwen3_coder}`. The model loader validates engine references and
+parser syntax. Model capabilities are inherited by workloads, not duplicated
+there. llama.cpp workers enable Jinja consistently; vLLM automatic tool choice
+requires the model's parser. `/v1/models` exposes effective `supports_tools`,
+while `engine_supports_tools` preserves the engine-only contract separately.
+See [tool-calling discovery](updating.md#tool-calling-discovery).
+
 For the active profile, a request with an explicit model uses it only if it
 supports the requested operation and modalities. Otherwise, a matching
 `selection.defaults[]` entry wins; if none exists, Mica chooses the highest

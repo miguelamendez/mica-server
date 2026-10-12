@@ -4,6 +4,7 @@
   "title": "Mica model manifest v2",
   "type": "object",
   "allOf": [
+    {"if": {"properties": {"abilities": {"contains": {"const": "tool_calling"}}}, "required": ["abilities"]}, "then": {"required": ["tool_call_formats"], "properties": {"tool_call_formats": {"minItems": 1}}}},
 {"if":{"properties":{"supported_tasks":{"contains":{"const":"chat"}}},"required":["supported_tasks"]},"then":{"properties":{"abilities":{"allOf":[{"contains":{"const":"text_generation"}}]},"supported_interactions":{"contains":{"required":["operation"],"properties":{"operation":{"enum":["chat.generate"]}},"allOf":[{"anyOf":[{"required":["required_inputs"],"properties":{"required_inputs":{"contains":{"const":"text"}}}},{"required":["optional_inputs"],"properties":{"optional_inputs":{"contains":{"const":"text"}}}}]}]}}}}},
 {"if":{"properties":{"supported_tasks":{"contains":{"const":"coding"}}},"required":["supported_tasks"]},"then":{"properties":{"abilities":{"allOf":[{"contains":{"const":"text_generation"}}]},"supported_interactions":{"contains":{"required":["operation"],"properties":{"operation":{"enum":["chat.generate","text.generate"]}},"allOf":[{"anyOf":[{"required":["required_inputs"],"properties":{"required_inputs":{"contains":{"const":"text"}}}},{"required":["optional_inputs"],"properties":{"optional_inputs":{"contains":{"const":"text"}}}}]}]}}}}},
 {"if":{"properties":{"supported_tasks":{"contains":{"const":"ocr"}}},"required":["supported_tasks"]},"then":{"properties":{"abilities":{"allOf":[{"contains":{"const":"text_generation"}},{"contains":{"const":"image_understanding"}}]},"supported_interactions":{"contains":{"required":["operation"],"properties":{"operation":{"enum":["chat.generate"]}},"allOf":[{"anyOf":[{"required":["required_inputs"],"properties":{"required_inputs":{"contains":{"const":"image"}}}},{"required":["optional_inputs"],"properties":{"optional_inputs":{"contains":{"const":"image"}}}}]}]}}}}},
@@ -256,6 +257,12 @@
       "items": {
         "type": "string"
       }
+    },
+    "tool_call_parsers": {
+      "type": "object",
+      "propertyNames": {"$ref": "vocabulary-v1.schema.json#/$defs/id"},
+      "additionalProperties": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$"},
+      "description": "Per-engine tool parser names. Current typed launcher supports vLLM parser IDs; native loader validates the engine reference. Not arbitrary command-line flags."
     },
     "thinking_modes": {
       "type": "array",

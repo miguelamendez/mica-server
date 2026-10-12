@@ -656,7 +656,7 @@ void load_model_manifests(Registry& registry,
          "thinking_budget_supported", "license", "artifacts", "mlx_converter",
          "mlx_quantization_profile", "gguf_family", "gguf_parallel_slots",
          "startup_priority", "required", "required_by_backend", "catalog_visible",
-         "input_modalities", "output_modalities", "tool_call_formats",
+         "input_modalities", "output_modalities", "tool_call_formats", "tool_call_parsers",
          "memory_profile"},
         "model manifest " + path.string());
     const auto id = document.at("id").get<std::string>();
@@ -853,6 +853,17 @@ void load_model_manifests(Registry& registry,
     validate_model_tasks(*model);
     model->tool_call_formats =
         document.value("tool_call_formats", std::vector<std::string>{});
+    if (std::find(model->abilities.begin(), model->abilities.end(), "tool_calling") != model->abilities.end() &&
+        model->tool_call_formats.empty())
+      throw std::invalid_argument("tool-capable model must declare tool_call_formats: " + id);
+    model->tool_call_parsers = document.value("tool_call_parsers", std::map<std::string, std::string>{});
+    for (const auto& [engine_id, parser] : model->tool_call_parsers) {
+      if (!registry.engines.contains(engine_id) || registry.engine(engine_id).launcher != "vllm" ||
+          parser.empty() || parser.size() > 64 || !std::all_of(parser.begin(), parser.end(), [](unsigned char c) {
+            return std::isalnum(c) || c == '-' || c == '_';
+          }))
+        throw std::invalid_argument("invalid or unsupported model tool-call parser: " + id + "/" + engine_id);
+    }
     model->recommended_context_tokens = optional_token_limit(document, "recommended_context_tokens");
     model->max_output_tokens = optional_token_limit(document, "max_output_tokens");
     model->startup_priority = document.value("startup_priority", 100);

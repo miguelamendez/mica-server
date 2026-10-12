@@ -119,9 +119,14 @@ are validated; restart to load edits into the running registry. TUI jobs run off
 the rendering thread, report concise results, and refresh inventory on completion.
 
 Settings supports bind address, port, default workload, RAM, dedicated GPU memory,
-private key-file import and rotation. Stop first; limits and key changes apply
-on the next start. Key contents are never displayed. Use a trusted LAN/firewall
-for `0.0.0.0`; Mica's HTTP service does not provide TLS.
+private key-file import and rotation. While running, confirmation validates the
+values, stops Mica, saves them and restarts the same active workload. Invalid
+values leave it running. A failed restart is reported; settings remain saved
+for correction. While stopped, settings are saved without starting the server.
+Changes cause brief downtime and may interrupt requests. Key contents are never
+displayed; clients must update credentials after rotation. Use a trusted
+LAN/firewall for `0.0.0.0`; Mica's HTTP service does not provide TLS. The CLI
+equivalent is `mica-server config set --port 8092 --restart`; see [Updating Mica](updating.md).
 
 See [installation](getting-started.md), [workload design](profiles.md),
 [memory estimation](memory-estimation.md), [configuration schemas](configuration-schemas.md)

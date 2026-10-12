@@ -45,6 +45,10 @@ enable routes: coding and OCR may share chat completions, while speech
 transcription needs the appropriate model interaction and engine adapter.
 The offline registry supports `mica-server registry list --task ocr`; this does
 not add a `task` query parameter to the HTTP catalog.
+`supports_tools` reports effective model/engine tool support. `tool_call_formats`
+and `tool_call_parsers` come from the model YAML. Each endpoint contract also
+reports `engine_supports_tools` separately; this alone does not enable tools
+for every model on that engine.
 `serve --host 0.0.0.0 --port 8092` listens on all IPv4 interfaces with the same
 authentication rules. Use a trusted LAN and firewall; HTTP is not TLS.
 

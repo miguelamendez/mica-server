@@ -124,9 +124,16 @@ document = json.load(open(sys.argv[1]))
 assert document["data"], "Active workload must expose its models"
 for model in document["data"]:
     assert model["endpoint_contracts"], "Expose the selected engine's contracts"
+    assert isinstance(model["supports_tools"], bool)
+    assert isinstance(model["tool_call_formats"], list)
+    assert isinstance(model["tool_call_parsers"], dict)
+    if model["supports_tools"]:
+        assert "tool_calling" in model["abilities"]
+        assert "openai" in model["tool_call_formats"]
     for contract in model["endpoint_contracts"]:
         assert isinstance(contract["streaming"], bool)
         assert isinstance(contract["supports_tools"], bool)
+        assert isinstance(contract["engine_supports_tools"], bool)
 spark = next(model for model in document["data"] if model["id"].startswith("spark-x25-4b"))
 assert any(c["operation"] == "chat.generate" and c["supports_tools"]
            for c in spark["endpoint_contracts"])

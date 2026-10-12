@@ -21,6 +21,7 @@
 #include "mica_server/profiles.hpp"
 #include "mica_server/scheduler.hpp"
 #include "mica_server/tasks.hpp"
+#include "mica_server/tool_calling.hpp"
 
 int main() {
   {
@@ -79,6 +80,25 @@ int main() {
   assert(std::find(spark.supported_tasks.begin(), spark.supported_tasks.end(), "coding") != spark.supported_tasks.end());
   for (const auto& [id, engine] : registry.engines) assert(!engine.description.empty());
   {
+    for (const auto* id : {"qwen38-27b-text", "qwen38-27b-text-dflash", "qwen38-27b-vision-mtp",
+                           "qwen38-27b-gsq-rco", "qwen35-4b", "qwen35-9b", "ling-3-tiny", "ternary-bonsai-2-27b"}) {
+      const auto& model = registry.model(id);
+      const auto& engine = registry.engine(id == std::string("ternary-bonsai-2-27b") ? "prism-llama-cpp" : "llama-cpp");
+      assert(std::find(model.supported_tasks.begin(), model.supported_tasks.end(), "tool_calling") != model.supported_tasks.end());
+      assert(mica::supports_tool_calling(model, engine, engine.endpoint_contracts.front()));
+      assert((mica::tool_call_runtime_arguments(model, engine) == std::vector<std::string>{"--jinja"}));
+    }
+    const auto& engine = registry.engine("vllm");
+    const auto& qwen = registry.model("qwen35-4b");
+    assert(mica::supports_tool_calling(qwen, engine, engine.endpoint_contracts.front()));
+    assert((mica::tool_call_runtime_arguments(qwen, engine) ==
+        std::vector<std::string>{"--enable-auto-tool-choice", "--tool-call-parser", "qwen3_coder"}));
+    auto incomplete = qwen; incomplete.tool_call_parsers.clear();
+    assert(!mica::supports_tool_calling(incomplete, engine, engine.endpoint_contracts.front()));
+    assert(mica::tool_call_runtime_arguments(incomplete, engine).empty());
+    assert(!mica::supports_tool_calling(qwen, engine, engine.endpoint_contracts.back())); // Not text-completion tools.
+  }
+  {
     std::ifstream input(config.parent_path() / "schemas/vocabulary-v1.schema.json");
     const auto vocabulary = nlohmann::json::parse(input);
     const auto task_values = vocabulary.at("$defs").at("task").at("enum").get<std::vector<std::string>>();
@@ -86,8 +106,9 @@ int main() {
     for (const auto& task : task_values) assert(mica::task_requirements().contains(task));
     std::ifstream schema_input(config.parent_path() / "schemas/model-v2.schema.json");
     const auto schema = nlohmann::json::parse(schema_input);
-    assert(schema.at("allOf").size() == mica::task_requirements().size());
+    assert(schema.at("allOf").size() == mica::task_requirements().size() + 1);
     for (const auto& clause : schema.at("allOf")) {
+      if (!clause.at("if").at("properties").contains("supported_tasks")) continue;
       const auto task = clause.at("if").at("properties").at("supported_tasks").at("contains").at("const").get<std::string>();
       const auto& rule = mica::task_requirements().at(task);
       const auto& properties = clause.at("then").at("properties");
@@ -256,7 +277,7 @@ int main() {
     const auto manifest = copied_config / "model-manifests/qwen38-27b-gsq-rco.yaml";
     const auto original = mica::read_profile_file(manifest);
     for (const auto& tasks : std::vector<nlohmann::json>{nlohmann::json::array(),
-         {"chat", "chat"}, {"not-a-task"}, {"transcription"}, {"tool_calling"}, true}) {
+         {"chat", "chat"}, {"not-a-task"}, {"transcription"}, {"voice_cloning"}, true}) {
       auto document = original;
       document["supported_tasks"] = tasks;
       mica::write_profile_file(manifest, document);
@@ -267,6 +288,16 @@ int main() {
     {
       auto document = original;
       document.erase("supported_tasks");
+      mica::write_profile_file(manifest, document);
+      bool rejected = false;
+      try { (void)mica::load_registry(copied_config); } catch (const std::exception&) { rejected = true; }
+      assert(rejected);
+    }
+    mica::write_profile_file(manifest, original);
+    for (const auto& parsers : std::vector<nlohmann::json>{
+        {{"vllm", "--untrusted-flag"}}, {{"vllm", "parser; command"}}, {{"vllm", ""}},
+        {{"unknown-engine", "qwen3_coder"}}, {{"llama-cpp", "qwen3_coder"}}}) {
+      auto document = original; document["tool_call_parsers"] = parsers;
       mica::write_profile_file(manifest, document);
       bool rejected = false;
       try { (void)mica::load_registry(copied_config); } catch (const std::exception&) { rejected = true; }

@@ -1,9 +1,11 @@
 schema: 2
 id: vllm-qwen3-06b-control
-supported_tasks: [chat]
+supported_tasks: [chat, tool_calling]
 input_modalities: [text]
 output_modalities: [text]
-abilities: [text_generation, instruction_following]
+abilities: [text_generation, instruction_following, tool_calling]
+tool_call_formats: [openai]
+tool_call_parsers: {vllm: hermes}
 supported_interactions:
   - {operation: chat.generate, required_inputs: [text], outputs: [text]}
   - {operation: text.generate, required_inputs: [text], outputs: [text]}

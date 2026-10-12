@@ -242,16 +242,20 @@ int service_command(const std::string& action, const std::vector<std::string>& a
 }
 
 int configuration_command(const std::vector<std::string>& args,
-                          const std::filesystem::path& default_root) {
+                          const std::filesystem::path& default_root,
+                          const std::filesystem::path& executable) {
   if (args.empty()) throw std::invalid_argument("config requires show or set");
   auto root = default_root;
   json changes = json::object();
   std::filesystem::path import_key;
-  bool rotate = false;
+  bool rotate = false, restart = false;
+  std::filesystem::path config_directory;
   for (std::size_t i = 1; i < args.size(); ++i) {
     const auto& option = args[i];
     if (option == "--root") root = next_value(args, i);
     else if (args[0] == "set" && option == "--rotate-api-key") rotate = true;
+    else if (args[0] == "set" && option == "--restart") restart = true;
+    else if (args[0] == "set" && option == "--config-dir") config_directory = next_value(args, i);
     else if (args[0] == "set" && option == "--api-key-file") import_key = next_value(args, i);
     else if (args[0] == "set" && option == "--host") changes["host"] = next_value(args, i);
     else if (args[0] == "set" && option == "--default-workload") changes["default_workload"] = next_value(args, i);
@@ -272,7 +276,10 @@ int configuration_command(const std::vector<std::string>& args,
     return 0;
   }
   if (args[0] != "set") throw std::invalid_argument("config requires show or set");
-  if (local_server_running(root)) throw std::runtime_error("stop Mica before changing server settings");
+  const bool running = local_server_running(root);
+  if (running && !restart) throw std::runtime_error("stop Mica before changing server settings, or use --restart");
+  if (restart && executable.empty()) throw std::runtime_error("restart needs the Mica executable path");
+  const auto active_workload = running ? local_server_status(root).value("profile", json::object()).value("name", "") : "";
   for (const auto* key : {"host", "port", "default_workload"})
     if (changes.contains(key)) server[key] = changes[key];
   server["schema"] = 1;
@@ -293,25 +300,38 @@ int configuration_command(const std::vector<std::string>& args,
   // Validate before persisting. Global limits may not exceed detected capacity.
   resolve_machine_policy(detect_hardware(), machine_policy_from_document(machine));
   if (rotate && !import_key.empty()) throw std::invalid_argument("choose import or rotation, not both");
+  std::string replacement_key;
   if (rotate || !import_key.empty()) {
-    std::string key = rotate ? generate_api_key() : "";
+    replacement_key = rotate ? generate_api_key() : "";
     if (!rotate) {
       std::ifstream stream(import_key);
       if (!stream) throw std::runtime_error("cannot read API-key file");
-      std::getline(stream, key);
-      if (!key.empty() && key.back() == '\r') key.pop_back();
-      if (key.size() < 16 || key.size() > 512 ||
-          std::any_of(key.begin(), key.end(), [](unsigned char c) { return c < 32 || c > 126; }))
+      std::getline(stream, replacement_key);
+      if (!replacement_key.empty() && replacement_key.back() == '\r') replacement_key.pop_back();
+      if (replacement_key.size() < 16 || replacement_key.size() > 512 ||
+          std::any_of(replacement_key.begin(), replacement_key.end(), [](unsigned char c) { return c < 32 || c > 126; }))
         throw std::invalid_argument("API key must contain 16..512 printable ASCII characters");
     }
-    const auto key_file = root / "secrets/api-key";
-    private_write(key_file, key + "\n");
     server.erase("api_key");
-    server["api_key_file"] = key_file.string();
+    server["api_key_file"] = (root / "secrets/api-key").string();
   }
+  // Validate all proposed values and the private key before interrupting service.
+  if (running) service_command("stop", {"--root", root.string()}, executable, root);
+  if (!replacement_key.empty()) private_write(root / "secrets/api-key", replacement_key + "\n");
   private_write(machine_path, profile_yaml(machine));
   private_write(server_path, server.dump(2) + "\n");
-  std::cout << "Settings saved. Start with --workload ID to reconcile the allocation and dependencies.\n";
+  if (running) {
+    std::vector<std::string> arguments{"--root", root.string()};
+    if (!active_workload.empty()) arguments.insert(arguments.end(), {"--workload", active_workload});
+    if (!config_directory.empty()) arguments.insert(arguments.end(), {"--config-dir", config_directory.string()});
+    try {
+      const auto result = service_command("start", arguments, executable, root);
+      if (result) throw std::runtime_error("setup exited with " + std::to_string(result));
+    } catch (const std::exception& error) {
+      throw std::runtime_error(std::string("Settings saved, but server restart failed: ") + error.what() + ". Correct settings and start Mica again.");
+    }
+    std::cout << "Settings saved and server restarted with its active workload.\n";
+  } else std::cout << "Settings saved. Start with --workload ID to reconcile the allocation and dependencies.\n";
   return 0;
 }
 }

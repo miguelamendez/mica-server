@@ -371,7 +371,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       section_heading("Editing and application");
       row("Selected", selected);
       row("Actions", "Enter edits the selected setting. API keys stay hidden; import a file or generate a replacement.");
-      row("Apply", "Stop first. Settings are saved for the next start; a workload is reconciled against the new limits.");
+      row("Apply", "When running, confirmation stops Mica, saves validated settings and restarts the active workload. Requests may be interrupted.");
       row("Network", "0.0.0.0 listens on all IPv4 interfaces. Use a trusted LAN and a firewall; HTTP is not encrypted.");
     } else if (selected.empty()) row("Entries", "No matches");
     else if (section == "workloads" || (section == "server" && server_picker)) {
@@ -411,7 +411,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
         section_heading("Model · Overview"); row("ID", selected);
         row("Description", model["description"]); row("Category", model["group"]);
         section_heading("Capabilities and intended tasks");
-        for (const auto* key : {"supported_tasks", "input_modalities", "output_modalities", "abilities", "tool_call_formats"})
+        for (const auto* key : {"supported_tasks", "input_modalities", "output_modalities", "abilities", "tool_call_formats", "tool_call_parsers"})
           if (model.contains(key)) row(key, model[key]);
         row("Task declarations", "Intended uses, not quality certification or endpoint permissions.");
         section_heading("Context and generation guidance");
@@ -542,6 +542,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
                       text(std::string(" 1–6 views · Tab focus · ↑↓ select · Enter explore · Esc back · u ") + (show_all ? "compatible only" : "show all hardware") + " · / filter · ? help · q quit") | color(muted)});
     if (confirm) return dbox({base, vbox({text(" Confirm action ") | bold, separator(),
                              paragraph(display_command(pending)), text(""),
+                             paragraph(std::find(pending.begin(), pending.end(), "--restart") != pending.end() ? " If Mica is running: stop → save → restart the same active workload. Brief downtime; failed restart leaves settings saved for correction." : ""),
                              text(" Enter confirms · Esc cancels ")}) | border | size(WIDTH, LESS_THAN, 85) | clear_under | center});
     if (!edit_option.empty()) return dbox({base, vbox({text(" Set " + edit_option) | bold, separator(), edit_input->Render(),
                                            text(" Enter reviews · Esc cancels ")}) | border | size(WIDTH, LESS_THAN, 70) | clear_under | center});
@@ -574,7 +575,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
           auto values = entries();
           queue({executable.string(), "workload", "create", edit_value, "--from", values.at(row_index),
                  "--output", (root / "config/profiles" / (edit_value + ".yaml")).string(), "--root", root.string(), "--config-dir", config.string()});
-        } else queue({executable.string(), "config", "set", edit_option, edit_value, "--root", root.string()});
+        } else queue({executable.string(), "config", "set", edit_option, edit_value, "--restart", "--config-dir", config.string(), "--root", root.string()});
         edit_option.clear(); return true;
       }
       return edit_input->OnEvent(event);
@@ -670,11 +671,10 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       section_index = 3; row_index = scroll = 0; search.clear(); list_focus = true;
       message = "Supported engines for " + selected + ". View only; engine pins are edited in the workload YAML.";
     } else if (section == "settings" && event == Event::Return && !selected.empty()) {
-      if (local_server_running(root)) { message = "Stop Mica first to change configuration safely."; return true; }
       const std::map<std::string, std::string> options{{"Bind address", "--host"}, {"Port", "--port"},
           {"Default workload", "--default-workload"}, {"RAM limit (GiB)", "--ram-gib"},
           {"Dedicated GPU limit (GiB)", "--vram-gib"}, {"Import API key file", "--api-key-file"}};
-      if (selected == "Rotate API key") command({"config", "set", "--rotate-api-key"});
+      if (selected == "Rotate API key") command({"config", "set", "--rotate-api-key", "--restart", "--config-dir", config.string()});
       else { edit_option = options.at(selected); edit_value.clear(); }
     } else if (event == Event::Return) list_focus = true;
     return true;

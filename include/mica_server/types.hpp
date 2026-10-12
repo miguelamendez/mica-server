@@ -195,6 +195,7 @@ struct ModelDefinition {
   std::vector<std::string> supported_tasks;
   std::vector<Interaction> supported_interactions;
   std::vector<std::string> tool_call_formats;
+  std::map<std::string, std::string> tool_call_parsers;
   int gguf_parallel_slots{1};
   std::vector<std::string> thinking_modes;
   bool thinking_budget_supported{false};

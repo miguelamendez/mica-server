@@ -1,6 +1,6 @@
 schema: 2
 id: qwen38-27b-vision-mtp
-supported_tasks: [chat, coding, ocr, visual_question_answering, structured_extraction]
+supported_tasks: [chat, coding, ocr, visual_question_answering, structured_extraction, tool_calling]
 description: Qwen3.8 27B GSQ-RCO IQ3_XXS bundle with its BF16 vision projector and an external Q4_0 MTP head. The target GGUF does not contain an embedded MTP head.
 source_repository: ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF
 license: apache-2.0
@@ -25,7 +25,9 @@ references:
     description: Publisher's large output guidance requires 1M extended context. Training lengths, separate native recommendations, and independent output ceilings remain unverified (2026-10-07).
 input_modalities: [text, image]
 output_modalities: [text]
-abilities: [text_generation, instruction_following, reasoning, image_understanding]
+abilities: [text_generation, instruction_following, reasoning, image_understanding, tool_calling]
+tool_call_formats: [openai]
+tool_call_parsers: {vllm: qwen3_coder}
 supported_interactions:
   - {operation: chat.generate, required_inputs: [text], outputs: [text]}
   - {operation: chat.generate, required_inputs: [text, image], outputs: [text]}

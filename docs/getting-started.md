@@ -3,6 +3,9 @@
 This guide covers release installation, source builds, engine setup, the
 `~/.mica` application home, and the local chat client.
 
+For an existing installation, see [Updating Mica](updating.md). A Git pull alone
+does not update the installed binary or running server.
+
 > **Work in progress:** Mica is under active deslopification and ongoing
 > hardware/model testing. Expect some profiles and engine integrations to
 > change before the first stable release.

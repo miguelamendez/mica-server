@@ -113,6 +113,10 @@ not a required part of the server.
 
 ## Small native control plane
 
+See [Updating Mica](docs/updating.md) to pull, rebuild, install the binary and
+matching manifests, then restart. It also covers engine refreshes and changing
+settings with automatic restart.
+
 C++20 and embedded Lua implement the CLI, TUI, hardware discovery and scheduling.
 A native GGUF-only workload does not need Python for serving. MLX and vLLM use
 Python only for their engines; optional browser tooling and offline development
