@@ -3,6 +3,7 @@
 These dependencies are developer tools, not native Mica runtime requirements.
 """
 import json
+import hashlib
 import re
 from pathlib import Path
 
@@ -77,6 +78,24 @@ def main():
                 validate_model_limits(document)
             count += 1
     validator = Draft202012Validator(schemas["workload-v5.schema.json"], registry=registry)
+    app_validator = Draft202012Validator(schemas["app-v1.schema.json"], registry=registry)
+    index = yaml.load((root / "apps/apps.yaml").read_text(), Loader=Yaml12Loader)
+    Draft202012Validator(schemas["app-index-v1.schema.json"], registry=registry).validate(index)
+    count += 1
+    for item in index["apps"]:
+        path = root / "apps" / item["manifest"]
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == item["sha256"], f"Index checksum mismatch: {path}"
+        document = yaml.load(path.read_text(), Loader=Yaml12Loader)
+        app_validator.validate(document)
+        assert document["id"] == item["id"]
+        count += 1
+        for file in document["distribution"]["files"]:
+            payload = path.parent / file["path"]
+            assert payload.stat().st_size == file["size_bytes"]
+            assert hashlib.sha256(payload.read_bytes()).hexdigest() == file["sha256"], f"Package checksum mismatch: {payload}"
+        for workload in document["workloads"]:
+            validator.validate(yaml.load((path.parent / workload["file"]).read_text(), Loader=Yaml12Loader))
+            count += 1
     proposals = 0
     for document in yaml.load((root / "profiles/catalog.yaml").read_text(), Loader=Yaml12Loader)["profiles"]:
         if document.get("available") is False and "models" not in document:

@@ -131,7 +131,7 @@ class LifecycleTests(unittest.TestCase):
                 self.assertEqual(workloads()["active_workload"], "swap-b")
                 snap = run("tui", "--snapshot", "--config-dir", str(CONFIG)).stdout
                 document = json.loads(snap)
-                self.assertEqual(len(document["sections"]), 6)
+                self.assertEqual(len(document["sections"]), 7)
                 self.assertNotIn("machine", [section["id"] for section in document["sections"]])
                 self.assertIn("Machine", document["server_subsections"])
                 self.assertIn("models", document["disk_usage_bytes"])

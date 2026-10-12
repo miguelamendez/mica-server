@@ -859,7 +859,7 @@ void load_model_manifests(Registry& registry,
     model->tool_call_parsers = document.value("tool_call_parsers", std::map<std::string, std::string>{});
     for (const auto& [engine_id, parser] : model->tool_call_parsers) {
       if (!registry.engines.contains(engine_id) || registry.engine(engine_id).launcher != "vllm" ||
-          parser.empty() || parser.size() > 64 || !std::all_of(parser.begin(), parser.end(), [](unsigned char c) {
+          parser.empty() || parser.front() == '-' || parser.size() > 64 || !std::all_of(parser.begin(), parser.end(), [](unsigned char c) {
             return std::isalnum(c) || c == '-' || c == '_';
           }))
         throw std::invalid_argument("invalid or unsupported model tool-call parser: " + id + "/" + engine_id);

@@ -77,9 +77,11 @@ FetchContent_Declare(ftxui
 FetchContent_MakeAvailable(ftxui)
 
 add_library(mica_server_core
+  src/apps.cpp
   src/catalog.cpp
   src/download.cpp
   src/command.cpp
+  src/build_guard.cpp
   src/config.cpp
   src/hardware.cpp
   src/inventory.cpp
@@ -117,7 +119,7 @@ endif()
 
 target_compile_options(mica_server_core PRIVATE -Wall -Wextra -Wpedantic)
 
-add_executable(mica-server src/main.cpp src/server.cpp src/service.cpp src/tui.cpp)
+add_executable(mica-server src/main.cpp src/server.cpp src/service.cpp src/tui.cpp src/update.cpp)
 target_include_directories(mica-server PRIVATE ${MICA_LUA_INCLUDE_DIR})
 target_link_libraries(mica-server PRIVATE mica_server_core ftxui::component ftxui::dom ftxui::screen)
 execute_process(COMMAND git describe --always --dirty --abbrev=12
@@ -135,9 +137,15 @@ include(GNUInstallDirs)
 if(MICA_SERVER_BUILD_TESTS)
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
   enable_testing()
+  add_test(NAME mica-server-app-packages
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_apps.py
+            $<TARGET_FILE:mica-server> ${CMAKE_CURRENT_SOURCE_DIR}/config)
   add_executable(mica-server-tests tests/test_scheduler.cpp)
   target_link_libraries(mica-server-tests PRIVATE mica_server_core)
   add_test(NAME mica-server-tests COMMAND mica-server-tests)
+  add_executable(mica-server-update-tests tests/test_update.cpp src/update.cpp src/service.cpp)
+  target_link_libraries(mica-server-update-tests PRIVATE mica_server_core)
+  add_test(NAME mica-server-update COMMAND mica-server-update-tests)
   add_executable(mica-server-inventory-tests tests/test_inventory.cpp)
   target_link_libraries(mica-server-inventory-tests PRIVATE mica_server_core)
   add_test(NAME mica-server-inventory COMMAND mica-server-inventory-tests)
@@ -937,5 +945,9 @@ install(FILES schemas/profile-v3.schema.json
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/schemas)
 install(FILES apps/mica_playground.py apps/mica-logo.svg apps/mica-readme-header.svg apps/mica-capabilities.js apps/mica-chat-settings.js
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps)
+install(FILES apps/apps.yaml DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps)
+install(DIRECTORY apps/assistant apps/dictation DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps)
+install(FILES schemas/app-v1.schema.json schemas/app-index-v1.schema.json
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/schemas)
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/docs
         FILES_MATCHING PATTERN "*.md")

@@ -1,0 +1,59 @@
+schema: 5
+id: mac_assistant
+description: Apple Silicon multimodal assistant with Spark for text and tool calls, MiniCPM for images/video and rendered document pages, Granite ASR and Audio8 Q8 speech. Uses MLX speech/text/vision engines. Warm models may be evicted when a specialist needs memory.
+catalog_visible: true
+selection:
+  engine_policy: explicit-only
+  defaults:
+    - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
+    - {operation: chat.generate, required_inputs: [text, image], model: minicpm-v46-thinking}
+    - {operation: chat.generate, required_inputs: [text, video], model: minicpm-v46-thinking}
+    - {operation: audio.transcribe, required_inputs: [audio], model: granite-speech-5}
+    - {operation: audio.synthesize_speech, required_inputs: [text], model: audio8-tts-06b}
+mode: assistant
+memory: {required_ram_gib: 14, required_vram_gib: 0, maximum_resident_workers: 0, safety_reserve_gib: 0.5}
+models:
+  - id: spark-x25-4b
+    engine: mlx-lm
+    artifact: {id: q4}
+    context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: q8}
+    placement: {device: 'metal:0', mode: fixed}
+    priority: 100
+    residency: warm
+    startup: true
+    idle_seconds: 120
+  - id: granite-speech-5
+    engine: mlx-audio
+    artifact: {id: q8}
+    context: {max_input_tokens: 1, max_output_tokens: 1, max_total_tokens: 2}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: not-applicable}
+    placement: {device: 'metal:0', mode: fixed}
+    priority: 90
+    residency: warm
+    startup: true
+    idle_seconds: 120
+  - id: audio8-tts-06b
+    engine: mlx-audio
+    artifact: {id: q8}
+    context: {max_input_tokens: 1024, max_output_tokens: 1024, max_total_tokens: 2048}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: runtime-managed}
+    placement: {device: 'metal:0', mode: fixed}
+    priority: 70
+    residency: warm
+    startup: true
+    idle_seconds: 120
+  - id: minicpm-v46-thinking
+    engine: mlx-vlm
+    artifact: {id: q8}
+    context: {max_input_tokens: 65536, max_output_tokens: 16384, max_total_tokens: 81920}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: q8}
+    placement: {device: 'metal:0', mode: fixed}
+    priority: 60
+    residency: on-demand
+    startup: false
+    idle_seconds: 120

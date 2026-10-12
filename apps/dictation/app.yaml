@@ -1,0 +1,50 @@
+schema: 1
+id: mica-dictation
+name: Dictation
+description: Browser dictation with ASR, optional LLM cleanup, and explicit copy;
+  no global desktop hooks.
+version: 0.1.0
+source:
+  repository: https://github.com/miguelamendez/mica-server
+  path: apps/dictation
+distribution:
+  format: files
+  files:
+  - path: README.md
+    sha256: f071286b2ee3fc86d078860403e194f419f50024154e502f08e8e7efdf72c090
+    size_bytes: 967
+  - path: app.py
+    sha256: 1980880fdb49e5ce61586fc60c50f976a379920ee479ff73b1118af2269bde8b
+    size_bytes: 3919
+  - path: index.html
+    sha256: 748b9d6965a08157968cae0beaa23d8d4225a113056a8a4e48f1a2a024804272
+    size_bytes: 7016
+  - path: workloads/cuda.yaml
+    sha256: d0a928a48e61353cee3348c31a1211f80619c82b40cbe6ae384e1e2653028592
+    size_bytes: 1258
+  - path: workloads/mac.yaml
+    sha256: 3c3f0ed1a8a38c25c14217d571a6ab10e8d66ac611e9a1abe95b1754268c5ae3
+    size_bytes: 1242
+requirements:
+  operations:
+  - audio.transcribe
+permissions:
+- microphone
+- clipboard
+launch:
+  executable: python3
+  arguments:
+  - '{app_dir}/app.py'
+  - --config
+  - '{mica_config}'
+  - --port
+  - '{port}'
+  port: 8091
+  path: /
+workloads:
+- id: mac
+  file: workloads/mac.yaml
+  description: Apple Silicon default using compatible MLX engines.
+- id: cuda
+  file: workloads/cuda.yaml
+  description: NVIDIA GPU default with native GGUF engines; audio utilities use CPU.

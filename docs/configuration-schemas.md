@@ -15,6 +15,8 @@ can resolve outside the local repository too.
 | Model | `config/model-manifests/ID.yaml` | [model v2](../schemas/model-v2.schema.json) | Description, modalities, abilities, supported tasks/interactions, context guidance, engine-compatible artifacts, components, provenance and memory metadata |
 | Workload | `config/workloads/ID.yaml` or a user file | [workload v5](../schemas/workload-v5.schema.json) | Description, model collection, optional pins/defaults, context, batching, KV cache, placement, priority, residency and optional workload ceiling |
 | Server/client settings | `~/.mica/config/server.json` | [server config v1](../schemas/server-config-v1.schema.json) | Bind address, port, default workload, API-key file; optional browser-client settings |
+| App package | `apps/APP/app.yaml` | [app v1](../schemas/app-v1.schema.json) | Publisher, version, verified files, requirements, permissions, launch arguments and default workload files |
+| App catalogue | `apps/apps.yaml` | [app index v1](../schemas/app-index-v1.schema.json) | App IDs, descriptions, relative manifest paths and manifest SHA-256 |
 
 The workload catalog is an index of workload documents. Modality/ability/operation
 and task values share the [vocabulary schema](../schemas/vocabulary-v1.schema.json).

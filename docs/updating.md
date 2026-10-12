@@ -1,10 +1,82 @@
-# Update Mica from source
+# Updating Mica
 
 Update the binary **and its packaged configuration files together**. A Git pull
 alone does not update the binary on PATH or a running server's registry. These
 commands preserve user-owned settings, API keys, models and engines in `~/.mica`.
 
-## Linux checkout at `~/repos/mica`
+## One-command updates
+
+```sh
+mica-server update --check
+mica-server update --restart
+mica-server update --channel source --restart
+```
+
+The default `release` channel selects the latest published release, including
+alpha releases, and prefers its matching macOS/Linux ARM64/x86-64 archive and
+SHA-256 file. If that release has no compatible binary, Mica compiles its pinned
+source revision. If no release exists, it falls back to the current `main`
+revision. The `source` channel always selects a pinned `main` commit instead.
+A release older than your installed source build is not installed automatically.
+
+The updater stages and validates the candidate binary **and matching manifests**
+before stopping a running server. It validates archive paths and rejects links
+and special files. A bad checksum aborts; it does not silently switch to source.
+A binary that cannot run on the host ABI can fall back to the same source
+revision. Source compilation needs CMake, a C++20 toolchain, Git and Lua
+development files. No Python updater/runtime environment is created.
+
+`--restart` preserves the active workload. Without it, stop a running Mica first.
+When Mica is already stopped, updating does not start it. Previous installation
+files are retained as `.mica-server.previous-TRANSACTION` beside `bin/mica-server`
+and `share/mica-server`; staging lives under `~/.mica/updates/`. User settings,
+credentials, model caches, engines and user-owned workloads are not replaced.
+Restart failures are reported, not described as success. Close/reopen an existing
+TUI after installation so it uses the new binary.
+
+`--prefix PATH` selects a user-writable installation prefix; no automatic sudo
+or account changes are performed. `--force` explicitly permits reinstalling a
+selected revision/replacing a dirty installed build. It is not needed normally.
+The updater uses a separate source checkout under `~/.mica/updates/`; it never
+resets or modifies your development checkout.
+
+In the TUI, **Server → Updates** or **Settings → Check for updates** checks the
+repository. Settings has separate release/source install actions with confirmation.
+Checks are explicit, not hidden startup network traffic. The cached check is
+shown with its timestamp/current revision; source builds also show their memory
+admission result.
+
+## Build memory safety
+
+Both self-update source builds and native inference-engine compilation use the
+same C++ guard. It uses live memory, not just the machine's physical capacity:
+
+```text
+system reserve = max(2 GiB, 20% of usable total RAM)
+build cap = min(machine build limit, 16 GiB, 50% of total RAM,
+                available memory - system reserve - 0.5 GiB margin)
+```
+
+Builds are refused below a 2 GiB cap or at macOS warning/critical pressure.
+Parallel jobs are bounded by machine policy, half the CPU cores, two jobs, and
+a 2 GiB/job allowance. The guard rechecks current system headroom and compiler
+process-group RSS every 250 ms and terminates the compiler group if either
+budget or pressure threshold is exceeded. Ctrl-C/termination is forwarded to
+the compiler group. This is a sampling safeguard, not an OS-enforced hard cap.
+
+Linux uses `MemAvailable`, narrowed by detected cgroup-v2 limits. macOS uses a
+conservative free/reclaimable-page estimate and the unified-memory pressure
+indicator, so GPU allocations are not counted as a second independent pool.
+"Used or unavailable" is total minus that availability estimate, not the sum
+of app RSS. Low headroom should be resolved by freeing other applications/models
+and retrying, not by bypassing the guard.
+
+## Bootstrap older versions / developer source builds
+
+Older binaries without `update` need this one-time upgrade before they can use
+the commands above. The following example uses the existing Linux checkout at
+`~/repos/mica`. Regression tests are a developer check, not part of normal
+release installation.
 
 Commit or preserve local changes first; do not reset the worktree.
 

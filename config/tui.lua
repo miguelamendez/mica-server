@@ -8,5 +8,6 @@ return {
     {id = "engines", title = "Engines", hint = "Runtime manifests, hardware support, installed revision and endpoints"},
     {id = "endpoints", title = "Endpoints", hint = "Public routes; model-dependent operations require a compatible workload"},
     {id = "settings", title = "Settings", hint = "Bind address, port, default workload, RAM/VRAM and API-key rotation"},
+    {id = "apps", title = "Apps", hint = "Demo apps and repository sources; verify/install, prepare workloads, then explicitly launch"},
   },
 }

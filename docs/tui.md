@@ -14,7 +14,7 @@ Below 120 columns, navigation moves above the list/details panes.
 
 | Control | Action |
 | --- | --- |
-| `1`–`6` | Server, Workloads, Models, Engines, Endpoints, Settings |
+| `1`–`7` | Server, Workloads, Models, Engines, Endpoints, Settings, Apps |
 | `Tab`, arrows | Change navigation/list focus and select entries |
 | `Enter` | Explore a relationship or the selected action |
 | `Esc` | Return to the previous workload/model/engine view or close a dialog |
@@ -29,6 +29,20 @@ collection and its supported runtimes. Browsing an engine is read-only: it does
 not change a workload pin. Use the workload YAML editor to change engine,
 artifact, context or residency selections. A model's supported engines can
 include hardware-incompatible alternatives; press `u` to inspect those.
+
+## Apps
+
+Apps lists the bundled **Mica demo apps** source and explicitly registered
+repository sources. Select a demo, inspect with Enter, install with `i`, prepare
+a bundled workload with `w`, then start/select that workload in Server. `s`
+launches trusted app code, `x` stops the app only, and `d` uninstalls it. Sources
+can be added with a GitHub/Hugging Face repository or direct HTTPS manifest/index
+URL. **Sources → d** removes a custom catalogue without deleting installed apps.
+
+Every install verifies file sizes and SHA-256. Confirmation is not a sandbox:
+code runs as your user. Apps never silently swap workloads. See
+[Apps](apps.md) for package contracts, dependency requirements, permissions,
+offline discovery and recoverable uninstall behavior.
 
 ## Server and Machine
 
@@ -48,6 +62,15 @@ inventory too.
 **Machine** is a Server subsection. It shows detected OS, CPU, accelerators,
 physical/unified memory, runtime targets and user allocation policy. Settings
 edits allocations; it never changes detected hardware facts.
+
+**Updates** is another Server subsection: Enter checks the latest published
+release. Settings provides **Check for updates**, **Update latest release** and
+**Update latest source**. Install actions require confirmation and restart a
+running server with its active workload after staging/validation. Checks are
+explicit; their cached result/timestamp is displayed in Server and Settings.
+Reopen the TUI after installation. See [update channels and build safety](updating.md).
+Machine and Server show live available-memory estimates and pressure separately
+from static hardware facts and model reservations.
 
 ## Curated workloads and inventory
 
@@ -123,8 +146,13 @@ private key-file import and rotation. While running, confirmation validates the
 values, stops Mica, saves them and restarts the same active workload. Invalid
 values leave it running. A failed restart is reported; settings remain saved
 for correction. While stopped, settings are saved without starting the server.
-Changes cause brief downtime and may interrupt requests. Key contents are never
-displayed; clients must update credentials after rotation. Use a trusted
+Changes cause brief downtime and may interrupt requests. **Rotate API key** also
+creates the first key if absent. A newly changed key is shown once in a temporary
+dialog: `c` copies using `pbcopy`, `wl-copy` or `xclip` when available; Esc hides
+it, and it auto-hides after 60 seconds. Without a desktop clipboard utility,
+use terminal selection. Clipboard contents can persist afterward. Existing keys
+stay redacted in settings, snapshots and command output; clients must update
+credentials after rotation. Use a trusted
 LAN/firewall for `0.0.0.0`; Mica's HTTP service does not provide TLS. The CLI
 equivalent is `mica-server config set --port 8092 --restart`; see [Updating Mica](updating.md).
 

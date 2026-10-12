@@ -62,6 +62,9 @@ class NavigationTests(unittest.TestCase):
                 key(b"\x1b", "Stored data")
                 key(b"\x1b[B", "Detected machine")
                 key(b"5", "example")
+                key(b"7", "Apps")
+                key(b"\x1b[B", "Sources")
+                key(b"\x1b[B", "Local Assistant")
                 os.write(master, b"q")
                 # Drain terminal restoration bytes while waiting (PTY buffers
                 # can otherwise block the UI's final write).

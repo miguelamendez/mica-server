@@ -24,6 +24,8 @@
 #include "mica_server/setup.hpp"
 #include "mica_server/service.hpp"
 #include "mica_server/tui.hpp"
+#include "mica_server/update.hpp"
+#include "mica_server/apps.hpp"
 
 namespace {
 
@@ -35,6 +37,12 @@ void usage() {
   std::cout << R"(mica-server
 
 Usage:
+  mica-server app list|show|install|start|stop|uninstall ID [--accept-code]
+  mica-server app source-add ID REPO_OR_MANIFEST_URL
+  mica-server app source-remove ID
+  mica-server app setup ID BUNDLED_WORKLOAD_ID [--root PATH] [--config-dir PATH]
+  mica-server update [--check] [--channel release|source] [--restart] [--force]
+                     [--prefix PATH] [--root PATH]
   mica-server tui [--root PATH] [--config-dir PATH]
   mica-server start [--workload ID] [--host HOST] [--port PORT]
   mica-server stop|status [--root PATH]
@@ -368,6 +376,11 @@ int main(int argc, char** argv) {
         args[1] = "profile";
       }
     }
+    if (args.size() >= 2 && args[1] == "app")
+      return mica::app_command({args.begin() + 2, args.end()}, default_root(), default_config(), locate_executable(args[0]));
+    if (args.size() >= 2 && args[1] == "update")
+      return mica::update_command({args.begin() + 2, args.end()}, locate_executable(args[0]), default_root(),
+                                  MICA_SERVER_VERSION, MICA_SERVER_REVISION);
     if (args.size() >= 2 && (args[1] == "start" || args[1] == "stop" || args[1] == "status"))
       return mica::service_command(args[1], {args.begin() + 2, args.end()},
                                     locate_executable(args[0]), default_root());

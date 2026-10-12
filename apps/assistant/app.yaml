@@ -1,0 +1,62 @@
+schema: 1
+id: mica-assistant
+name: Local Assistant
+description: Browser chat with streamed text, media, optional voice, and conversation
+  archives.
+version: 0.1.0
+source:
+  repository: https://github.com/miguelamendez/mica-server
+  path: apps/assistant
+distribution:
+  format: files
+  files:
+  - path: README.md
+    sha256: 55ea7d9b3de994c2aa368c87b9fb0567eec099f8ddbed7a09f10b52e56ed4272
+    size_bytes: 626
+  - path: app.py
+    sha256: dc722445ad34e1abe41fab38b0b9d64d34ae8d79049934fdae5b440ea7cd5b36
+    size_bytes: 158
+  - path: runtime/mica-capabilities.js
+    sha256: c20c42541bb5a7702e044d6a212ea58253a13c7f4da124515baabfd7469ab672
+    size_bytes: 1889
+  - path: runtime/mica-chat-settings.js
+    sha256: 7f1c1e365da25fc1d09ab7608ab795c6b816adb518b134cd429cc4c3dc274dc0
+    size_bytes: 4172
+  - path: runtime/mica-logo.svg
+    sha256: 892548b91ddbb38d19b53826f4c579a52cd7d5a887fb698a3d279c7d4cdfb44e
+    size_bytes: 522
+  - path: runtime/mica_playground.py
+    sha256: 76443fcdac17f68a0188ad9f151d7d6c7bcb93c521323525e077e3408078c12c
+    size_bytes: 92536
+  - path: workloads/cuda.yaml
+    sha256: f271454acc2d5f6e1eb02b801e15571573a7e594eea7f1144323a5df9df92474
+    size_bytes: 2462
+  - path: workloads/mac.yaml
+    sha256: 2fd2d0df052eed05abc41eb0b2fb5bfe7c952d69fbb8d5d8b21053aa3ea9bbff
+    size_bytes: 2390
+requirements:
+  operations:
+  - chat.generate
+permissions:
+- microphone
+- clipboard
+- files
+launch:
+  executable: python3
+  arguments:
+  - '{app_dir}/app.py'
+  - --config
+  - '{mica_config}'
+  - --port
+  - '{port}'
+  - --host
+  - 127.0.0.1
+  port: 8090
+  path: /chat
+workloads:
+- id: mac
+  file: workloads/mac.yaml
+  description: Apple Silicon default using compatible MLX engines.
+- id: cuda
+  file: workloads/cuda.yaml
+  description: NVIDIA GPU default with native GGUF engines; audio utilities use CPU.

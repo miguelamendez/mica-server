@@ -1,0 +1,14 @@
+schema: 1
+apps:
+- id: mica-assistant
+  name: Local Assistant
+  description: Browser chat with streamed text, media, optional voice, and conversation
+    archives.
+  manifest: assistant/app.yaml
+  sha256: a300cd850b37bdc98ff22d404f99b6139076552869e93e2956f018676e1e7ea2
+- id: mica-dictation
+  name: Dictation
+  description: Browser dictation with ASR, optional LLM cleanup, and explicit copy;
+    no global desktop hooks.
+  manifest: dictation/app.yaml
+  sha256: 244f5c48f3b19f323de5b8aeabd4d0f3f224fe5d37e8329f8a12a1199d981833

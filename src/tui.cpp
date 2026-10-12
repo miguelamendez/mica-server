@@ -10,6 +10,9 @@
 #include "mica_server/machine.hpp"
 #include "mica_server/memory.hpp"
 #include "mica_server/scheduler.hpp"
+#include "mica_server/update.hpp"
+#include "mica_server/build_guard.hpp"
+#include "mica_server/apps.hpp"
 #include <nlohmann/json.hpp>
 #include <ftxui/component/app.hpp>
 #include <ftxui/component/component.hpp>
@@ -24,6 +27,8 @@ extern "C" {
 #include <atomic>
 #include <chrono>
 #include <cctype>
+#include <cstdio>
+#include <signal.h>
 #include <fstream>
 #include <functional>
 #include <iostream>
@@ -50,9 +55,9 @@ std::vector<Section> sections_from_lua(const std::filesystem::path& path) {
   lua_getfield(lua, -1, "sections");
   if (!lua_istable(lua, -1)) throw std::runtime_error("TUI sections missing");
   std::vector<Section> sections;
-  const std::vector<std::string> allowed{"server", "workloads", "models", "engines", "endpoints", "settings"};
+  const std::vector<std::string> allowed{"server", "workloads", "models", "engines", "endpoints", "settings", "apps"};
   const auto count = lua_rawlen(lua, -1);
-  if (count != allowed.size()) throw std::runtime_error("TUI requires six sections");
+  if (count != allowed.size()) throw std::runtime_error("TUI requires seven sections");
   for (std::size_t i = 1; i <= count; ++i) {
     lua_rawgeti(lua, -1, i);
     const auto field = [&](const char* key) {
@@ -85,7 +90,7 @@ std::string compact(const json& value) {
 
 struct ViewData {
   Registry registry;
-  json hardware, machine, server, settings, models, runtime, engines, workloads, disk;
+  json hardware, machine, server, settings, models, runtime, engines, workloads, disk, update, live_memory, apps;
 };
 std::string model_group(const std::string& capability) {
   if (capability == "text") return "LLM";
@@ -197,6 +202,13 @@ ViewData refresh_data(const std::filesystem::path& root, const std::filesystem::
     data.workloads[id] = std::move(availability);
   }
   data.disk = disk_usage(root);
+  data.apps = app_inventory(root, config);
+  data.update = read_optional(root / "state/update-check.json");
+  try {
+    const auto memory = live_memory_snapshot();
+    data.live_memory = {{"total_gib", memory.total_gib}, {"available_estimate_gib", memory.available_gib},
+                       {"used_or_unavailable_gib", memory.total_gib - memory.available_gib}, {"pressure_warning", memory.pressure_warning}};
+  } catch (const std::exception& error) { data.live_memory = {{"error", error.what()}}; }
   data.runtime = read_optional(root / "state/runtime.json");
   // Runtime is internal; retain only fields used in engine/workload status cards.
   json safe = json::object();
@@ -224,9 +236,9 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     for (const auto& [id, engine] : data.registry.engines)
       engines.push_back({{"id", id}, {"description", engine.description}, {"availability", data.engines[id]}, {"hardware", engine.hardware}});
     std::cout << json{{"sections", navigation}, {"server", data.server}, {"machine", data.hardware},
-                     {"settings", data.settings}, {"disk_usage_bytes", data.disk}, {"workloads", workloads},
-                     {"server_subsections", {"Overview", "Choose workload", "Machine"}},
-                     {"models", data.models}, {"engines", engines}, {"endpoints", server_endpoints()}}.dump(2) << '\n';
+                     {"settings", data.settings}, {"updates", data.update}, {"live_memory", data.live_memory}, {"disk_usage_bytes", data.disk}, {"workloads", workloads},
+                     {"server_subsections", {"Overview", "Choose workload", "Machine", "Updates"}},
+                     {"models", data.models}, {"engines", engines}, {"apps", data.apps}, {"endpoints", server_endpoints()}}.dump(2) << '\n';
     return 0;
   }
   if (!isatty(STDIN_FILENO) || !isatty(STDOUT_FILENO))
@@ -244,6 +256,10 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
   struct Location { int section, row, group; bool picker; std::vector<std::string> scope; };
   std::vector<Location> history;
   std::string edit_option, edit_value;
+  json inspected_app;
+  std::string revealed_key;
+  auto key_deadline = std::chrono::steady_clock::time_point{};
+  const auto hide_key = [&] { std::fill(revealed_key.begin(), revealed_key.end(), '\0'); revealed_key.clear(); };
   std::vector<std::string> pending;
   std::thread worker;
   auto search_input = Input(&search, "Filter entries...");
@@ -252,7 +268,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
   const auto entries = [&]() {
     std::vector<std::string> values;
     const auto& section = sections[section_index].id;
-    if (section == "server" && !server_picker) values = {"Overview", "Choose workload", "Machine"};
+    if (section == "server" && !server_picker) values = {"Overview", "Choose workload", "Machine", "Updates"};
     else if (section == "workloads" || (section == "server" && server_picker)) {
       for (const auto& [id, profile] : data.registry.profiles)
         if (data.workloads.contains(id) && data.workloads[id]["visible"].get<bool>() &&
@@ -274,8 +290,11 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     } else if (section == "endpoints") {
       for (const auto& endpoint : endpoint_catalog["endpoints"])
         values.push_back(endpoint.at("method").get<std::string>() + " " + endpoint.at("path").get<std::string>());
+    } else if (section == "apps") {
+      values = {"Add source", "Sources"};
+      for (const auto& app : data.apps["apps"]) values.push_back(app.at("id"));
     } else if (section == "settings") {
-      values = {"Bind address", "Port", "Default workload", "RAM limit (GiB)",
+      values = {"Check for updates", "Update latest release", "Update latest source", "Bind address", "Port", "Default workload", "RAM limit (GiB)",
                 "Dedicated GPU limit (GiB)", "Import API key file", "Rotate API key"};
     }
     values.erase(std::remove_if(values.begin(), values.end(), [&](const auto& value) {
@@ -285,6 +304,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
         searchable += " " + model.description;
         for (const auto& task : model.supported_tasks) searchable += " " + task;
       } else if (section == "engines") searchable += " " + data.registry.engine(value).description;
+      else if (section == "apps") { for (const auto& app : data.apps["apps"]) if (app["id"] == value) searchable += " " + compact(app["description"]); }
       else if (section == "workloads" || (section == "server" && server_picker)) searchable += " " + data.registry.profile(value).description;
       std::string query = search;
       const auto lower = [](unsigned char c) { return static_cast<char>(std::tolower(c)); };
@@ -304,12 +324,31 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     message = "Running " + display_command(command) + " — wait for completion";
     worker = std::thread([&, command] {
       CommandResult result;
+      const bool rotates_key = std::find(command.begin(), command.end(), "--rotate-api-key") != command.end();
+      std::string previous_key;
+      if (rotates_key) { std::ifstream key(root / "secrets/api-key"); std::getline(key, previous_key); }
       try { result = run_command(command, true); }
       catch (const std::exception& e) { result = {1, e.what()}; }
-      screen.Post([&, result = std::move(result)] {
+      std::string replacement_key;
+      if (rotates_key) {
+        std::ifstream key(root / "secrets/api-key"); std::getline(key, replacement_key);
+        if (replacement_key == previous_key || replacement_key.size() < 16 || replacement_key.size() > 512) replacement_key.clear();
+        std::fill(previous_key.begin(), previous_key.end(), '\0');
+      }
+      screen.Post([&, command, replacement_key = std::move(replacement_key), result = std::move(result)]() mutable {
         busy = false;
         message = result.exit_code == 0 ? "Completed. Inventory refreshed." : "Failed. " + result.output.substr(0, 450);
         try { data = refresh_data(root, config); } catch (const std::exception& e) { message = e.what(); }
+        if (result.exit_code == 0 && command.size() > 2 && command[1] == "app" && command[2] == "show") {
+          try { inspected_app = json::parse(result.output); message = "Manifest inspected. Review permissions and requirements before installation/launch."; } catch (...) {}
+        }
+        if (!replacement_key.empty()) {
+          revealed_key = std::move(replacement_key);
+          key_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+        }
+        if (result.exit_code == 0 && command.size() > 1 && command[1] == "update" &&
+            std::find(command.begin(), command.end(), "--check") == command.end())
+          message = "Update completed. Close and reopen the TUI to run its new version.";
       });
       screen.PostEvent(Event::Custom);
     });
@@ -341,8 +380,50 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       }
     };
     const auto object = [&](const json& value) { tree(value, ""); };
+    const auto update_info = [&] {
+      section_heading("Mica updates");
+      if (data.update.empty()) row("Status", "Not checked. Settings → Check for updates.");
+      else {
+        row("Available (last check)", data.update.value("available", false));
+        row("Channel / method", data.update.value("channel", "") + " / " + data.update.value("method", ""));
+        row("Target", data.update.value("tag", data.update.value("target_revision", "")));
+        row("Reason", data.update.value("reason", ""));
+        row("Checked at (Unix time)", data.update.value("checked_at_unix", std::int64_t{0}));
+        if (data.update.value("current_revision", "") != MICA_SERVER_REVISION)
+          row("Freshness", "Check again for this installed build; cached result belongs to another revision.");
+      }
+    };
     const auto& section = sections[section_index].id;
-    if (section == "server" && !server_picker && selected != "Machine") {
+    if (section == "apps") {
+      section_heading("Apps · Catalogue");
+      if (selected == "Add source") {
+        row("Discover", "Enter a GitHub/Hugging Face repository or direct HTTPS manifest/index URL. Discovery never runs code.");
+        row("Packaging", "Single app.yaml or an apps.yaml index. SHA-256 is mandatory for every package file.");
+      } else if (selected == "Sources") {
+        for (const auto& source : data.apps["sources"]) { section_heading(compact(source["id"])); object(source); }
+        row("Remove", "d removes a custom source; installed apps and data remain available.");
+      } else for (const auto& app : data.apps["apps"]) if (app["id"] == selected) {
+        row("Name", app["name"]); row("Description", app["description"]); row("Source", app["source_id"]);
+        row("Installed", app["installed"]); row("Running", app["running"]);
+        if (app.contains("url")) row("Open in browser", app["url"]);
+        if (app.contains("workloads")) { section_heading("Bundled workloads"); row("Registered IDs", app["workloads"]); }
+        json manifest;
+        if (app["installed"].get<bool>()) {
+          auto id = selected.substr(selected.find(':') == std::string::npos ? 0 : selected.find(':') + 1);
+          manifest = read_profile_file(root / "apps" / id / "app.yaml");
+        } else if (app.contains("bundled_path")) manifest = read_profile_file(app["bundled_path"].get<std::string>());
+        else if (inspected_app.value("catalogue_id", "") == selected) manifest = inspected_app;
+        if (!manifest.empty()) {
+          section_heading("Requirements and permissions"); row("Operations", manifest["requirements"]["operations"]); row("Permissions", manifest["permissions"]);
+          section_heading("Source and launch"); object(manifest["source"]); object(manifest["launch"]);
+          row("Package integrity", "Manifest and downloaded files verified before registration. Downloaded code is not sandboxed.");
+        } else row("Inspect first", "Enter fetches the manifest to review before installing.");
+        section_heading("Controls"); row("Actions", "Enter inspect · i install · w prepare workload · s launch · x stop · d uninstall");
+        row("Safety", "Launch never swaps workloads automatically. OS/browser controls permissions.");
+      }
+    } else if (section == "server" && !server_picker && selected == "Updates") {
+      update_info(); row("Actions", "Enter checks the latest release. Use Settings to select release/source installation.");
+    } else if (section == "server" && !server_picker && selected != "Machine") {
       section_heading("Server · Overview");
       row("Status", data.server.value("status", "stopped"));
       row("Default workload", data.settings.value("default_workload", "not configured"));
@@ -352,6 +433,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
         section_heading("Memory allocation (planning reservations)");
         row("RAM reserved / allocated (GiB)", compact(data.server["reserved_ram_gib"]) + " / " + compact(data.server["max_ram_gib"]));
         row("VRAM reserved / allocated (GiB)", compact(data.server["reserved_vram_gib"]) + " / " + compact(data.server["max_vram_gib"]));
+        row("Live system memory", data.live_memory);
         section_heading("Loaded models");
         for (const auto& w : data.server["workers"]) lines.push_back(text(" " + w.at("id").get<std::string>()));
         if (data.server["workers"].empty()) row("Workers", "none resident");
@@ -360,12 +442,15 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       section_heading("Stored data (logical file size; not RAM)");
       for (const auto& item : data.disk.items()) row(item.key(), gib_text(item.value().get<std::uintmax_t>()));
       section_heading("Actions"); row("Controls", "Choose workload + Enter to start or swap · s choose/start · x stop · r refresh");
+      update_info();
       row("Memory accounting", "Reservations are planning estimates, not measurements or a universal hard RSS/VRAM cap.");
     } else if (section == "server" && !server_picker && selected == "Machine") {
+      section_heading("Live memory (transient observations)"); object(data.live_memory);
       section_heading("Detected machine (facts)"); object(data.hardware);
       section_heading("User limits (machine.yaml)"); object(data.machine);
       row("Edit limits", "Use Settings. Changes require stopping and reconciling the workload.");
     } else if (section == "settings") {
+      update_info();
       section_heading("Server configuration"); object(data.settings);
       section_heading("Machine policy"); object(data.machine);
       section_heading("Editing and application");
@@ -507,6 +592,10 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
         for (const auto& model : data.models["data"]) if (model["id"] == values[i])
           label = "[" + compact(model["group"]) + "] " + label + (model["cached"].get<bool>() ? " ✓" : " ↓") + (model["compatible"].get<bool>() ? "" : " !");
       } else if (section == "engines") label += data.engines[values[i]]["installed"].get<bool>() ? " ✓" : " ↓";
+      else if (section == "apps") { for (const auto& app : data.apps["apps"]) if (app["id"] == values[i]) {
+        label += app["installed"].get<bool>() ? " ✓" : " ↓";
+        if (app["running"].get<bool>()) label += " · running";
+      } }
       else if (section == "workloads" || (section == "server" && server_picker)) {
         const auto& available = data.workloads[values[i]];
         label += available["prepared"].get<bool>() ? " ✓" : " ↓";
@@ -535,13 +624,19 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     const auto& selected_section = sections[section_index].id;
     const std::string actions = selected_section == "workloads" ? " Enter models · i install · s start · a swap · e edit · c clone " :
                                 selected_section == "server" ? " s start · x stop · r refresh " :
-                                selected_section == "settings" ? " Enter edit selected setting " : " r refresh · PgUp/PgDn details ";
+                                selected_section == "settings" ? " Enter edit selected setting " :
+                                selected_section == "apps" ? " Enter inspect · i install · w setup · s launch · x stop · d remove " : " r refresh · PgUp/PgDn details ";
     auto base = vbox({header, separator(), paragraph(" " + sections[section_index].hint) | color(muted), body | flex,
                       separator(), paragraph(" " + message.substr(0, 500)) | size(HEIGHT, LESS_THAN, 4),
                       text(actions) | color(accent),
-                      text(std::string(" 1–6 views · Tab focus · ↑↓ select · Enter explore · Esc back · u ") + (show_all ? "compatible only" : "show all hardware") + " · / filter · ? help · q quit") | color(muted)});
+                      text(std::string(" 1–7 views · Tab focus · ↑↓ select · Enter explore · Esc back · u ") + (show_all ? "compatible only" : "show all hardware") + " · / filter · ? help · q quit") | color(muted)});
+    if (!revealed_key.empty()) return dbox({base, vbox({text(" New API key — copy before closing ") | bold,
+      separator(), paragraph(revealed_key), text(""),
+      text(" c copies to the system clipboard · Esc hides · auto-hides after 60 seconds "),
+      paragraph(" Update clients after rotation. Clipboard contents may persist after this dialog closes.")}) | border | clear_under | center});
     if (confirm) return dbox({base, vbox({text(" Confirm action ") | bold, separator(),
                              paragraph(display_command(pending)), text(""),
+                             paragraph(std::find(pending.begin(), pending.end(), "--accept-code") != pending.end() ? " You trust this publisher and its declared permissions. Checksums verify files, not publisher identity. Downloaded code runs as your user and is not sandboxed." : ""),
                              paragraph(std::find(pending.begin(), pending.end(), "--restart") != pending.end() ? " If Mica is running: stop → save → restart the same active workload. Brief downtime; failed restart leaves settings saved for correction." : ""),
                              text(" Enter confirms · Esc cancels ")}) | border | size(WIDTH, LESS_THAN, 85) | clear_under | center});
     if (!edit_option.empty()) return dbox({base, vbox({text(" Set " + edit_option) | bold, separator(), edit_input->Render(),
@@ -554,11 +649,33 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       text(" u shows incompatible hardware; hidden legacy examples stay hidden "),
       text(" ✓ cached/installed · ↓ needs installation/download · ! unsupported · $ exceeds allocation "),
       text(" Settings: select a field and press Enter "),
+      text(" Apps: Enter inspect · i install · w prepare workload · s launch · x stop · d remove "),
       text(" Changes are confirmed and use the same CLI as the terminal. "),
       text(" Closing the TUI leaves the inference server running. "), text(" Esc closes help ")}) | border | clear_under | center});
     return base;
   });
   auto ui = CatchEvent(renderer, [&](Event event) {
+    if (!revealed_key.empty()) {
+      if (std::chrono::steady_clock::now() >= key_deadline || event == Event::Escape) { hide_key(); return true; }
+      if (event == Event::Character("c")) {
+        const char* clipboard = command_exists("pbcopy") ? "pbcopy" : command_exists("wl-copy") ? "wl-copy" : command_exists("xclip") ? "xclip -selection clipboard" : nullptr;
+        if (!clipboard) message = "No clipboard utility; copy the key with your terminal's selection.";
+        else {
+          FILE* pipe = popen(clipboard, "w");
+          if (!pipe) message = "Cannot open the system clipboard.";
+          else {
+            struct sigaction ignored{}, previous{};
+            ignored.sa_handler = SIG_IGN; sigemptyset(&ignored.sa_mask);
+            sigaction(SIGPIPE, &ignored, &previous);
+            const auto written = fwrite(revealed_key.data(), 1, revealed_key.size(), pipe);
+            const auto status = pclose(pipe);
+            sigaction(SIGPIPE, &previous, nullptr);
+            message = written == revealed_key.size() && status == 0 ? "API key copied; clipboard contents persist until replaced." : "Clipboard copy failed; select the key manually.";
+          }
+        }
+      }
+      return true;
+    }
     if (busy) {
       if (event == Event::Character("q")) message = "Wait for the current operation to finish before closing.";
       return true;
@@ -575,6 +692,12 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
           auto values = entries();
           queue({executable.string(), "workload", "create", edit_value, "--from", values.at(row_index),
                  "--output", (root / "config/profiles" / (edit_value + ".yaml")).string(), "--root", root.string(), "--config-dir", config.string()});
+        } else if (edit_option == "app source URL") {
+          queue({executable.string(), "app", "source-add", "source-" + std::to_string(data.apps["sources"].size()), edit_value, "--config-dir", config.string(), "--root", root.string()});
+        } else if (edit_option == "remove app source ID") {
+          queue({executable.string(), "app", "source-remove", edit_value, "--config-dir", config.string(), "--root", root.string()});
+        } else if (edit_option == "app workload ID") {
+          auto values = entries(); queue({executable.string(), "app", "setup", values.at(row_index), edit_value, "--config-dir", config.string(), "--root", root.string()});
         } else queue({executable.string(), "config", "set", edit_option, edit_value, "--restart", "--config-dir", config.string(), "--root", root.string()});
         edit_option.clear(); return true;
       }
@@ -608,10 +731,10 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     if (event == Event::ArrowDown || event == Event::ArrowUp) {
       const int delta = event == Event::ArrowDown ? 1 : -1;
       if (list_focus) row_index = std::max(0, row_index + delta);
-      else { section_index = std::clamp(section_index + delta, 0, 5); row_index = 0; search.clear(); scope.clear(); history.clear(); server_picker = false; }
+      else { section_index = std::clamp(section_index + delta, 0, static_cast<int>(sections.size()) - 1); row_index = 0; search.clear(); scope.clear(); history.clear(); server_picker = false; }
       scroll = 0; return true;
     }
-    if (event.is_character() && event.character().size() == 1 && event.character()[0] >= '1' && event.character()[0] <= '6') {
+    if (event.is_character() && event.character().size() == 1 && event.character()[0] >= '1' && event.character()[0] <= '7') {
       section_index = event.character()[0] - '1'; row_index = scroll = 0; search.clear(); scope.clear(); history.clear(); server_picker = false; list_focus = true; return true;
     }
     if (event == Event::Character("r")) {
@@ -624,7 +747,29 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     const auto command = [&](std::vector<std::string> args) {
       args.insert(args.begin(), executable.string()); args.insert(args.end(), {"--root", root.string()}); queue(std::move(args));
     };
-    if (section == "server") {
+    if (section == "apps") {
+      if (selected == "Add source" && event == Event::Return) { edit_option = "app source URL"; edit_value.clear(); }
+      else if (selected == "Sources" && event == Event::Character("d")) { edit_option = "remove app source ID"; edit_value.clear(); }
+      else if (selected != "Sources" && selected != "Add source" && !selected.empty()) {
+        if (event == Event::Return) command({"app", "show", selected, "--config-dir", config.string()});
+        if (event == Event::Character("i")) {
+          bool reviewed = inspected_app.value("catalogue_id", "") == selected;
+          for (const auto& app : data.apps["apps"]) if (app["id"] == selected && app.contains("bundled_path")) reviewed = true;
+          if (reviewed) command({"app", "install", selected, "--accept-code", "--config-dir", config.string()});
+          else { message = "Inspect the publisher, permissions and launch command first; Enter fetches the manifest."; }
+        }
+        if (event == Event::Character("s")) command({"app", "start", selected, "--accept-code", "--config-dir", config.string()});
+        if (event == Event::Character("x")) command({"app", "stop", selected, "--config-dir", config.string()});
+        if (event == Event::Character("d")) command({"app", "uninstall", selected, "--config-dir", config.string()});
+        if (event == Event::Character("w")) {
+          for (const auto& app : data.apps["apps"]) if (app["id"] == selected && app.contains("workloads") && !app["workloads"].empty()) {
+            edit_option = "app workload ID"; edit_value = compact(app["workloads"][0]);
+            for (const auto& w : app["workloads"]) if (data.workloads.contains(w.get<std::string>()) && data.workloads[w.get<std::string>()].value("compatible", false)) { edit_value = w; break; }
+          }
+        }
+      }
+    } else if (section == "server") {
+      if (!server_picker && selected == "Updates" && event == Event::Return) { command({"update", "--check"}); return true; }
       if (event == Event::Character("s") || event == Event::Return) {
         if (server_picker && !selected.empty()) {
           if (!data.workloads[selected]["compatible"].get<bool>()) {
@@ -671,6 +816,10 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       section_index = 3; row_index = scroll = 0; search.clear(); list_focus = true;
       message = "Supported engines for " + selected + ". View only; engine pins are edited in the workload YAML.";
     } else if (section == "settings" && event == Event::Return && !selected.empty()) {
+      if (selected == "Check for updates") { command({"update", "--check"}); return true; }
+      if (selected == "Update latest release" || selected == "Update latest source") {
+        command({"update", "--channel", selected == "Update latest source" ? "source" : "release", "--restart"}); return true;
+      }
       const std::map<std::string, std::string> options{{"Bind address", "--host"}, {"Port", "--port"},
           {"Default workload", "--default-workload"}, {"RAM limit (GiB)", "--ram-gib"},
           {"Dedicated GPU limit (GiB)", "--vram-gib"}, {"Import API key file", "--api-key-file"}};
@@ -686,7 +835,13 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
       if (done.load()) break;
       auto state = local_server_status(root);
-      screen.Post([&, state = std::move(state)] { data.server = state; });
+      json memory;
+      try {
+        const auto observed = live_memory_snapshot();
+        memory = {{"total_gib", observed.total_gib}, {"available_estimate_gib", observed.available_gib},
+                  {"used_or_unavailable_gib", observed.total_gib - observed.available_gib}, {"pressure_warning", observed.pressure_warning}};
+      } catch (const std::exception& error) { memory = {{"error", error.what()}}; }
+      screen.Post([&, state = std::move(state), memory = std::move(memory)] { data.server = state; data.live_memory = memory; });
       screen.PostEvent(Event::Custom);
     }
   });
@@ -694,6 +849,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
   done.store(true);
   ticker.join();
   if (worker.joinable()) worker.join();
+  hide_key();
   return 0;
 }
 }

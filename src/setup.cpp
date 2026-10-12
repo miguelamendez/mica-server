@@ -1,6 +1,7 @@
 #include "mica_server/setup.hpp"
 #include "mica_server/profiles.hpp"
 #include "mica_server/memory.hpp"
+#include "mica_server/build_guard.hpp"
 
 #include <algorithm>
 #include <array>
@@ -144,6 +145,18 @@ void execute_or_print(const std::vector<std::string>& command, bool dry_run) {
     throw std::runtime_error("command failed (" + std::to_string(result.exit_code) +
                              "): " + display_command(command) + "\n" + result.output);
   }
+}
+
+void execute_native_build(std::vector<std::string> command, const ResolvedSetup& setup) {
+  if (setup.options.dry_run) { execute_or_print(command, true); return; }
+  const auto budget = choose_build_budget(live_memory_snapshot(), setup.machine.build_ram_gib,
+      setup.machine.build_parallel_jobs, setup.hardware.logical_cpu_cores);
+  for (std::size_t i = 0; i + 1 < command.size(); ++i)
+    if (command[i] == "--parallel") command[i + 1] = std::to_string(budget.parallel_jobs);
+  std::cout << "Live build cap " << budget.memory_gib << " GiB; system reserve "
+            << budget.reserve_gib << " GiB; " << budget.parallel_jobs << " jobs.\n";
+  const auto result = run_build_guarded(command, budget);
+  if (result.exit_code) throw std::runtime_error("native engine build stopped: " + result.output);
 }
 
 void install_mlx_environment(const Registry& registry, const ResolvedSetup& setup) {
@@ -374,13 +387,13 @@ void install_native_gguf_runtimes(const Registry& registry, const ResolvedSetup&
           "cmake", "-S", source.string(), "-B", build.string()};
       append_cmake_definitions(configure, *engine,
           native_build_targets(profile, *engine, setup.hardware));
-      execute_or_print(configure, setup.options.dry_run);
+      execute_native_build(configure, setup);
       std::vector<std::string> compile = {
           "cmake", "--build", build.string(), "--config", "Release", "--target"};
       compile.insert(compile.end(), engine->build_targets.begin(),
                      engine->build_targets.end());
       compile.insert(compile.end(), {"--parallel", std::to_string(build_parallelism)});
-      execute_or_print(compile, setup.options.dry_run);
+      execute_native_build(compile, setup);
       continue;
     }
     if (engine->installer != "cmake-audio") {
@@ -423,13 +436,13 @@ void install_native_gguf_runtimes(const Registry& registry, const ResolvedSetup&
         audio_configure.emplace_back("-DOpenMP_ROOT=" + homebrew_libomp.string());
       }
     }
-    execute_or_print(audio_configure, setup.options.dry_run);
+    execute_native_build(audio_configure, setup);
     std::vector<std::string> compile = {
         "cmake", "--build", build.string(), "--config", "Release", "--target"};
     compile.insert(compile.end(), engine->build_targets.begin(),
                    engine->build_targets.end());
     compile.insert(compile.end(), {"--parallel", std::to_string(build_parallelism)});
-    execute_or_print(compile, setup.options.dry_run);
+    execute_native_build(compile, setup);
   }
 }
 

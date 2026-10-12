@@ -1,0 +1,34 @@
+schema: 5
+id: mac_dictation
+description: Apple Silicon dictation with Granite ASR and optional Spark cleanup; no vision, speech synthesis, or speaker diarization.
+catalog_visible: true
+selection:
+  engine_policy: explicit-only
+  defaults:
+    - {operation: chat.generate, required_inputs: [text], model: spark-x25-4b}
+    - {operation: audio.transcribe, required_inputs: [audio], model: granite-speech-5}
+mode: assistant
+memory: {required_ram_gib: 6, required_vram_gib: 0, maximum_resident_workers: 0, safety_reserve_gib: 0.5}
+models:
+  - id: spark-x25-4b
+    engine: mlx-lm
+    artifact: {id: q4}
+    context: {max_input_tokens: 4096, max_output_tokens: 2048, max_total_tokens: 6144}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: q8}
+    placement: {device: 'metal:0', mode: fixed}
+    priority: 100
+    residency: warm
+    startup: true
+    idle_seconds: 120
+  - id: granite-speech-5
+    engine: mlx-audio
+    artifact: {id: q8}
+    context: {max_input_tokens: 1, max_output_tokens: 1, max_total_tokens: 2}
+    batching: {max_concurrent_requests: 1}
+    kv_cache: {precision: not-applicable}
+    placement: {device: 'metal:0', mode: fixed}
+    priority: 90
+    residency: warm
+    startup: true
+    idle_seconds: 120
