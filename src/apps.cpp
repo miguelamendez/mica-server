@@ -7,6 +7,8 @@
 #include "mica_server/inventory.hpp"
 #include "mica_server/hardware.hpp"
 #include "mica_server/service.hpp"
+#include "mica_server/credentials.hpp"
+#include "mica_server/setup.hpp"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <chrono>
@@ -15,6 +17,7 @@
 #include <regex>
 #include <set>
 #include <stdexcept>
+#include <thread>
 #include <fcntl.h>
 #include <sys/file.h>
 #include <sys/stat.h>
@@ -157,7 +160,8 @@ void plain_file(const fs::path& base, const std::string& relative) {
 }
 
 void validate_app_manifest(const json& j) {
-  fields(j, {"schema", "id", "name", "description", "version", "source", "distribution", "requirements", "permissions", "launch", "workloads"});
+  fields(j, {"schema", "id", "name", "description", "version", "source", "distribution", "requirements", "permissions", "launch", "workloads", "interfaces"});
+  if(j.contains("interfaces")) {const std::set<std::string> allowed{"cli","mcp","tui","web","background"};if(!j["interfaces"].is_array())throw std::invalid_argument("interfaces must be an array");for(const auto& item:j["interfaces"])if(!allowed.contains(item.get<std::string>()))throw std::invalid_argument("unknown app interface");}
   if (j.at("schema") != 1 || !id_ok(j.at("id").get<std::string>())) throw std::invalid_argument("invalid app schema/id");
   for (auto key : {"name", "description", "version"}) if (j.at(key).get<std::string>().empty()) throw std::invalid_argument("app needs " + std::string(key));
   const auto& source = j.at("source"); fields(source, {"repository", "path", "revision"});
@@ -226,7 +230,7 @@ std::vector<std::string> active_app_workloads(const fs::path& root) {
     if (!file.is_regular_file() || file.is_symlink() || file.path().extension() != ".json") continue;
     try {
       const auto state = read_json(file.path());
-      if (running(state) && state.contains("workload") && state["workload"].is_string())
+      if (running(state) && !state.value("remote_connection", false) && state.contains("workload") && state["workload"].is_string())
         workloads.insert(state["workload"].get<std::string>());
     } catch (const std::exception&) { /* Stale/corrupt app records never block inference. */ }
   }
@@ -274,6 +278,16 @@ json app_inventory(const fs::path& root, const fs::path& config) {
     app["installed"] = !receipt.empty(); app["running"] = running(state);
     if (state.contains("workload")) app["bound_workload"] = state["workload"];
     if (state.contains("url")) app["url"] = state["url"];
+    const auto manifest_path=!receipt.empty()?dir/"app.yaml":app.contains("bundled_path")?fs::path(app.at("bundled_path").get<std::string>()):fs::path();
+    if(!manifest_path.empty()&&fs::is_regular_file(manifest_path))app["interfaces"]=read_profile_file(manifest_path).value("interfaces",json::array());
+    const auto connections = read_json(root / "config/app-connections" / (id + ".json"));
+    if (!connections.empty()) {
+      app["connections"] = json::object();
+      const auto records=connections.value("connections",json::object());
+      for (const auto& [name, connection] : records.items())
+        app["connections"][name] = {{"url", connection.value("url", "")}, {"workload", connection.value("workload", "")}};
+      app["default_connection"] = connections.value("default", "");
+    }
     if (!receipt.empty()) { app["installed_source"] = receipt.value("source_id", ""); app["workloads"] = receipt.value("workloads", json::array()); }
   }
   return result;
@@ -284,11 +298,16 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
   if (arguments.empty()) throw std::invalid_argument("app needs list|show|source-add|source-remove|install|setup|start|stop|uninstall");
   auto root = default_root, config = default_config; std::vector<std::string> positional; bool accept = false;
   std::string workload_binding;
+  std::string connection_name, connection_url, connection_key_file;
   for (std::size_t i = 1; i < arguments.size(); ++i) {
     const auto& arg = arguments[i];
     if (arg == "--root" || arg == "--config-dir") { if (++i == arguments.size()) throw std::invalid_argument("missing app option value"); (arg == "--root" ? root : config) = arguments[i]; }
     else if (arg == "--accept-code") accept = true;
     else if (arg == "--workload") { if (++i == arguments.size()) throw std::invalid_argument("missing workload ID"); workload_binding = arguments[i]; }
+    else if (arg == "--connection" || arg == "--url" || arg == "--api-key-file") {
+      if (++i == arguments.size()) throw std::invalid_argument("missing connection option value");
+      (arg == "--connection" ? connection_name : arg == "--url" ? connection_url : connection_key_file) = arguments[i];
+    }
     else if (arg.starts_with("--")) throw std::invalid_argument("unknown app option: " + arg);
     else positional.push_back(arg);
   }
@@ -323,9 +342,15 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
     if (doc.at("id") != id) throw std::runtime_error("manifest/index ID mismatch");
     doc["catalogue_id"] = positional[0]; doc["installed"] = false; std::cout << doc.dump(2) << '\n'; return 0;
   }
-  if (action == "install") {
+  if (action == "install" || action == "upgrade") {
     if (!accept) throw std::runtime_error("Review/trust the source and permissions, then install with --accept-code. Installation does not launch code.");
-    if (fs::exists(dir)) throw std::runtime_error("app already installed; uninstall explicitly before replacement (user data is retained)");
+    const bool upgrading = action == "upgrade";
+    const auto prior_receipt = read_json(dir / "receipt.json");
+    if (upgrading) {
+      if (prior_receipt.empty() || fs::is_symlink(dir)) throw std::runtime_error("install the app before upgrading");
+      if (running(read_json(statepath))) throw std::runtime_error("close this app before upgrading; Mica and other apps keep running");
+      if (prior_receipt.at("source_id") != entry.at("source_id")) throw std::runtime_error("upgrade must use the original publisher");
+    } else if (fs::exists(dir)) throw std::runtime_error("app already installed; use upgrade to replace verified files after closing it");
     const auto stage = root / "apps" / (".staging-" + id);
     if (fs::exists(stage)) throw std::runtime_error("previous staging directory exists; inspect before retrying: " + stage.string());
     fs::create_directory(stage); chmod(stage.c_str(), 0700);
@@ -361,14 +386,22 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
       auto document = read_profile_file(stage / workload.at("file").get<std::string>());
       const auto name = id + "--" + workload.at("id").get<std::string>(); document["id"] = name;
       profile_from_document(registry, document); const auto path = root / "config/profiles" / (name + ".yaml");
-      if (fs::exists(path) || registry.profiles.contains(name)) throw std::runtime_error("bundled workload would overwrite existing workload: " + name);
+      if (fs::exists(path) || registry.profiles.contains(name)) {
+        if (!upgrading || std::find(prior_receipt.at("workloads").begin(),prior_receipt.at("workloads").end(),json(name))==prior_receipt.at("workloads").end()) throw std::runtime_error("bundled workload would overwrite existing workload: " + name);
+        workloads.push_back(name);continue; // Existing workload edits and active bindings are preserved.
+      }
       registrations.emplace_back(path, document); workloads.push_back(name);
     }
-    json receipt = {{"source_id", entry.at("source_id")}, {"manifest_sha256", digest(manifest_file)}, {"workloads", workloads}, {"workload_hashes", json::object()}};
+    json receipt = {{"source_id", entry.at("source_id")}, {"manifest_sha256", digest(manifest_file)}, {"workloads", workloads}, {"workload_hashes", upgrading ? prior_receipt.value("workload_hashes",json::object()) : json::object()}};
     std::vector<fs::path> written;
     try {
       for (const auto& [path, doc] : registrations) { write_profile_file(path, doc); written.push_back(path); receipt["workload_hashes"][path.stem().string()] = digest(path); }
-      save(stage / "receipt.json", receipt); fs::rename(stage, dir);
+      save(stage / "receipt.json", receipt);
+      if (upgrading) {
+        const auto backup = root / "apps" / (".previous-"+id+"-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+        fs::rename(dir,backup);try{fs::rename(stage,dir);}catch(...){fs::rename(backup,dir);throw;}
+        std::cout << "Previous app files retained at " << backup << ". Existing workloads/connections were kept.\n";
+      } else fs::rename(stage, dir);
     } catch (...) { for (const auto& path : written) { std::error_code e; fs::remove(path, e); } throw; }
     std::cout << "Installed " << id << "; bundled workloads registered. No engine/model download or launch yet.\n"; return 0;
   }
@@ -377,11 +410,33 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
   if (entry.at("source_id") != read_json(dir / "receipt.json").at("source_id"))
     throw std::runtime_error("this app ID is already installed from another source; select its original source or uninstall explicitly");
   auto state = read_json(statepath);
+  const auto connections_path = root / "config/app-connections" / (id + ".json");
+  if (action == "connection-select") {
+    auto saved=read_json(connections_path);
+    if(!id_ok(connection_name)||!saved.value("connections",json::object()).contains(connection_name))throw std::invalid_argument("unknown connection name");
+    saved["default"]=connection_name;write_private_file(connections_path,saved.dump(2));
+    std::cout << "Default connection selected; reopen this app to use it. Mica is unchanged.\n";return 0;
+  }
+  if (action == "connect") {
+    // Keep endpoint origins credential/path-free; apps use standard-library TLS for HTTPS.
+    if (!id_ok(connection_name) || !std::regex_match(connection_url, std::regex(R"(https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?/?)")))
+      throw std::invalid_argument("connect requires --connection NAME --url HTTP(S)_ORIGIN --api-key-file PATH --workload ID");
+    if (workload_binding.empty() || connection_key_file.empty()) throw std::invalid_argument("connection needs workload and inference key file");
+    const auto key_file = fs::absolute(connection_key_file);
+    if (!fs::is_regular_file(key_file) || fs::is_symlink(key_file)) throw std::invalid_argument("private inference key file missing or symlinked");
+    auto saved = read_json(connections_path); if (saved.empty()) saved = {{"schema", 1}, {"connections", json::object()}};
+    saved["connections"][connection_name] = {{"url", connection_url}, {"api_key_file", key_file.string()}, {"workload", workload_binding}};
+    saved["default"] = connection_name; write_private_file(connections_path, saved.dump(2));
+    std::cout << "Connection saved; choose it with app start --connection " << connection_name << ". No local inference required.\n"; return 0;
+  }
   if (action == "show") { auto shown = doc; shown["catalogue_id"] = positional[0]; shown["installed"] = true; shown["running"] = running(state); if (state.contains("url")) shown["url"] = state["url"]; shown["registered_workloads"] = read_json(dir / "receipt.json").at("workloads"); std::cout << shown.dump(2) << '\n'; return 0; }
   if (action == "stop") { if (running(state) && kill(state.at("pid").get<int>(), SIGTERM)) throw std::runtime_error("cannot stop app"); save(statepath, json::object()); std::cout << "App stopped; model server remains unchanged.\n"; return 0; }
   if (action == "setup") {
     const auto workloads = read_json(dir / "receipt.json").at("workloads");
     if (positional.size() != 2 || std::find(workloads.begin(), workloads.end(), json(positional[1])) == workloads.end()) throw std::invalid_argument("setup needs a bundled workload ID; inspect app show");
+    auto registry=load_registry(config);merge_custom_models(registry,root);merge_installed_profiles(registry,root);
+    const auto inspection=inspect_workload(registry,registry.profile(positional[1]),detect_hardware(),root);
+    if(!inspection.value("compatible",false))throw std::invalid_argument("workload unsupported on this host: "+inspection.value("reason",""));
     return run_command({executable.string(), "workload", "install", positional[1], "--root", root.string(), "--config-dir", config.string()}).exit_code;
   }
   if (action == "uninstall") {
@@ -410,7 +465,18 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
     const auto p = file.at("path").get<std::string>(); plain_file(dir, p);
     if (digest(dir / p) != file.at("sha256").get<std::string>()) throw std::runtime_error("installed app changed; revalidate package before launch");
   }
-  if (!local_server_running(root)) throw std::runtime_error("start Mica with a compatible workload first (apps never switch workloads silently)");
+  const auto connections = read_json(connections_path);
+  if (connection_name.empty()) connection_name = connections.value("default", "");
+  fs::path client_config = root / "config/server.json";
+  const bool remote_connection = !connection_name.empty();
+  if (remote_connection) {
+    if(!connections.value("connections",json::object()).contains(connection_name))throw std::invalid_argument("unknown app connection; add it with app connect first");
+    const auto connection = connections.at("connections").at(connection_name);
+    if (!std::regex_match(connection.value("url", ""), std::regex(R"(https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?/?)"))) throw std::invalid_argument("invalid saved connection URL");
+    workload_binding = connection.at("workload");
+    client_config = root / "config/client-runtime" / (id + ".json");
+    write_private_file(client_config, json{{"ui", {{"mica_url", connection.at("url")}}}, {"api_key_file", connection.at("api_key_file")}}.dump());
+  } else if (!local_server_running(root)) throw std::runtime_error("start Mica with a compatible workload first, or add a remote connection with app connect");
   if (workload_binding.empty()) {
     auto registry = load_registry(config); merge_installed_profiles(registry, root);
     const auto hardware = detect_hardware();
@@ -421,12 +487,18 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
       !std::isalnum(static_cast<unsigned char>(workload_binding.front())) ||
       !std::all_of(workload_binding.begin(), workload_binding.end(), [](unsigned char c) { return std::isalnum(c) || c == '-' || c == '_' || c == '.'; })))
     throw std::invalid_argument("invalid app workload ID");
+  if (!remote_connection) {
+  auto registry=load_registry(config);merge_custom_models(registry,root);merge_installed_profiles(registry,root);
+  if(workload_binding.empty())throw std::invalid_argument("no compatible bundled workload; supply a supported --workload");
+  const auto inspection=inspect_workload(registry,registry.profile(workload_binding),detect_hardware(),root);
+  if(!inspection.value("compatible",false))throw std::invalid_argument("workload unsupported on this host: "+inspection.value("reason",""));
   const auto models = local_server_request(root, "GET", "/v1/models" + (workload_binding.empty() ? std::string() : "?workload=" + workload_binding), json::object());
   std::set<std::string> operations;
   for (const auto& model : models.at("data")) for (const auto& endpoint : model.value("endpoint_contracts", json::array()))
     for (const auto& interaction : model.value("supported_interactions", json::array()))
       if (interaction.at("operation") == endpoint.at("operation")) operations.insert(endpoint.at("operation").get<std::string>());
   for (const auto& op : doc.at("requirements").at("operations")) if (!operations.contains(op.get<std::string>())) throw std::runtime_error("requested workload lacks required operation: " + op.get<std::string>());
+  }
   const auto& launch = doc.at("launch"); auto program = launch.at("executable").get<std::string>();
   if (program.starts_with("{app_dir}/")) program = (dir / program.substr(10)).string();
   if (!command_exists(program)) throw std::runtime_error("app dependency is missing: " + program + " (Mica never installs arbitrary app dependencies silently)");
@@ -434,7 +506,7 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
   for (const auto& raw : launch.at("arguments")) {
     auto arg = raw.get<std::string>();
     if (arg.find("{port}") != std::string::npos && !launch.contains("port")) throw std::invalid_argument("headless app cannot use {port}");
-    for (const auto& [key, value] : std::vector<std::pair<std::string, std::string>>{{"{app_dir}", dir.string()}, {"{mica_config}", (root / "config/server.json").string()}, {"{port}", std::to_string(launch.value("port", 0))}, {"{workload}", workload_binding}}) {
+    for (const auto& [key, value] : std::vector<std::pair<std::string, std::string>>{{"{app_dir}", dir.string()}, {"{mica_config}", client_config.string()}, {"{port}", std::to_string(launch.value("port", 0))}, {"{workload}", workload_binding}}) {
       std::size_t pos = 0; while ((pos = arg.find(key, pos)) != std::string::npos) { arg.replace(pos, key.size(), value); pos += value.size(); }
     }
     argv.push_back(arg);
@@ -446,9 +518,61 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
   const auto pid = fork();
   if (pid == 0) { setsid(); chdir(dir.c_str()); dup2(output, STDOUT_FILENO); dup2(output, STDERR_FILENO); close(output); const int input = open("/dev/null", O_RDONLY); dup2(input, STDIN_FILENO); close(input); execvp(native[0], native.data()); _exit(127); }
   close(output); if (pid < 0) throw std::runtime_error("cannot launch app");
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
   const auto started = birth(pid); if (started.empty()) { waitpid(pid, nullptr, WNOHANG); throw std::runtime_error("app exited during launch; inspect its private log"); }
-  state = {{"pid", pid}, {"birth", started}, {"workload", workload_binding}};
+  state = {{"pid", pid}, {"birth", started}, {"workload", workload_binding}, {"remote_connection", remote_connection}};
   if (launch.contains("port")) state["url"] = "http://127.0.0.1:" + std::to_string(launch.at("port").get<int>()) + launch.at("path").get<std::string>();
   save(statepath, state); std::cout << "App process launched: " << state.value("url", "headless") << " (check app list/log for readiness).\n"; return 0;
+}
+
+fs::path export_app_client(const fs::path& root, const fs::path& config, const fs::path& executable,
+                          const std::string& catalogue_id, const std::string& server_url,
+                          const std::string& workload, const std::string& mode) {
+  if (mode != "remote" && mode != "local") throw std::invalid_argument("client inference mode must be remote or local");
+  if (!std::regex_match(server_url, std::regex(R"(https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?/?)"))) throw std::invalid_argument("invalid server origin");
+  const auto item = find_app(app_inventory(root, config), catalogue_id);
+  auto id = item.at("id").get<std::string>(); if (auto colon=id.find(':'); colon!=std::string::npos) id.erase(0,colon+1);
+  if (!id_ok(id)) throw std::invalid_argument("invalid app ID");
+  const auto scratch = root / "state/client-downloads" / generate_api_key().substr(0,24);
+  fs::create_directories(scratch);
+  struct Cleanup { fs::path path; ~Cleanup(){std::error_code ec;fs::remove_all(path,ec);} } cleanup{scratch};
+  if (fs::is_regular_file(root/"config/app-sources.json")) write_private_file(scratch/"config/app-sources.json",read_json(root/"config/app-sources.json").dump());
+  // Reuse the verified installer in an isolated staging home, never change the host's installed apps.
+  app_command({"install", catalogue_id, "--accept-code"}, scratch, config, executable);
+  const auto source = scratch / "apps" / id;
+  auto package = read_profile_file(source / "app.yaml");
+  if (package.at("launch").at("executable") != "python3")
+    throw std::invalid_argument("device downloads currently support portable Python launchers only; no native installer supplied by publisher");
+  const auto output = scratch / (id + "-client"); fs::create_directory(output);
+  auto files = package.at("distribution").at("files");
+  for (const auto& file : files) {
+    const auto relative=file.at("path").get<std::string>(); plain_file(source,relative);
+    fs::create_directories((output/relative).parent_path()); fs::copy_file(source/relative,output/relative);
+  }
+  for (const auto& [from,to] : std::vector<std::pair<fs::path,std::string>>{{config.parent_path()/"apps/client/client.py","client.py"},
+      {config.parent_path()/"scripts/run_memory_limited.py","build_guard.py"}}) {
+    if (!fs::is_regular_file(from) || fs::is_symlink(from)) throw std::runtime_error("client tools missing; install matching shared files");
+    fs::copy_file(from, output/to);
+    files.push_back({{"path",to},{"sha256",digest(output/to)},{"size_bytes",fs::file_size(output/to)}});
+  }
+  package["files"]=files; package["suggested_server"]=server_url; package["suggested_workload"]=workload; package["inference_mode"]=mode;
+  write_private_file(output/"client.json",package.dump(2));
+  const std::string readme="Mica standalone client (Python 3 standard library; no pip).\n\n"
+    "1. Extract this archive, open a terminal in this folder.\n2. Run: python3 client.py install\n"
+    "3. Remote inference: python3 client.py connect\n   Enter an INFERENCE key privately when prompted.\n"
+    "   Local inference instead: python3 client.py setup-local\n"
+    "4. Run: python3 client.py start\n\n"
+    "Add another server: python3 client.py connect --connection NAME --url http://HOST:PORT --workload ID\n"
+    "Choose a server: python3 client.py start --connection NAME\n"
+    "List connections: python3 client.py connections\n"
+    "Existing installations/data are preserved. Local builds require CMake, Git, a C++20 compiler, Lua headers;\n"
+    "builds are memory-capped. Nothing installs or runs until you execute these commands and approve setup.\n"
+    "This package contains no API keys. Use HTTPS or a trusted encrypted network for remote inference.\n"
+    "Selected setup: "+mode+". Suggested server: "+server_url+". Workload: "+workload+".\n";
+  write_private_file(output/"README.txt",readme);
+  const auto archive = root / "state/client-downloads" / (scratch.filename().string()+".tar.gz");
+  const auto result=run_command({"tar","-czf",archive.string(),"-C",scratch.string(),output.filename().string()},true);
+  if (result.exit_code) throw std::runtime_error("client archive creation failed (tar required)");
+  fs::permissions(archive,fs::perms::owner_read|fs::perms::owner_write); return archive;
 }
 }

@@ -5,6 +5,11 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "interfaces": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"enum": ["cli", "mcp", "tui", "web", "background"]}
+    },
     "schema": {
       "const": 1
     },

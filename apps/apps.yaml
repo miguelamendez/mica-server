@@ -5,10 +5,12 @@ apps:
   description: Browser chat with streamed text, media, optional voice, and conversation
     archives.
   manifest: assistant/app.yaml
-  sha256: a206c26f13c70e741ce0b6a0c8a3ccfbaa8a690ceb4de1f7c20384a880185369
+  sha256: 1bd2826db419c9489d3cd894c3b16321fe0f2e30c27b040c92a272261b1634e3
 - id: mica-dictation
   name: Dictation
-  description: Browser dictation with ASR, optional LLM cleanup, and explicit copy;
-    no global desktop hooks.
+  description: Native WhisperFlow-style dictation client with a small connection TUI,
+    microphone recording, a global desktop shortcut, ASR, optional LLM cleanup and
+    clipboard delivery. macOS can paste into the original focused app; Linux desktop
+    support varies. Local or remote inference and a separate MCP interface.
   manifest: dictation/app.yaml
-  sha256: ca082efc092a354dc0b431444c6a49ca2a05ece0db693988e54dc49fa42ef82b
+  sha256: cd2c31ad17c969e7367a230be6eb24e4d8f5d6a6fc99363c5579b15b06f4e60a

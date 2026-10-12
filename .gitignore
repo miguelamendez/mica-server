@@ -1,5 +1,6 @@
 /build/
 /build-release/
+/apps/dictation/native/build/
 /dist/
 /.cache/
 /.idea/

@@ -38,7 +38,9 @@ void usage() {
   std::cout << R"(mica-server
 
 Usage:
-  mica-server app list|show|install|start|stop|uninstall ID [--accept-code]
+  mica-server app list|show|install|upgrade|start|stop|uninstall ID [--accept-code]
+  mica-server app connect ID --connection NAME --url ORIGIN --api-key-file PATH --workload ID
+  mica-server app connection-select ID --connection NAME
   mica-server app source-add ID REPO_OR_MANIFEST_URL
   mica-server app source-remove ID
   mica-server app setup ID BUNDLED_WORKLOAD_ID [--root PATH] [--config-dir PATH]

@@ -48,7 +48,9 @@ mica-server config set --rotate-api-key
 ```
 
 Copy the admin key privately on its host for the initial browser login. The
-browser does not persist it. The TUI can reveal/copy a newly rotated key;
+browser remembers it in this tab's session storage across refreshes, not in
+permanent local storage. Disconnect, invalid authentication and external key
+rotation clear/revoke access. The TUI can reveal/copy a newly rotated key;
 normal inventory, status and job logs never include keys.
 
 `POST /admin/keys/rotate` accepts `{"kind":"admin"}` or
@@ -80,8 +82,21 @@ safeguards. Workload preparation drains/unloads models for safe engine/artifact
 installation, restores the prior default and resumes serving on completion;
 models reload lazily. App installation/opening does not restart Mica.
 Installing app files and preparing its workload remain separate actions.
-Demo app HTTP interfaces remain loopback-only; the dashboard does not
-network-publish their UIs.
+Browser apps remain loopback-only internally. **Open** starts a closed app,
+waits for its job, then opens `/apps/APP_ID/PATH` on Mica's own listener.
+An authenticated `POST /admin/dashboard/apps/APP_ID/open` creates an eight-hour,
+HttpOnly/SameSite app cookie. Admin keys/cookies are never forwarded to the app.
+Cross-origin requests are rejected; admin rotation and dashboard Disconnect
+revoke sessions. Streaming and multipart uploads use a bounded native bridge.
+Install only trusted code: same-origin apps are not sandboxed and can access
+origin-scoped browser storage.
+
+`POST /admin/dashboard/apps/APP_ID/download` accepts `mode` (`remote` or `local`),
+`server_url` (credential-free origin) and optional `workload`. It returns a
+verified `.tar.gz` client package, with no keys, without installing on the host.
+Extraction and explicit installer execution are required on the receiving
+device. Local inference is optional/separately confirmed. Native Dictation has
+no browser UI; microphone, shortcuts and setup TUI run on its installed host.
 
 Initial workload setup is required; this is not a zero-model bootstrap service.
 Stopping Mica also stops its dashboard; restart through CLI/SSH or an external

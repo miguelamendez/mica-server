@@ -81,8 +81,14 @@ job logs. Plain HTML/CSS/JavaScript uses Mica's existing C++ HTTP server:
 Dashboard access uses a distinct **admin key**, created in
 `~/.mica/secrets/admin-api-key` when enabled. The existing
 `~/.mica/secrets/api-key` remains the inference key for apps. Rotation applies
-live; rotating admin access does not change app credentials. The browser keeps
-its key in memory, not persistent storage.
+live; rotating admin access does not change app credentials. This browser tab
+remembers login across refreshes using session storage; Disconnect clears it.
+
+Browser apps open through `/apps/<id>/…` on that same server, without extra
+public ports. Apps can also be downloaded to your device and use remote
+inference without a local Mica server. Local inference setup is optional.
+The native Dictation client has a connection TUI and desktop recording shortcut;
+both demo apps also expose stdio MCP tools. [App setup and limits](docs/apps.md).
 
 `Stop inference` drains requests and unloads workers while keeping the
 dashboard available. `Stop Mica` closes the whole process; use CLI/SSH to start

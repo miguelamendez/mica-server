@@ -2964,6 +2964,9 @@ nlohmann::json server_endpoints(bool dashboard) {
     add("POST", "/admin/dashboard/jobs", "Submit a validated native management operation");
     add("GET", "/admin/dashboard/jobs/{id}", "Management job status and bounded log tail");
     add("GET", "/admin/dashboard/workloads/{id}", "Editable workload YAML");
+    add("POST", "/admin/dashboard/apps/{id}/open", "Authorize this browser and return the app URL on Mica's listener");
+    add("POST", "/admin/dashboard/apps/{id}/download", "Download a verified device client; optional local or remote inference setup, without embedded keys");
+    add("POST", "/admin/dashboard/apps/logout", "Revoke this admin credential's browser app sessions");
     add("POST", "/admin/inference/pause", "Drain requests and unload workers; retain the dashboard");
     add("POST", "/admin/inference/resume", "Resume on-demand inference without restarting Mica");
   }

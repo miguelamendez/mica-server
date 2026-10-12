@@ -1,9 +1,16 @@
 schema: 1
 id: mica-dictation
 name: Dictation
-description: Browser dictation with ASR, optional LLM cleanup, and explicit copy;
-  no global desktop hooks.
-version: 0.1.0
+description: Native WhisperFlow-style dictation client with a small connection TUI,
+  microphone recording, a global desktop shortcut, ASR, optional LLM cleanup and clipboard
+  delivery. macOS can paste into the original focused app; Linux desktop support varies.
+  Local or remote inference and a separate MCP interface.
+version: 0.2.0
+interfaces:
+- cli
+- tui
+- background
+- mcp
 source:
   repository: https://github.com/miguelamendez/mica-server
   path: apps/dictation
@@ -11,14 +18,35 @@ distribution:
   format: files
   files:
   - path: README.md
-    sha256: f071286b2ee3fc86d078860403e194f419f50024154e502f08e8e7efdf72c090
-    size_bytes: 967
+    sha256: c58d078f85003dbae1fb7b06227e4366e1ecd5609ff5efe352801e079441f573
+    size_bytes: 1230
   - path: app.py
-    sha256: dc995387c7ea791552e72f32abd44bb7caea4b2922af9cfa019d3f30a2c3674c
-    size_bytes: 4124
+    sha256: fae1a87fc10a4540f75afbd35fd1ced928c81e4c216781f2a93ca65a3a37d84c
+    size_bytes: 5038
   - path: index.html
     sha256: 748b9d6965a08157968cae0beaa23d8d4225a113056a8a4e48f1a2a024804272
     size_bytes: 7016
+  - path: mcp.py
+    sha256: 6d52082c0df8259e972bc257387752bba24038cfa82840dd6022ce5267424ad5
+    size_bytes: 92
+  - path: native/CMakeLists.txt
+    sha256: c2923be576415b3ed84c398aff51d0f51e0405952421856d6593bf4df22312b5
+    size_bytes: 1753
+  - path: native/main.cpp
+    sha256: 1f5d0558648e84da4fdf1fb22233acdc08ab830548f5bedd7740c20d5a21a540
+    size_bytes: 13806
+  - path: native/platform.hpp
+    sha256: 1c4821adba2898e290e8112edec797ea5f97cb8d1c628494ac310a0645c6df53
+    size_bytes: 364
+  - path: native/platform_linux.cpp
+    sha256: b001aa0d1dad4706cf2ead332cb28e5ed4568515b7038a341e74501ee40d2ee2
+    size_bytes: 4715
+  - path: native/platform_macos.mm
+    sha256: 99300dc94b4607a5660da85c6fd46784136c23d41ed102b6b55941941eba2805
+    size_bytes: 5122
+  - path: runtime/mcp_runtime.py
+    sha256: 10eb668885d0477cab3289e7f6cf883fff28abc731a497e5ea94d6348d1ac4b9
+    size_bytes: 11863
   - path: workloads/cuda.yaml
     sha256: d0a928a48e61353cee3348c31a1211f80619c82b40cbe6ae384e1e2653028592
     size_bytes: 1258
@@ -31,18 +59,18 @@ requirements:
 permissions:
 - microphone
 - clipboard
+- accessibility
+- global-hotkeys
+- network
 launch:
   executable: python3
   arguments:
   - '{app_dir}/app.py'
+  - --desktop
   - --config
   - '{mica_config}'
-  - --port
-  - '{port}'
   - --workload
   - '{workload}'
-  port: 8091
-  path: /
 workloads:
 - id: mac
   file: workloads/mac.yaml

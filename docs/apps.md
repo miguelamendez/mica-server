@@ -13,19 +13,93 @@ Open `mica-server tui`, press **7** for **Apps**, and select a demo:
 3. **w** prepares a bundled workload; the editable field lets you choose its ID.
 4. Start Mica if stopped. Other apps can keep their own workload bindings.
 5. Return to **Apps**, press **s**, and confirm execution of trusted code.
-6. Open the URL shown by `app show`/the manifest: assistant uses
-   `http://127.0.0.1:8090/chat`; dictation uses `http://127.0.0.1:8091/`.
+6. Assistant's local bridge uses `http://127.0.0.1:8090/chat`; the dashboard's
+   Open action authorizes and opens `/apps/mica-assistant/chat` on Mica's own
+   address. Native Dictation records on the device running the app; configure it
+   with `mica-dictation --tui`. Do not run it on headless Linux expecting it to
+   record your Mac microphone.
 
 **x** stops the app without stopping Mica. **d** uninstalls it. The official
 `mica-examples` source is included offline with every matching installation;
 listing it does not download models or require internet. Nothing is prelaunched.
 
-The assistant packages the existing browser chat. Dictation records/uploads
-audio, transcribes it, optionally cleans up with an LLM, and lets you copy text.
-Its shortcut works only in the focused browser page. Global hotkeys, automatic
-typing, transcript/speaker alignment and desktop wrappers are future additions.
-Both optional demos need Python 3's standard library, **no pip environment**.
-The native C++/Lua app manager itself does not require Python.
+The assistant packages browser chat. Dictation is a native C++ client with a
+small FTXUI setup interface, local/remote server connections, microphone capture,
+ASR, optional LLM cleanup and clipboard delivery. Ctrl+Alt/Option+R toggles
+recording (maximum two minutes). Automatic paste is opt-in on macOS and requires
+Accessibility permission; if focus changed since recording started, it copies
+instead of pasting into the wrong app. Global shortcuts require Input Monitoring
+on macOS or an X11 desktop on Linux. Wayland global shortcuts/automatic typing,
+speaker alignment and signed desktop installers remain unimplemented. Linux
+recording uses installed PipeWire `pw-record` or ALSA `arecord`; clipboard uses
+`wl-copy`/`xclip`. The TUI Record button works independently of global shortcuts.
+macOS uses native audio/clipboard APIs (no FFmpeg recording dependency).
+
+Both demos have stdio MCP entry points using Python 3's standard library,
+**no MCP SDK/pip environment**. MCP tools never start recording or type into
+other applications; file uploads require explicit allowed directories.
+
+## App location and inference location are separate
+
+The dashboard offers host installation or a download for this device. Remote
+inference is recommended when already connected to a remote Mica; optional
+local Mica setup is separate and explicitly confirmed. A remote browser cannot
+silently install software or reliably detect your native apps. The client
+installer checks its local record and preserves existing apps/connections.
+
+Extract a downloaded client package, then:
+
+```sh
+python3 client.py install
+python3 client.py connect --connection linux --url http://HOST:8092 --workload WORKLOAD_ID
+# Enter the inference key privately; never use the admin key.
+python3 client.py start --connection linux
+# Dictation setup interface:
+python3 client.py start --connection linux --tui
+# Optional local inference, never performed by install/connect:
+python3 client.py setup-local
+```
+
+Connections are named per app in `~/.mica/config/app-connections/APP_ID.json`,
+with private key-file references. Choose another connection without reinstalling.
+A device-only Dictation install can build its small native client with CMake/C++
+and a capped single-job build; it does not build Mica or download models for
+remote inference. Local Mica source setup additionally needs Lua development
+headers and asks before preparing engines/models.
+
+```sh
+mica-server app connect mica-assistant --connection linux --url http://HOST:8092 \
+  --api-key-file /private/path/inference-key --workload WORKLOAD_ID
+mica-server app start mica-assistant --connection linux --accept-code
+mica-server app connection-select mica-assistant --connection linux
+```
+
+TUI Apps: **c** adds a connection, **k** chooses one, **s** starts. **w** prepares
+local inference separately. Bundled workload selection follows engine/device
+compatibility, not file ordering; Linux must not select Mac-only workloads.
+`app upgrade ID --accept-code` replaces verified files after closing the app,
+retains previous files, and preserves workload edits/connections. Updating Mica
+does not automatically replace already installed app packages.
+
+## MCP
+
+Each app includes `mcp.py`. Configure an MCP client to launch:
+
+```sh
+python3 ~/.mica/apps/mica-dictation/mcp.py --connection linux --allow-directory /path/to/audio
+python3 ~/.mica/apps/mica-assistant/mcp.py --connection linux --allow-directory /path/to/media
+```
+
+For device-only installs use `~/.mica/clients/APP_ID/mcp.py` or
+`python3 client.py mcp --connection linux`. Dictation exposes `models`,
+`transcribe`, `cleanup`; Assistant exposes `models`, `assistant_chat` (text,
+session ID and optional media paths). MCP messages alone go to stdout; keys are
+read per request from private files, not embedded in inputs/downloads. The
+adapter supports per-request discovery/tools and legacy initialize-based
+clients; it is a minimal tools interface, not an HTTP MCP service or background
+microphone controller. See the official
+[MCP transport](https://modelcontextprotocol.io/specification/latest/basic/transports)
+and [versioning](https://modelcontextprotocol.io/specification/latest/basic/versioning) contracts.
 
 ## CLI
 

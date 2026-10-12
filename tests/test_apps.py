@@ -50,7 +50,7 @@ class AppsTests(unittest.TestCase):
         self.assertTrue(registered.is_file())
         self.assertFalse((self.root / "models").exists())
         shown = json.loads(self.command("show", "mica-dictation").stdout)
-        self.assertEqual(shown["permissions"], ["microphone", "clipboard"])
+        self.assertEqual(shown["permissions"], ["microphone", "clipboard", "accessibility", "global-hotkeys", "network"])
         self.command("start", "mica-dictation", success=False)
         result = self.command("start", "mica-dictation", "--accept-code", success=False)
         self.assertIn("start Mica", result.stderr)
@@ -117,7 +117,9 @@ class AppsTests(unittest.TestCase):
             app_port = probe.getsockname()[1]
         manifest = fixture / "apps/dictation/app.yaml"
         old_hash = hashlib.sha256(manifest.read_bytes()).hexdigest()
-        manifest.write_text(manifest.read_text().replace("port: 8091", f"port: {app_port}"))
+        original=manifest.read_text().replace("  - --desktop\n", "")
+        original=original.replace("workloads:\n", f"  - --port\n  - '{app_port}'\n  port: {app_port}\n  path: /\nworkloads:\n")
+        manifest.write_text(original)
         index = fixture / "apps/apps.yaml"
         index.write_text(index.read_text().replace(old_hash, hashlib.sha256(manifest.read_bytes()).hexdigest()))
         self.command("install", "mica-dictation", "--accept-code", config=fixture / "config")
@@ -147,7 +149,7 @@ class AppsTests(unittest.TestCase):
         with (self.root / "run/server.lock").open("w") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
             try:
-                self.command("start", "mica-dictation", "--accept-code", config=fixture / "config")
+                self.command("start", "mica-dictation", "--workload", "mica-spark-small-gguf", "--accept-code", config=fixture / "config")
                 deadline = time.monotonic() + 5
                 while True:
                     try:
@@ -161,7 +163,7 @@ class AppsTests(unittest.TestCase):
                 self.assertTrue(json.loads(self.command("show", "mica-dictation", config=fixture / "config").stdout)["running"])
                 self.command("stop", "mica-dictation", config=fixture / "config")
                 ModelServer.operation = "chat.generate"  # Engine alone is not enough.
-                denied = self.command("start", "mica-dictation", "--accept-code", config=fixture / "config", success=False)
+                denied = self.command("start", "mica-dictation", "--workload", "mica-spark-small-gguf", "--accept-code", config=fixture / "config", success=False)
                 self.assertIn("lacks required operation", denied.stderr)
             finally:
                 self.command("stop", "mica-dictation", config=fixture / "config")

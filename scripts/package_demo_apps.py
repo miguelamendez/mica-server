@@ -12,6 +12,10 @@ import yaml
 def main():
     root = Path(__file__).resolve().parent.parent
     apps = root / "apps"
+    for folder in ("assistant", "dictation"):
+        runtime = apps / folder / "runtime"
+        runtime.mkdir(exist_ok=True)
+        shutil.copyfile(apps / "common/mcp_runtime.py", runtime / "mcp_runtime.py")
     for name in ("mica_playground.py", "mica-logo.svg", "mica-capabilities.js", "mica-chat-settings.js"):
         shutil.copyfile(apps / name, apps / "assistant/runtime" / name)
     for source, target in (("mac_assistant", "mac"), ("gpu_16g_assistant", "cuda")):
@@ -20,9 +24,11 @@ def main():
     for item in index["apps"]:
         path = apps / item["manifest"]
         document = yaml.safe_load(path.read_text())
+        item["name"] = document["name"]
+        item["description"] = document["description"]
         files = []
         for payload in sorted(path.parent.rglob("*")):
-            if not payload.is_file() or payload == path or "__pycache__" in payload.parts or payload.suffix == ".pyc":
+            if not payload.is_file() or payload == path or "__pycache__" in payload.parts or "build" in payload.parts or payload.suffix == ".pyc":
                 continue
             data = payload.read_bytes()
             files.append({"path": payload.relative_to(path.parent).as_posix(),

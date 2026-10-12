@@ -1,10 +1,14 @@
-"""Standard-library loopback client for browser dictation; no global hooks."""
+"""Desktop Dictation launcher; optional browser fallback kept for diagnostics."""
 import argparse
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import urllib.error
 import urllib.request
+import os
+import shutil
+import subprocess
+import sys
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -49,7 +53,8 @@ class Handler(BaseHTTPRequestHandler):
                 key = key_path.read_text().strip()
             if key:
                 headers["Authorization"] = f"Bearer {key}"
-            url = f"http://{host}:{int(config.get('port', 8080))}{route[1]}"
+            base = config.get("ui", {}).get("mica_url") or f"http://{host}:{int(config.get('port', 8080))}"
+            url = base.rstrip("/") + route[1]
             request = urllib.request.Request(url, body, headers, method=self.command)
             with urllib.request.urlopen(request, timeout=300) as response:
                 self.reply(response.status, response.read(), response.headers.get("Content-Type", "application/json"))
@@ -71,6 +76,19 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
+    if "--desktop" in sys.argv:
+        args = [arg for arg in sys.argv[1:] if arg != "--desktop"]
+        candidate = os.environ.get("MICA_DICTATION_BINARY") or shutil.which("mica-dictation")
+        user_binary = Path.home() / ".local/bin/mica-dictation"
+        if not candidate and user_binary.is_file():
+            candidate = str(user_binary)
+        local = Path(__file__).parent / "native/build/mica-dictation"
+        if not candidate and local.is_file():
+            candidate = str(local)
+        if not candidate:
+            print("Native Dictation is not built. Run the downloaded client installer/start command, or install the matching mica-dictation binary.", file=sys.stderr)
+            return 1
+        os.execv(candidate, [candidate, *args])
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--port", type=int, default=8091)
@@ -84,4 +102,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

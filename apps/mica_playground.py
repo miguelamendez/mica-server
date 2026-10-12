@@ -364,7 +364,8 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _api_key(self) -> str:
-        return self.headers.get("X-Mica-API-Key", "").strip() or self.server.api_key
+        supplied = self.headers.get("X-Mica-API-Key", "").strip()
+        return supplied or (self.server.key_loader() if hasattr(self.server, "key_loader") else self.server.api_key)
 
     def _authorization_headers(self, content_type: str | None = None) -> dict[str, str] | None:
         api_key = self._api_key()
@@ -582,6 +583,7 @@ def main() -> int:
     server = ThreadingHTTPServer((host, port), Handler)
     server.mica_url = str(mica_url).rstrip("/")
     server.api_key = configured_key(args, config)
+    server.key_loader = lambda: configured_key(args, load_config(args.config.expanduser()))
     server.timeout = args.timeout
     server.workload = args.workload
     print(f"Voice:      http://{host}:{port}/voice")

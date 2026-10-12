@@ -7,6 +7,7 @@
 #include "mica_server/setup.hpp"
 #include "mica_server/machine.hpp"
 #include "mica_server/command.hpp"
+#include "mica_server/apps.hpp"
 #include <algorithm>
 #include <atomic>
 #include <fstream>
@@ -16,6 +17,9 @@
 #include <thread>
 #include <chrono>
 #include <tuple>
+#include <condition_variable>
+#include <deque>
+#include <regex>
 #include <spawn.h>
 #include <fcntl.h>
 #include <sys/wait.h>
@@ -32,11 +36,78 @@ bool id_ok(const std::string& id) {
   return !id.empty() && id.size() <= 128 && std::isalnum(static_cast<unsigned char>(id[0])) &&
     std::all_of(id.begin(), id.end(), [](unsigned char c) { return std::isalnum(c) || c == '.' || c == '_' || c == '-'; });
 }
+// A bounded streaming bridge: wait for upstream headers before sending status,
+// then forward chunks without accumulating a whole SSE/audio response in RAM.
+struct AppBridge {
+  httplib::Client client;
+  std::mutex mutex;
+  std::condition_variable changed;
+  std::deque<std::string> chunks;
+  std::thread reader;
+  httplib::Headers headers;
+  std::size_t queued{0};
+  int status{502};
+  bool ready{false}, finished{false}, cancelled{false};
+  explicit AppBridge(int port) : client("127.0.0.1",port) {
+    client.set_connection_timeout(5,0); client.set_read_timeout(3600,0); client.set_follow_location(false);
+  }
+  ~AppBridge() {
+    { std::lock_guard lock(mutex); cancelled=true; }
+    changed.notify_all(); client.stop(); if(reader.joinable()) reader.join();
+  }
+  void start(httplib::Request request) {
+    request.response_handler=[this](const httplib::Response& response) {
+      std::lock_guard lock(mutex); status=response.status; headers=response.headers; ready=true; changed.notify_all(); return !cancelled;
+    };
+    request.content_receiver=[this](const char* data,std::size_t size,std::size_t,std::size_t) {
+      std::unique_lock lock(mutex); changed.wait(lock,[&]{return cancelled||queued<262144;});
+      if(cancelled)return false; chunks.emplace_back(data,size); queued+=size; changed.notify_all(); return true;
+    };
+    reader=std::thread([this,request=std::move(request)]{
+      try { (void)client.send(request); } catch(...) {}
+      { std::lock_guard lock(mutex); finished=true; ready=true; } changed.notify_all();
+    });
+  }
+};
+struct AppAccess {
+  struct Session { std::string authorization, app; std::chrono::steady_clock::time_point expires; };
+  std::mutex mutex;
+  std::map<std::string,Session> sessions;
+};
+json running_app(const ServerOptions& options,const std::string& id) {
+  const auto inventory=app_inventory(options.root,options.config_directory);
+  for(const auto& app:inventory.at("apps")) {
+    auto plain=app.at("id").get<std::string>(); if(auto colon=plain.find(':');colon!=std::string::npos)plain.erase(0,colon+1);
+    if(plain==id && app.value("installed",false) && app.value("running",false))return app;
+  }
+  throw std::invalid_argument("app is not running on this host");
+}
+std::string cookie_value(const httplib::Request& request,const std::string& name) {
+  const auto cookies=request.get_header_value("Cookie"); std::size_t begin=0;
+  while(begin<cookies.size()) {
+    while(begin<cookies.size()&&(cookies[begin]==' '||cookies[begin]==';'))++begin;
+    const auto end=cookies.find(';',begin); const auto part=cookies.substr(begin,end-begin);
+    if(part.starts_with(name+"="))return part.substr(name.size()+1);
+    if(end==std::string::npos)break; begin=end+1;
+  }
+  return {};
+}
+std::string lower(std::string text) {std::transform(text.begin(),text.end(),text.begin(),[](unsigned char c){return std::tolower(c);});return text;}
+std::string app_html(std::string html,const std::string& prefix) {
+  for(const auto& attr:{"src=\"/","href=\"/"}) {
+    std::size_t p=0;const std::string needle=attr;
+    while((p=html.find(needle,p))!=std::string::npos) { const auto start=p+needle.size()-1;
+      if(start+1<html.size()&&html[start+1]!='/'&&html.compare(start,prefix.size(),prefix)!=0){html.insert(start,prefix);p=start+prefix.size()+1;}else p=start+1;
+    }
+  }
+  const std::string script="<script>(()=>{const base="+json(prefix).dump()+";const original=window.fetch.bind(window);window.fetch=(input,options)=>{if(typeof input==='string'&&input.startsWith('/')&&!input.startsWith('//')&&!input.startsWith(base+'/'))input=base+input;return original(input,options)};})();</script>";
+  const auto at=html.find("<script");html.insert(at==std::string::npos?0:at,script);return html;
+}
 void validate_job(const json& request) {
   if (!request.is_object() || !request.contains("action") || !request["action"].is_string()) throw std::invalid_argument("action required");
   static const std::map<std::string, std::set<std::string>> fields{
     {"workload.prepare", {"id"}}, {"workload.save", {"id", "yaml"}}, {"workload.clone", {"id", "new_id"}},
-    {"app.install", {"id", "accept_code"}}, {"app.start", {"id", "workload", "accept_code"}},
+    {"app.install", {"id", "accept_code"}}, {"app.upgrade", {"id", "accept_code"}}, {"app.start", {"id", "workload", "accept_code"}},
     {"app.stop", {"id"}}, {"app.uninstall", {"id"}}, {"app.source-add", {"id", "url"}}, {"app.source-remove", {"id"}},
     {"settings.save", {"values"}}, {"update.check", {"channel"}}, {"update.install", {"channel"}}};
   const auto action = request["action"].get<std::string>();
@@ -50,7 +121,7 @@ void validate_job(const json& request) {
   }
   if (request.contains("workload") && !id_ok(request["workload"].get<std::string>())) throw std::invalid_argument("invalid workload");
   if (request.contains("new_id") && !id_ok(request["new_id"].get<std::string>())) throw std::invalid_argument("invalid new ID");
-  if (action == "app.install" || action == "app.start") if (!request.value("accept_code", false)) throw std::invalid_argument("explicit trusted-code consent required");
+  if (action == "app.install" || action == "app.upgrade" || action == "app.start") if (!request.value("accept_code", false)) throw std::invalid_argument("explicit trusted-code consent required");
   if (action == "workload.save" && (!request.at("yaml").is_string() || request["yaml"].get<std::string>().size() > 65536)) throw std::invalid_argument("workload YAML exceeds 64 KiB");
   if (action.starts_with("update.") && request.value("channel", "source") != "source" && request.value("channel", "source") != "release") throw std::invalid_argument("invalid update channel");
   if (action == "settings.save") {
@@ -100,7 +171,7 @@ std::vector<std::string> command_for(const json& request, const fs::path& execut
   if (action.starts_with("app.")) {
     command.insert(command.end(), {"app", action.substr(4), request.at("id")});
     if (action == "app.source-add") command.push_back(request.at("url"));
-    if (action == "app.install" || action == "app.start") command.push_back("--accept-code");
+    if (action == "app.install" || action == "app.upgrade" || action == "app.start") command.push_back("--accept-code");
     if (request.contains("workload")) command.insert(command.end(), {"--workload", request["workload"]});
     command.insert(command.end(), {"--config-dir", config.string()});
   } else if (action.starts_with("update.")) {
@@ -258,6 +329,104 @@ void register_dashboard(httplib::Server& server, const ServerOptions& options,
     try { response.set_content(handler(request).dump(), "application/json"); }
     catch (const std::exception& error) { response.status = 400; response.set_content(json{{"error",error.what()}}.dump(), "application/json"); }
   }; };
+  auto app_access=std::make_shared<AppAccess>();
+  server.Post(R"(/admin/dashboard/apps/([A-Za-z0-9_.-]+)/open)",[auth,options,app_access](const auto& request,auto& response){
+    if(!auth(request,response))return;
+    try {
+      const auto id=request.matches[1].str();const auto app=running_app(options,id);
+      const auto local=app.at("url").template get<std::string>();std::smatch match;
+      if(!std::regex_match(local,match,std::regex(R"(http://127\.0\.0\.1:([0-9]{1,5})(/[^?#]*))")))throw std::invalid_argument("only loopback HTTP browser apps can be opened");
+      const auto prefix="/apps/"+id;const auto token=generate_api_key();
+      { std::lock_guard lock(app_access->mutex);const auto now=std::chrono::steady_clock::now();
+        std::erase_if(app_access->sessions,[&](const auto& item){return item.second.expires<=now;});
+        if(app_access->sessions.size()>=1024)throw std::runtime_error("too many app sessions");
+        app_access->sessions[token]={request.get_header_value("Authorization"),id,now+std::chrono::hours(8)};
+      }
+      response.set_header("Set-Cookie","mica_app="+token+"; Path="+prefix+"/; HttpOnly; SameSite=Strict; Max-Age=28800");
+      response.set_content(json{{"url",prefix+match[2].str()},{"host",request.get_header_value("Host")}}.dump(),"application/json");
+    }catch(const std::exception& error){response.status=400;response.set_content(json{{"error",error.what()}}.dump(),"application/json");}
+  });
+  server.Post("/admin/dashboard/apps/logout",[auth,app_access](const auto& request,auto& response){
+    if(!auth(request,response))return;
+    std::lock_guard lock(app_access->mutex);const auto authorization=request.get_header_value("Authorization");
+    std::erase_if(app_access->sessions,[&](const auto& item){return item.second.authorization==authorization;});
+    response.set_content("{\"ok\":true}","application/json");
+  });
+  server.Post(R"(/admin/dashboard/apps/([A-Za-z0-9_:-]+)/download)",[auth,options](const auto& request,auto& response){
+    if(!auth(request,response))return;
+    fs::path archive;
+    try {
+      if(request.body.size()>4096)throw std::invalid_argument("download request too large");
+      const auto data=json::parse(request.body);
+      for(const auto& [key,_]:data.items())if(key!="mode"&&key!="server_url"&&key!="workload")throw std::invalid_argument("unexpected download field");
+      archive=export_app_client(options.root,options.config_directory,options.executable,request.matches[1].str(),
+          data.at("server_url"),data.value("workload",""),data.at("mode"));
+      response.set_header("Content-Disposition","attachment; filename=\"mica-app-client.tar.gz\"");
+      response.set_content(contents(archive),"application/gzip");fs::remove(archive);
+    }catch(const std::exception& error){if(!archive.empty()){std::error_code ec;fs::remove(archive,ec);}response.status=400;response.set_content(json{{"error",error.what()}}.dump(),"application/json");}
+  });
+  const auto app_proxy=[options,credentials,app_access](const httplib::Request& request,httplib::Response& response){
+    const auto id=request.matches[1].str(),prefix="/apps/"+id;
+    const auto origin=request.get_header_value("Origin"),authority=request.get_header_value("Host");
+    if((!origin.empty()&&origin!="http://"+authority&&origin!="https://"+authority)||request.get_header_value("Sec-Fetch-Site")=="cross-site"){
+      response.status=403;response.set_content("{\"error\":\"origin_rejected\"}","application/json");return;
+    }
+    bool accepted=false;{std::lock_guard lock(app_access->mutex);auto it=app_access->sessions.find(cookie_value(request,"mica_app"));
+      if(it!=app_access->sessions.end()&&it->second.app==id&&it->second.expires>std::chrono::steady_clock::now())accepted=credentials->allows(it->second.authorization,true);
+    }
+    if(!accepted){response.status=401;response.set_content("App access expired. Open this app again from the Mica dashboard.","text/plain");return;}
+    try {
+      const auto app=running_app(options,id);std::smatch match;const auto local=app.at("url").get<std::string>();
+      if(!std::regex_match(local,match,std::regex(R"(http://127\.0\.0\.1:([0-9]{1,5})(/[^?#]*))")))throw std::invalid_argument("app address is not private loopback");
+      const int port=std::stoi(match[1]);if(port<1024||port>65535)throw std::invalid_argument("invalid app port");
+      auto suffix=request.path.substr(prefix.size());if(suffix.empty())suffix="/";
+      if(suffix.find("..")!=std::string::npos||suffix.find('\\')!=std::string::npos)throw std::invalid_argument("invalid app path");
+      httplib::Request upstream;upstream.method=request.method;upstream.path=suffix;
+      if(const auto query=request.target.find('?');query!=std::string::npos)upstream.path+=request.target.substr(query);
+      for(const auto& [name,value]:request.headers) {
+        const auto key=lower(name);
+        if(key=="accept"||key=="content-type"||key=="range")upstream.headers.emplace(name,value);
+      }
+      upstream.headers.emplace("Origin","http://127.0.0.1:"+std::to_string(port));
+      upstream.body=request.body;
+      if(request.is_multipart_form_data()) {
+        const auto boundary="mica-"+generate_api_key();upstream.headers.erase("Content-Type");
+        upstream.headers.emplace("Content-Type","multipart/form-data; boundary="+boundary);upstream.body.clear();
+        const auto quote=[](std::string text){for(auto& c:text)if(c=='\r'||c=='\n'||c=='"')c='_';return text;};
+        for(const auto& [name,field]:request.form.fields)upstream.body+="--"+boundary+"\r\nContent-Disposition: form-data; name=\""+quote(name)+"\"\r\n\r\n"+field.content+"\r\n";
+        for(const auto& [name,file]:request.form.files)upstream.body+="--"+boundary+"\r\nContent-Disposition: form-data; name=\""+quote(name)+"\"; filename=\""+quote(file.filename)+"\"\r\nContent-Type: application/octet-stream\r\n\r\n"+file.content+"\r\n";
+        upstream.body+="--"+boundary+"--\r\n";
+      }
+      if(upstream.body.size()>64*1024*1024){response.status=413;response.set_content("App upload exceeds 64 MiB","text/plain");return;}
+      const auto bridge=std::make_shared<AppBridge>(port);bridge->start(std::move(upstream));
+      {std::unique_lock lock(bridge->mutex);if(!bridge->changed.wait_for(lock,std::chrono::seconds(10),[&]{return bridge->ready;}))throw std::runtime_error("app did not respond");
+        response.status=bridge->status;
+        for(const auto& [name,value]:bridge->headers) {
+          const auto key=lower(name);if(key=="content-type"||key=="content-disposition"||key=="content-range"||key=="accept-ranges")response.set_header(name,value);
+          if(key=="location"&&value.starts_with('/')&&!value.starts_with("//"))response.set_header("Location",prefix+value);
+        }
+      }
+      response.set_header("Cache-Control","no-store");response.set_header("X-Content-Type-Options","nosniff");response.set_header("Referrer-Policy","no-referrer");
+      response.set_header("Content-Security-Policy","frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+      const auto mime=response.get_header_value("Content-Type");
+      if(mime.starts_with("text/html")) {
+        std::string html;std::unique_lock lock(bridge->mutex);
+        for(;;){bridge->changed.wait(lock,[&]{return bridge->finished||!bridge->chunks.empty();});
+          while(!bridge->chunks.empty()){html+=bridge->chunks.front();bridge->queued-=bridge->chunks.front().size();bridge->chunks.pop_front();bridge->changed.notify_all();}
+          if(html.size()>4*1024*1024)throw std::runtime_error("app HTML too large");if(bridge->finished)break;
+        }
+        lock.unlock();response.set_content(app_html(std::move(html),prefix),mime);
+      }else {
+        response.set_chunked_content_provider(mime.empty()?"application/octet-stream":mime,[bridge](std::size_t,httplib::DataSink& sink){
+          std::unique_lock lock(bridge->mutex);bridge->changed.wait(lock,[&]{return bridge->finished||!bridge->chunks.empty();});
+          if(bridge->chunks.empty()){sink.done();return true;}
+          auto chunk=std::move(bridge->chunks.front());bridge->chunks.pop_front();bridge->queued-=chunk.size();bridge->changed.notify_all();lock.unlock();return sink.write(chunk.data(),chunk.size());
+        });
+      }
+    }catch(const std::exception& error){response.status=502;response.set_content(json{{"error",error.what()}}.dump(),"application/json");}
+  };
+  server.Get(R"(/apps/([A-Za-z0-9_.-]+)(/.*)?)",app_proxy);
+  server.Post(R"(/apps/([A-Za-z0-9_.-]+)(/.*)?)",app_proxy);
   server.Get("/admin/dashboard/inventory", guarded([options,host](const auto&) {
     auto inventory = tui_inventory(options.root, options.config_directory, host.status());
     inventory["endpoints"] = server_endpoints(true);

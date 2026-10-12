@@ -420,6 +420,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       } else for (const auto& app : data.apps["apps"]) if (app["id"] == selected) {
         row("Name", app["name"]); row("Description", app["description"]); row("Source", app["source_id"]);
         row("Installed", app["installed"]); row("Running", app["running"]);
+        if(app.contains("connections")){section_heading("Server connections");object(app["connections"]);row("Default connection",app.value("default_connection",""));}
         if (app.contains("url")) row("Open in browser", app["url"]);
         if (app.contains("workloads")) { section_heading("Bundled workloads"); row("Registered IDs", app["workloads"]); }
         json manifest;
@@ -433,7 +434,8 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
           section_heading("Source and launch"); object(manifest["source"]); object(manifest["launch"]);
           row("Package integrity", "Manifest and downloaded files verified before registration. Downloaded code is not sandboxed.");
         } else row("Inspect first", "Enter fetches the manifest to review before installing.");
-        section_heading("Controls"); row("Actions", "Enter inspect · i install · w prepare workload · s launch · x stop · d uninstall");
+        section_heading("Controls"); row("Actions", "Enter inspect · i install here · w prepare compatible workload · c add server connection · k choose connection · s launch · x stop · d uninstall");
+        row("Install location", "The TUI installs on this device. Remote inference needs only an app connection; local Mica/engine/model setup is optional.");
         row("Safety", "Apps bind their own workload; launch never restarts Mica. OS/browser controls permissions.");
       }
     } else if (section == "server" && !server_picker && selected == "Updates") {
@@ -713,6 +715,8 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
           queue({executable.string(), "app", "source-remove", edit_value, "--config-dir", config.string(), "--root", root.string()});
         } else if (edit_option == "app workload ID") {
           auto values = entries(); queue({executable.string(), "app", "setup", values.at(row_index), edit_value, "--config-dir", config.string(), "--root", root.string()});
+        } else if (edit_option == "app connection name") {
+          auto values=entries();queue({executable.string(),"app","connection-select",values.at(row_index),"--connection",edit_value,"--config-dir",config.string(),"--root",root.string()});
         } else {
           std::vector<std::string> args{executable.string(), "config", "set", edit_option, edit_value,
             "--config-dir", config.string(), "--root", root.string()};
@@ -771,6 +775,16 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       if (selected == "Add source" && event == Event::Return) { edit_option = "app source URL"; edit_value.clear(); }
       else if (selected == "Sources" && event == Event::Character("d")) { edit_option = "remove app source ID"; edit_value.clear(); }
       else if (selected != "Sources" && selected != "Add source" && !selected.empty()) {
+        if(event==Event::Character("c")) {
+          std::string name,url,key_file,workload;
+          screen.WithRestoredIO([&]{std::cout<<"Connection name: "<<std::flush;std::getline(std::cin,name);
+            std::cout<<"Mica URL (HTTP/HTTPS origin): "<<std::flush;std::getline(std::cin,url);
+            std::cout<<"Private INFERENCE key file path (not the key itself): "<<std::flush;std::getline(std::cin,key_file);
+            std::cout<<"Remote workload ID: "<<std::flush;std::getline(std::cin,workload);})();
+          if(!name.empty()&&!url.empty()&&!key_file.empty()&&!workload.empty())command({"app","connect",selected,"--connection",name,"--url",url,"--api-key-file",key_file,"--workload",workload,"--config-dir",config.string()});
+          else message="Connection cancelled. No local models or engines installed.";
+        }
+        if(event==Event::Character("k")){edit_option="app connection name";edit_value.clear();}
         if (event == Event::Return) command({"app", "show", selected, "--config-dir", config.string()});
         if (event == Event::Character("i")) {
           bool reviewed = inspected_app.value("catalogue_id", "") == selected;
@@ -783,8 +797,9 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
         if (event == Event::Character("d")) command({"app", "uninstall", selected, "--config-dir", config.string()});
         if (event == Event::Character("w")) {
           for (const auto& app : data.apps["apps"]) if (app["id"] == selected && app.contains("workloads") && !app["workloads"].empty()) {
-            edit_option = "app workload ID"; edit_value = compact(app["workloads"][0]);
+            edit_option = "app workload ID"; edit_value.clear();
             for (const auto& w : app["workloads"]) if (data.workloads.contains(w.get<std::string>()) && data.workloads[w.get<std::string>()].value("compatible", false)) { edit_value = w; break; }
+            if(edit_value.empty()){edit_option.clear();message="No bundled workload supports this host. Use remote inference or add a compatible workload.";}
           }
         }
       }

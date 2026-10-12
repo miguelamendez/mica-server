@@ -109,6 +109,21 @@ files and the completion marker's repository/revision. They do not rehash large
 files on every UI refresh. These checks are not live inference certification,
 driver/toolchain readiness, or proof that a workload fits its measured peak.
 
+## Apps and server connections
+
+Apps → Add source accepts GitHub/Hugging Face repositories containing one
+`app.yaml` or an `apps.yaml` index. Each app declares its own bundled workloads,
+permissions and optional `cli`/`tui`/`web`/`background`/`mcp` interfaces.
+**i** installs on this device; **w** prepares a hardware-compatible bundled
+workload separately; **c** adds a named local/remote server connection using a
+private inference-key file; **k** selects one; **s/x** start/stop the app without
+restarting Mica. Unsupported bundled workloads are not selected as defaults.
+
+`mica-dictation --tui` is the native Dictation app's separate setup/recording
+interface. It can use remote inference without a local model server. The web
+dashboard offers device downloads instead of pretending it can install on a
+browser's machine. See [Apps](apps.md) for MCP and desktop permission limits.
+
 ## Model, engine and endpoint information
 
 Model details own modalities, abilities, supported tasks, training/context guidance, quantizations,

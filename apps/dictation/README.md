@@ -1,15 +1,20 @@
 # Dictation demo
 
-A small open-source WhisperFlow-style reference app, not the proprietary
-WhisperFlow product. Browser microphone or uploaded audio → Mica ASR → optional
-LLM cleanup → editable text → explicit copy. Ctrl/Cmd+Shift+R works only while
-the browser page is focused. No system-wide hotkeys or automatic typing.
+A small open-source WhisperFlow-style client, not the proprietary WhisperFlow
+product. Native microphone → Mica ASR → optional LLM cleanup → clipboard, with
+opt-in paste into the original focused application on macOS.
 
-Python 3's standard library runs the optional loopback bridge; no pip packages.
-The API key stays in the private Mica configuration, not browser storage. Default
-URL: http://127.0.0.1:8091/. Stop/start the app separately from the model server.
-Prepare a bundled workload and explicitly select it in Mica before launching.
-Missing operations after a workload switch disable the relevant feature.
+`mica-dictation --tui` sets local/remote connections. Ctrl+Alt/Option+R toggles
+recording (two-minute cap). macOS requires microphone permission and Input
+Monitoring for global shortcuts; automatic paste needs Accessibility. Linux
+uses PipeWire/ALSA recording, X11 shortcuts when available and clipboard tools;
+Wayland global shortcuts and Linux auto-type are not implemented. The TUI's
+Record button does not require a global shortcut.
+
+The old browser bridge remains a diagnostic fallback (`python3 app.py` without
+`--desktop`), not the default app. `mcp.py` exposes stdio models/transcribe/cleanup
+tools. File uploads require `--allow-directory PATH`. Remote inference needs no
+local engines, models or Mica Server. Keys stay in private files.
 
 Only record people with appropriate permission. The server may retain backend
 artifacts according to its own policies; this demo retains text in the current
