@@ -1,7 +1,8 @@
 # Mica API reference
 
-Mica exposes one OpenAI-compatible base URL for every model in the active
-profile. Unless otherwise noted, routes require a bearer token.
+Mica exposes one OpenAI-compatible base URL for workload-selected models.
+Unless otherwise noted, routes require a bearer token. Requests can bind to
+different workloads on the same server; see [global scheduling](scheduling.md).
 
 ```sh
 export MICA_BASE_URL=http://127.0.0.1:8080
@@ -35,6 +36,7 @@ The same `api_key` or `api_key_file` fields may be set in
 | `GET /v1/catalog` | Yes | Complete curated registry, filterable by modality, capability, engine, or artifact family. |
 | `GET /admin/models` | Yes | Active profile, memory budget, policies, and resident workers. |
 | `POST /admin/profile/activate` | Yes | Switch to an installed workload profile while retaining compatible workers. |
+| `POST /admin/scheduler` | Yes | Apply `high`, `single` or `balanced` residency globally without restarting. |
 | `POST /admin/server/stop` | Yes | Gracefully stop the server and workers; used by `mica-server stop`. A service supervisor may have its own restart policy. |
 
 Endpoint discovery lists the route contract, not a claim that all modalities
@@ -61,20 +63,23 @@ curl "$MICA_BASE_URL/admin/profile/activate" \
   -d '{"profile":"gguf-low-memory"}'
 ```
 
-The response names retained and unloaded workers and any startup models still
-warming. Watch `GET /ready` before sending inference to the new task. Mica
-rejects a task if its requirements exceed the existing global RAM/VRAM
-allocation or it needs a backend that setup has not installed. Run `setup`
-and restart to install a missing engine or enlarge the allocation. Requests
-already running on incompatible workers drain before those workers unload;
-the switch waits up to 30 seconds, then returns HTTP 409 without switching.
+This selects the default for requests without a workload selector. Resident
+workers and in-flight streams remain intact; the global scheduler reconciles
+workers on subsequent requests. Requirements must fit global allocations and
+the selected engine must be installed.
 
-The chat Settings workload picker uses authenticated discovery and the same
-activation route. It confirms server-wide changes, preserves conversation
-history, waits for warmup, and refreshes the model/media controls. Discovery's
-`can_activate` is a prerequisite check, not a guarantee: activation performs
-the final per-device placement and memory validation. Missing engines require
-installation while stopped; uncached weights may download during warmup.
+Use `X-Mica-Workload: ID`, or a `workload` JSON/multipart field, to select a
+workload per inference request. Conflicting selectors are rejected. Discovery
+supports `GET /v1/models?workload=ID`. Compatible workers can be shared across
+workloads; incompatible configurations wait for busy work to drain before
+replacement. The assistant Settings picker changes its app-specific binding,
+not the server default. Models load on demand and must fit estimated memory
+reservations; uncached weights can download on acquisition.
+
+`POST /admin/scheduler` accepts `{"strategy":"single"}` (also `high` and
+`balanced`) as a temporary live override. Use `mica-server config set --strategy
+balanced` to apply and persist it. Strategy/default changes do not restart Mica;
+allocation/listener/credential changes still follow the settings restart flow.
 
 Agent chat replies, their final streaming `done` event, and saved assistant
 messages include `generation_metrics`. When available, these contain

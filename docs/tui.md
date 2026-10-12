@@ -55,7 +55,8 @@ Select **Choose workload**, then Enter. When stopped, Enter on a workload review
 a start command; when running, it reviews a hot-swap command. `s` opens the same
 picker; `x` reviews stopping. A hot-swap requires installed dependencies and
 cached models: first install missing resources from Workloads. Matching workers
-are retained; incompatible workers drain/unload. Actions are confirmed before
+are retained; residency is reconciled on requests under the global scheduler.
+App-bound requests keep their selections. Actions are confirmed before
 execution. Readiness is refreshed every two seconds; `r` refreshes disk/cache
 inventory too.
 
@@ -141,9 +142,10 @@ the YAML editor, and `c` clones into user-owned configuration. Edited definition
 are validated; restart to load edits into the running registry. TUI jobs run off
 the rendering thread, report concise results, and refresh inventory on completion.
 
-Settings supports bind address, port, default workload, RAM, dedicated GPU memory,
-private key-file import and rotation. While running, confirmation validates the
-values, stops Mica, saves them and restarts the same active workload. Invalid
+Settings supports bind address, port, default workload, global scheduling strategy,
+RAM, dedicated GPU memory, private key-file import and rotation. Default workload
+and strategy edits apply live without restarting. Other edits validate the
+values, stop Mica, save them and restart the same active workload. Invalid
 values leave it running. A failed restart is reported; settings remain saved
 for correction. While stopped, settings are saved without starting the server.
 Changes cause brief downtime and may interrupt requests. **Rotate API key** also

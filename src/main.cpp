@@ -51,6 +51,7 @@ Usage:
   mica-server workload activate ID [--root PATH]
   mica-server config show [--root PATH]
   mica-server config set [--host HOST] [--port PORT] [--default-workload ID]
+                         [--strategy high|single|balanced]
                          [--ram-gib N] [--vram-gib N] [--rotate-api-key] [--restart] [--root PATH]
   mica-server endpoints     List public API routes; no running server required
   mica-server detect [--output PATH]
@@ -71,6 +72,7 @@ Usage:
   mica-server add-model --url URL --modality MODALITY [--id ID] [quantize options]
   mica-server quantize --model ID --backend mlx|gguf|vllm --quant q4|q8 [options]
   mica-server serve [--backend mlx|gguf|vllm] [--root PATH] [--host HOST] [--port PORT]
+                    [--strategy high|single|balanced]
 
 Setup options:
   --backends auto|mlx|gguf|vllm|LIST
@@ -201,6 +203,7 @@ void apply_server_config(mica::ServerOptions& options,
   const auto document = mica::load_server_configuration(path);
   if (document.contains("host")) options.host = document.at("host").get<std::string>();
   if (document.contains("port")) options.port = document.at("port").get<int>();
+  if (document.contains("scheduling_strategy")) options.scheduling_strategy = document.at("scheduling_strategy").get<std::string>();
   if (document.contains("api_key")) {
     options.api_key = document.at("api_key").get<std::string>();
   }
@@ -926,6 +929,7 @@ int main(int argc, char** argv) {
         else if (args[i] == "--config-dir") options.config_directory = value_after(args, i);
         else if (args[i] == "--host") options.host = value_after(args, i);
         else if (args[i] == "--port") options.port = std::stoi(value_after(args, i));
+        else if (args[i] == "--strategy") options.scheduling_strategy = value_after(args, i);
         else if (args[i] == "--api-key") options.api_key = value_after(args, i);
         else if (args[i] == "--ignore-context-limit") {
           options.ignore_context_limit = true;

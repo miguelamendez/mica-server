@@ -11,7 +11,7 @@ Open `mica-server tui`, press **7** for **Apps**, and select a demo:
 1. **Enter** inspects its manifest, permissions and requirements.
 2. **i** installs verified files and registers its bundled workloads.
 3. **w** prepares a bundled workload; the editable field lets you choose its ID.
-4. Select/start that workload in **Server** (or hot-swap a prepared workload).
+4. Start Mica if stopped. Other apps can keep their own workload bindings.
 5. Return to **Apps**, press **s**, and confirm execution of trusted code.
 6. Open the URL shown by `app show`/the manifest: assistant uses
    `http://127.0.0.1:8090/chat`; dictation uses `http://127.0.0.1:8091/`.
@@ -43,7 +43,10 @@ Choose the CUDA workload instead on compatible NVIDIA hardware. Mica's global
 machine allocation must satisfy the selected workload; change the allocation
 through Settings if appropriate. Bundled manifests are examples, not a promise
 of certification on every machine. An app can also use another compatible
-workload rather than its bundled default.
+workload rather than its bundled default using `app start ID --workload ID
+--accept-code`. Opening/stopping apps does not restart Mica. Requests from
+multiple apps use the [global scheduler](scheduling.md); app workload selection
+and resident model workers are separate concepts.
 
 ## Add another source
 
@@ -154,10 +157,11 @@ informational; actual microphone/clipboard/accessibility approval belongs to
 the OS/browser. The Mica configuration may contain credentials—only launch apps
 you trust with that access. Never install untrusted apps because a hash matches.
 
-Launching requires a running Mica workload whose model interactions and engine
-contracts provide the required operations. It does not change the workload.
-The dictation client refreshes available operations before each transcription;
-if a switch removes ASR/cleanup, the relevant feature becomes unavailable.
+Launching requires a running Mica server and a selected workload whose model
+interactions and engine contracts provide the required operations. The app
+forwards that workload on requests; it does not change the server default.
+The dictation client refreshes its bound workload's operations before each
+transcription. The assistant picker changes only its own bridge's binding.
 Backend dependencies and models are installed by ordinary workload setup and
 reused across apps. App process state/logs live in `~/.mica/state/apps/`.
 Launch reports a process and URL, not an inference/readiness certification.

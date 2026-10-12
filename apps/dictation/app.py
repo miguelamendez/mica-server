@@ -36,6 +36,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(400, b'{"error":"empty request"}')
             body = self.rfile.read(size) if size else None
             headers = {"Content-Type": self.headers.get("Content-Type", "application/json")}
+            if getattr(self.server, "workload", ""):
+                headers["X-Mica-Workload"] = self.server.workload
             # Read key/config for each request, so rotation doesn't require a client restart.
             config = json.loads(self.server.config.read_text()) if self.server.config.is_file() else {}
             host = config.get("host", "127.0.0.1")
@@ -72,9 +74,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--port", type=int, default=8091)
+    parser.add_argument("--workload", default="")
     args = parser.parse_args()
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     server.config = args.config
+    server.workload = args.workload
     print(f"Dictation: http://127.0.0.1:{args.port}/", flush=True)
     server.serve_forever()
 

@@ -381,6 +381,8 @@ class Handler(BaseHTTPRequestHandler):
             )
             return None
         headers = {"Authorization": f"Bearer {api_key}"}
+        if getattr(self.server, "workload", ""):
+            headers["X-Mica-Workload"] = self.server.workload
         if content_type:
             headers["Content-Type"] = content_type
         return headers
@@ -417,6 +419,25 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, "application/json", b'{"error":"not_found"}')
 
     def do_POST(self) -> None:  # noqa: N802
+        if self.path == "/api/workloads/activate":
+            headers = self._authorization_headers()
+            if headers is None:
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                workload = json.loads(self.rfile.read(length))["profile"]
+                if not isinstance(workload, str) or not workload:
+                    raise ValueError("profile must be a workload ID")
+                headers["X-Mica-Workload"] = workload
+                request = urllib.request.Request(self.server.mica_url + "/v1/models", headers=headers)
+                with urllib.request.urlopen(request, timeout=self.server.timeout) as response:
+                    json.load(response)
+                self.server.workload = workload
+                return self._send(200, "application/json", json.dumps({"profile": workload, "ready": True}).encode())
+            except urllib.error.HTTPError as error:
+                return self._send(error.code, "application/json", error.read())
+            except Exception as error:
+                return self._send(400, "application/json", json.dumps({"error": str(error)}).encode())
         if self.path == "/api/agent/chat/stream":
             length = int(self.headers.get("Content-Length", "0"))
             return self._proxy_stream(
@@ -424,7 +445,6 @@ class Handler(BaseHTTPRequestHandler):
                 self.headers.get("Content-Type", "application/octet-stream"),
             )
         routes = {
-            "/api/workloads/activate": "/admin/profile/activate",
             "/api/chat": "/v1/chat/completions",
             "/api/transcribe": "/v1/audio/transcriptions",
             "/api/speech": "/v1/audio/speech",
@@ -449,9 +469,16 @@ class Handler(BaseHTTPRequestHandler):
         )
         try:
             with urllib.request.urlopen(request, timeout=self.server.timeout) as response:
+                output = response.read()
+                if path == "/v1/workloads" and getattr(self.server, "workload", ""):
+                    catalog = json.loads(output)
+                    catalog["active_workload"] = self.server.workload
+                    for item in catalog.get("data", []):
+                        item["active"] = item["id"] == self.server.workload
+                    output = json.dumps(catalog).encode()
                 self._send(response.status,
                            response.headers.get("Content-Type", "application/octet-stream"),
-                           response.read())
+                           output)
         except urllib.error.HTTPError as error:
             self._send(error.code,
                        error.headers.get("Content-Type", "application/json"), error.read())
@@ -529,6 +556,7 @@ def main() -> int:
     parser.add_argument("--host")
     parser.add_argument("--port", type=int)
     parser.add_argument("--mica-url")
+    parser.add_argument("--workload", default="")
     parser.add_argument("--api-key",
                         help="Fallback API key (prefer --api-key-file to avoid shell history)")
     parser.add_argument("--api-key-file", type=Path)
@@ -555,6 +583,7 @@ def main() -> int:
     server.mica_url = str(mica_url).rstrip("/")
     server.api_key = configured_key(args, config)
     server.timeout = args.timeout
+    server.workload = args.workload
     print(f"Voice:      http://{host}:{port}/voice")
     print(f"Multimodal: http://{host}:{port}/multimodal")
     print(f"Agent chat: http://{host}:{port}/chat")

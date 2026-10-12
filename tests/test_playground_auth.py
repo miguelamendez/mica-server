@@ -10,6 +10,8 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
+from io import BytesIO
 from argparse import Namespace
 from pathlib import Path
 from types import SimpleNamespace
@@ -87,6 +89,32 @@ assert.equal(vm.runInContext('newSessionId()', secure), 'native-uuid');
         headers = handler._authorization_headers("application/json")
         self.assertEqual(headers["Authorization"], "Bearer tab-token-0123456789")
         self.assertEqual(headers["Content-Type"], "application/json")
+
+    def test_bound_workload_is_forwarded_per_app(self) -> None:
+        handler = self.handler("tab-token-0123456789")
+        handler.server.workload = "assistant--mac"
+        self.assertEqual(handler._authorization_headers()["X-Mica-Workload"], "assistant--mac")
+
+    def test_workload_selection_does_not_activate_server_default(self) -> None:
+        handler = self.handler("tab-token-0123456789")
+        body = json.dumps({"profile": "another-workload"}).encode()
+        handler.path = "/api/workloads/activate"
+        handler.headers["Content-Length"] = str(len(body))
+        handler.rfile = BytesIO(body)
+        handler.server.mica_url = "http://127.0.0.1:1"
+        handler.server.timeout = 1
+        handler.server.workload = "previous"
+        sent = []
+        handler._send = lambda status, *_: sent.append(status)
+        response = mock.MagicMock()
+        response.__enter__.return_value = BytesIO(b'{"data":[]}')
+        with mock.patch.object(PLAYGROUND.urllib.request, "urlopen", return_value=response) as call:
+            handler.do_POST()
+            request = call.call_args.args[0]
+            self.assertTrue(request.full_url.endswith("/v1/models"))
+            self.assertEqual(request.get_header("X-mica-workload"), "another-workload")
+        self.assertEqual(handler.server.workload, "another-workload")
+        self.assertEqual(sent, [200])
 
     def test_cli_key_precedes_config_and_key_file(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

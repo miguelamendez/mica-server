@@ -20,14 +20,14 @@ distribution:
     sha256: c20c42541bb5a7702e044d6a212ea58253a13c7f4da124515baabfd7469ab672
     size_bytes: 1889
   - path: runtime/mica-chat-settings.js
-    sha256: 7f1c1e365da25fc1d09ab7608ab795c6b816adb518b134cd429cc4c3dc274dc0
-    size_bytes: 4172
+    sha256: c7c51da20f073d3ee4df0fa179ac1da61db4f9ea1fe16372fc0f1a329ebf0079
+    size_bytes: 4143
   - path: runtime/mica-logo.svg
     sha256: 892548b91ddbb38d19b53826f4c579a52cd7d5a887fb698a3d279c7d4cdfb44e
     size_bytes: 522
   - path: runtime/mica_playground.py
-    sha256: 76443fcdac17f68a0188ad9f151d7d6c7bcb93c521323525e077e3408078c12c
-    size_bytes: 92536
+    sha256: 1b54557ed7f8aa1b779813bb449238ea6834fd126dd68cb6bcd725f51f06e4d3
+    size_bytes: 94281
   - path: workloads/cuda.yaml
     sha256: f271454acc2d5f6e1eb02b801e15571573a7e594eea7f1144323a5df9df92474
     size_bytes: 2462
@@ -49,6 +49,8 @@ launch:
   - '{mica_config}'
   - --port
   - '{port}'
+  - --workload
+  - '{workload}'
   - --host
   - 127.0.0.1
   port: 8090

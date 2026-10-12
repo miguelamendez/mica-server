@@ -96,11 +96,15 @@ order. Projectors, codecs and drafters belong to artifact bundles. Context,
 placement and residency are workload policies. Workload requirements and limits
 must fit the global machine allocation.
 
-Use **all**, **sequential**, or **balanced** residency where the selected models
-and budget permit. Component/KV estimates support planning; they are not
-measurements of peak process memory.
+Workloads define model collections; the server's **global scheduler** governs
+residency across them: **single** keeps one worker, **high** retains as many as
+the budget allows, and **balanced** favors high-priority workers. Requests bind
+to a workload, shared compatible workers are reused, and busy workers finish
+before eviction. Component/KV estimates support admission; they are not
+measurements of peak process memory. Workload `all`/`sequential` planning estimates
+remain available but do not override the server strategy.
 [Configuration contract](docs/design/configuration-contract.md) ·
-[Workload design](docs/profiles.md) · [Memory planning](docs/memory-estimation.md).
+[Workload design](docs/profiles.md) · [Scheduling](docs/scheduling.md) · [Memory planning](docs/memory-estimation.md).
 
 ## Useful commands
 
@@ -109,6 +113,7 @@ mica-server workload list
 mica-server workload install WORKLOAD_ID --ram-gib 16
 mica-server start --workload WORKLOAD_ID
 mica-server status
+mica-server config set --strategy balanced
 mica-server workload activate OTHER_PREPARED_WORKLOAD_ID
 mica-server endpoints
 mica-server stop
@@ -140,7 +145,9 @@ The default **Mica demo apps** source includes:
   optional LLM cleanup → editable text → explicit copy. No global desktop hooks.
 
 Each app has its own folder, `app.yaml`, verified assets and default workloads.
-Apps reuse Mica's API and shared caches; they never silently switch workloads.
+Apps reuse Mica's API and shared caches. Each app binds its requests to its own
+workload, so multiple apps can stay open without switching the server default
+or restarting it. The scheduler loads/offloads models as requests arrive.
 Browse **TUI → Apps**, or:
 
 ```sh

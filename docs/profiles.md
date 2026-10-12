@@ -542,12 +542,15 @@ relief, older use, and larger reservation. Pinned workers are excluded.
 
 An installed schema-5 workload can be activated through
 `POST /admin/profile/activate` with `{"profile":"workload-id"}`. The proxy keeps
-resident workers whose model, artifact, engine, context, batching, KV-cache,
-placement, and memory reservations match the target workload. It drains active
-requests before unloading incompatible workers, then warms missing startup
-workers. The target workload's RAM/VRAM requirements must fit the global machine
-allocation. A missing backend, changed machine allocation, or edited engine
-installation still requires `setup` and a server restart. See the
+resident workers; this changes the default for requests that do not name a
+workload. Explicit app/workload requests remain independent. On acquisition,
+the global scheduler reuses workers whose model, artifact, engine, context,
+batching, KV, placement and reservations match, then evicts idle workers as
+needed. Busy workers are never evicted. The target workload's RAM/VRAM
+requirements must fit the global allocation. New workload definitions using
+registered models are discovered on demand without a restart; engine preparation
+and allocation changes still use the explicit installation/settings flow. See
+[global scheduling](scheduling.md) and the
 [API reference](api.md#health-and-discovery).
 
 ## Browsing workload collections

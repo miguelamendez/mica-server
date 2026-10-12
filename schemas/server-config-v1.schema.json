@@ -15,6 +15,7 @@
     "host": {"$ref": "#/$defs/host", "default": "127.0.0.1"},
     "port": {"$ref": "#/$defs/port", "default": 8080},
     "default_workload": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "scheduling_strategy": {"type": "string", "enum": ["high", "single", "balanced"], "default": "balanced"},
     "api_key": {"$ref": "#/$defs/key", "description": "Discouraged inline secret. Prefer a private api_key_file."},
     "api_key_file": {"$ref": "#/$defs/file"},
     "ui": {

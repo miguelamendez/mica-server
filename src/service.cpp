@@ -55,7 +55,10 @@ void validate_server_configuration(const json& document) {
     for (const auto& item : object.items()) if (!allowed.contains(item.key()))
       throw std::invalid_argument("unknown server configuration field: " + item.key());
   };
-  check(document, {"schema", "host", "port", "default_workload", "api_key", "api_key_file", "ui"});
+  check(document, {"schema", "host", "port", "default_workload", "api_key", "api_key_file", "ui", "scheduling_strategy"});
+  if (document.contains("scheduling_strategy") && document.at("scheduling_strategy") != "high" &&
+      document.at("scheduling_strategy") != "single" && document.at("scheduling_strategy") != "balanced")
+    throw std::invalid_argument("scheduling_strategy must be high, single or balanced");
   if (document.contains("schema") && (!document["schema"].is_number_integer() || document["schema"] != 1))
     throw std::invalid_argument("server configuration must use schema 1");
   const auto fields = [](const json& object) {
@@ -164,7 +167,7 @@ int service_command(const std::string& action, const std::vector<std::string>& a
       serve_args.insert(serve_args.end(), {option, root.string()});
       install_args.insert(install_args.end(), {option, root.string()});
     } else if (option == "--workload") workload = next_value(arguments, i);
-    else if (action == "start" && (option == "--host" || option == "--port" || option == "--server-config")) {
+    else if (action == "start" && (option == "--host" || option == "--port" || option == "--server-config" || option == "--strategy")) {
       const auto value = next_value(arguments, i);
       serve_args.insert(serve_args.end(), {option, value});
     } else if (action == "start" && (option == "--config-dir" || option == "--api-key-file")) {
@@ -259,6 +262,7 @@ int configuration_command(const std::vector<std::string>& args,
     else if (args[0] == "set" && option == "--api-key-file") import_key = next_value(args, i);
     else if (args[0] == "set" && option == "--host") changes["host"] = next_value(args, i);
     else if (args[0] == "set" && option == "--default-workload") changes["default_workload"] = next_value(args, i);
+    else if (args[0] == "set" && option == "--strategy") changes["scheduling_strategy"] = next_value(args, i);
     else if (args[0] == "set" && option == "--port") changes["port"] = std::stoi(next_value(args, i));
     else if (args[0] == "set" && (option == "--ram-gib" || option == "--vram-gib"))
       changes[option.substr(2)] = std::stod(next_value(args, i));
@@ -277,10 +281,14 @@ int configuration_command(const std::vector<std::string>& args,
   }
   if (args[0] != "set") throw std::invalid_argument("config requires show or set");
   const bool running = local_server_running(root);
-  if (running && !restart) throw std::runtime_error("stop Mica before changing server settings, or use --restart");
+  const bool live_change = running && !rotate && import_key.empty() && !changes.empty() &&
+      std::all_of(changes.items().begin(), changes.items().end(), [](const auto& field) {
+        return field.key() == "scheduling_strategy" || field.key() == "default_workload";
+      });
+  if (running && !restart && !live_change) throw std::runtime_error("stop Mica before changing server settings, or use --restart");
   if (restart && executable.empty()) throw std::runtime_error("restart needs the Mica executable path");
   const auto active_workload = running ? local_server_status(root).value("profile", json::object()).value("name", "") : "";
-  for (const auto* key : {"host", "port", "default_workload"})
+  for (const auto* key : {"host", "port", "default_workload", "scheduling_strategy"})
     if (changes.contains(key)) server[key] = changes[key];
   server["schema"] = 1;
   validate_server_configuration(server);
@@ -316,6 +324,15 @@ int configuration_command(const std::vector<std::string>& args,
     server["api_key_file"] = (root / "secrets/api-key").string();
   }
   // Validate all proposed values and the private key before interrupting service.
+  if (live_change) {
+    if (changes.contains("default_workload"))
+      local_server_request(root, "POST", "/admin/profile/activate", {{"profile", changes["default_workload"]}});
+    if (changes.contains("scheduling_strategy"))
+      local_server_request(root, "POST", "/admin/scheduler", {{"strategy", changes["scheduling_strategy"]}});
+    private_write(server_path, server.dump(2) + "\n");
+    std::cout << "Settings saved and applied without restarting Mica.\n";
+    return 0;
+  }
   if (running) service_command("stop", {"--root", root.string()}, executable, root);
   if (!replacement_key.empty()) private_write(root / "secrets/api-key", replacement_key + "\n");
   private_write(machine_path, profile_yaml(machine));

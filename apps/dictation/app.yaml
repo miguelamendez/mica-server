@@ -14,8 +14,8 @@ distribution:
     sha256: f071286b2ee3fc86d078860403e194f419f50024154e502f08e8e7efdf72c090
     size_bytes: 967
   - path: app.py
-    sha256: 1980880fdb49e5ce61586fc60c50f976a379920ee479ff73b1118af2269bde8b
-    size_bytes: 3919
+    sha256: dc995387c7ea791552e72f32abd44bb7caea4b2922af9cfa019d3f30a2c3674c
+    size_bytes: 4124
   - path: index.html
     sha256: 748b9d6965a08157968cae0beaa23d8d4225a113056a8a4e48f1a2a024804272
     size_bytes: 7016
@@ -39,6 +39,8 @@ launch:
   - '{mica_config}'
   - --port
   - '{port}'
+  - --workload
+  - '{workload}'
   port: 8091
   path: /
 workloads:

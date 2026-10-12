@@ -18,11 +18,11 @@
         `${selected.required_ram_gib} GiB RAM · ${selected.required_vram_gib} GiB VRAM required\n` +
         (selected.models || []).map(model => `${model.id} (${model.quantization})`).join(' · ') : '';
       const blockers = selected?.activation_blockers || [];
-      notice.textContent = switching ? 'Switching workload and waiting for warmup…' :
+      notice.textContent = switching ? 'Selecting this app’s workload…' :
         blockers.length ? blockers.join(' ') + ' Use mica-server workload install while stopped.' :
         !ready && activeId ? 'Server is warming. Controls refresh automatically.' :
         selected?.id === activeId ? 'This workload is active.' :
-        'Switching keeps compatible loaded models and warms missing startup models.';
+        'Models load on demand. Other apps keep their own workload selection.';
       select.disabled = switching || isBusy() || !workloads.length;
       button.disabled = switching || isBusy() || !ready || !selected ||
         selected.id === activeId || !selected.can_activate;
@@ -50,7 +50,7 @@
     async function activate() {
       const selected = workloads.find(item => item.id === select.value);
       if (switching || isBusy() || !ready || !selected || !selected.can_activate || selected.id === activeId) return false;
-      if (!confirmSwitch(`Switch the server to ${selected.id}? This affects every connected chat. Your conversation stays saved.`)) return false;
+      if (!confirmSwitch(`Use ${selected.id} in this app? Other apps are unaffected. Your conversation stays saved.`)) return false;
       switching = true; onBusy(true); update();
       try {
         await request('/api/workloads/activate', {method: 'POST',

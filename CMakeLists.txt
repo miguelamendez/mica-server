@@ -137,6 +137,9 @@ include(GNUInstallDirs)
 if(MICA_SERVER_BUILD_TESTS)
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
   enable_testing()
+  add_test(NAME mica-server-global-scheduler
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_global_scheduler.py
+            $<TARGET_FILE:mica-server> ${CMAKE_CURRENT_SOURCE_DIR}/config)
   add_test(NAME mica-server-app-packages
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_apps.py
             $<TARGET_FILE:mica-server> ${CMAKE_CURRENT_SOURCE_DIR}/config)

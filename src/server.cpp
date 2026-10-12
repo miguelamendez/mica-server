@@ -1,4 +1,5 @@
 #include "mica_server/server.hpp"
+#include "mica_server/apps.hpp"
 #include "mica_server/inventory.hpp"
 #include "mica_server/generation_metrics.hpp"
 #include "mica_server/tool_calling.hpp"
@@ -584,6 +585,7 @@ struct Worker {
   pid_t pid{-1};
   int port{0};
   int in_flight{0};
+  int retention_priority{0};
   std::uint64_t last_used_ns{0};
 };
 
@@ -1112,9 +1114,12 @@ const EngineDefinition::EndpointContract& worker_contract(const Worker& worker,
 class WorkerManager {
  public:
   WorkerManager(const Registry& registry, const RuntimeState& state,
-                std::filesystem::path root, std::vector<Backend> active_backends)
+                std::filesystem::path root, std::vector<Backend> active_backends,
+                std::string strategy = "balanced")
       : registry_(registry), state_(state), root_(std::move(root)),
-        active_backends_(std::move(active_backends)) {
+        active_backends_(std::move(active_backends)), strategy_(std::move(strategy)) {
+    if (strategy_ != "high" && strategy_ != "single" && strategy_ != "balanced")
+      throw std::invalid_argument("strategy must be high, single or balanced");
     std::filesystem::create_directories(root_ / "run/workers");
     std::filesystem::create_directories(root_ / "logs");
   }
@@ -1124,6 +1129,48 @@ class WorkerManager {
     if (sweeper_.joinable()) sweeper_.join();
     std::lock_guard lock(mutex_);
     for (auto& [_, worker] : workers_) stop_worker(worker);
+  }
+
+  class RequestScope {
+   public:
+    RequestScope(WorkerManager& manager, const std::string& workload)
+        : previous_(request_workload_) {
+      std::lock_guard lock(manager.mutex_);
+      const auto id = workload.empty() ? manager.state_.profile : workload;
+      manager.ensure_profile_locked(id);
+      const auto& profile = manager.registry_.profile(id);
+      if (!manager.registry_.allow_partial_workload &&
+          (profile.required_ram_gib > manager.state_.max_ram_gib + 1e-9 ||
+           profile.required_vram_gib > manager.state_.max_vram_gib + 1e-9))
+        throw std::invalid_argument("workload requirements exceed machine allocation: " + id);
+      request_workload_ = id;
+    }
+    ~RequestScope() { request_workload_ = previous_; }
+    RequestScope(const RequestScope&) = delete;
+   private:
+    std::string previous_;
+  };
+  std::unique_ptr<RequestScope> bind_workload(const std::string& workload) {
+    return std::make_unique<RequestScope>(*this, workload);
+  }
+
+  const Profile& request_profile_locked() const {
+    return registry_.profile(request_workload_.empty() ? state_.profile : request_workload_);
+  }
+  void ensure_profile_locked(const std::string& id) {
+    if (registry_.profiles.contains(id)) return;
+    if (id.empty() || id.size() > 128 || !std::all_of(id.begin(), id.end(), [](unsigned char c) {
+          return std::isalnum(c) || c == '-' || c == '_' || c == '.';
+        }) || id == "." || id == "..") throw std::invalid_argument("invalid workload ID");
+    const auto path = root_ / "config/profiles" / (id + ".yaml");
+    if (!std::filesystem::is_regular_file(path) || std::filesystem::is_symlink(path))
+      throw std::invalid_argument("unknown workload: " + id);
+    auto isolated = registry_;
+    auto profile = profile_from_document(isolated, read_profile_file(path));
+    if (profile.name != id) throw std::invalid_argument("workload file/ID mismatch");
+    for (const auto& model : profile.models) (void)registry_.model(model);
+    resolve_profile_engines(registry_, profile, runtime_hardware(state_), root_);
+    registry_.profiles.emplace(id, std::move(profile));
   }
 
   void start_background() {
@@ -1191,16 +1238,11 @@ class WorkerManager {
           candidate.quantization = policy->quantization;
           candidate.artifact = artifact;
           assign_worker_resources(candidate, state_);
-          const bool worker_limit_reached = profile.maximum_resident_workers > 0 &&
-              workers_.size() >= static_cast<std::size_t>(profile.maximum_resident_workers);
+          const bool worker_limit_reached = strategy_ == "single" && !workers_.empty();
           if (worker_limit_reached ||
               !fits_resources(candidate.ram_reservation_gib,
                               candidate.vram_reservation_gib,
                               candidate.memory_device)) {
-            if (policy->residency == Residency::pinned) {
-              throw std::runtime_error(policy->id +
-                                       ": pinned startup model exceeds residency limits");
-            }
             continue;
           }
           auto lease = acquire(policy->id, policy->backend, policy->quantization);
@@ -1284,7 +1326,7 @@ class WorkerManager {
                                    const std::string& requested) const {
     std::lock_guard lock(mutex_);
     const auto selected = select_profile_model(
-        registry_, registry_.profile(state_.profile), route, required_inputs,
+        registry_, request_profile_locked(), route, required_inputs,
         requested);
     try {
       (void)resolve_request_locked(selected);
@@ -1303,22 +1345,120 @@ class WorkerManager {
                                   Quantization quantization) {
     std::unique_lock lock(mutex_);
     transition_cv_.wait(lock, [this] { return !swapping_; });
-    return acquire_locked(id, backend, quantization);
+    return acquire_queued_locked(lock, id, backend, quantization);
   }
 
   std::shared_ptr<Worker> acquire_requested(const std::string& requested) {
     std::unique_lock lock(mutex_);
     transition_cv_.wait(lock, [this] { return !swapping_; });
     const auto selected = resolve_request_locked(requested);
-    return acquire_locked(selected.id, selected.backend, selected.quantization);
+    return acquire_queued_locked(lock, selected.id, selected.backend, selected.quantization);
+  }
+
+  static bool compatible_worker(const Worker& worker, const ProfileModel* policy) {
+    if (!policy || !worker.profile_policy) return !policy && !worker.profile_policy;
+    const auto& old = *worker.profile_policy;
+    return worker.engine->id == policy->engine && worker.backend == policy->backend &&
+      worker.quantization == policy->quantization && old.max_input_tokens == policy->max_input_tokens &&
+      old.max_output_tokens == policy->max_output_tokens && old.max_total_tokens == policy->max_total_tokens &&
+      old.max_concurrent_requests == policy->max_concurrent_requests && old.kv_cache_precision == policy->kv_cache_precision &&
+      old.placement_mode == policy->placement_mode && old.device == policy->device && old.gpu_layers == policy->gpu_layers &&
+      old.ram_reservation_gib == policy->ram_reservation_gib && old.vram_reservation_gib == policy->vram_reservation_gib &&
+      profile_native_options(old) == profile_native_options(*policy);
+  }
+  void erase_worker_locked(const std::string& key) {
+    const auto found = workers_.find(key); if (found == workers_.end()) return;
+    if (found->second->in_flight) throw std::logic_error("attempt to evict a busy worker");
+    reserved_ram_gib_ -= found->second->ram_reservation_gib;
+    adjust_reserved_vram(*found->second, -1.0);
+    stop_worker(found->second); workers_.erase(found);
+  }
+  int effective_priority(const Worker& worker) const {
+    int priority = worker.retention_priority;
+    for (const auto& id : active_app_workloads_) {
+      const auto found = registry_.profiles.find(id);
+      if (found == registry_.profiles.end()) continue;
+      const auto* policy = found->second.policy_for(worker.model->id);
+      if (compatible_worker(worker, policy)) priority = std::max(priority, policy->priority);
+    }
+    return priority;
+  }
+  std::shared_ptr<Worker> acquire_queued_locked(std::unique_lock<std::mutex>& lock,
+      const std::string& id, Backend backend, Quantization quantization) {
+    const auto deadline = std::chrono::steady_clock::now() +
+        std::chrono::seconds(registry_.policy.queue_timeout_seconds);
+    const auto key = worker_key(id, backend, quantization);
+    bool queued = false;
+    struct Unqueue { int& count; bool& queued; ~Unqueue() { if (queued) --count; } } unqueue{queued_requests_, queued};
+    while (true) {
+      if (monotonic_ns() > app_interest_refreshed_ns_ + 2000000000ULL) {
+        active_app_workloads_ = active_app_workloads(root_);
+        for (const auto& workload : active_app_workloads_) {
+          try { ensure_profile_locked(workload); } catch (const std::exception&) { }
+        }
+        app_interest_refreshed_ns_ = monotonic_ns();
+      }
+      const auto& profile = request_profile_locked();
+      const auto* policy = profile.policy_for(id);
+      if (profile.schema >= 3 && (!policy || policy->backend != backend || policy->quantization != quantization))
+        throw std::invalid_argument("model variant is not selected by requested workload");
+      const auto& artifact = registry_.model(id).artifact_for(backend, quantization, policy ? policy->engine : "");
+      if (policy) {
+        const auto footprint = resolve_model_placement(*policy, artifact, runtime_hardware(state_));
+        if (footprint.ram_reservation_gib > ram_limit() + 1e-9 ||
+            !fits_device_reservation({}, state_.dedicated_memory_gib,
+                memory_device_for(footprint.device, state_), footprint.vram_reservation_gib, vram_limit()) ||
+            (profile.memory_limit_gib > 0 && footprint.ram_reservation_gib + footprint.vram_reservation_gib >
+             profile.memory_limit_gib - profile.memory_safety_reserve_gib + 1e-9))
+          throw std::runtime_error("model_estimated_footprint_exceeds_memory_budget");
+      }
+      if (last_request_workload_ != profile.name || strategy_ == "single") {
+        std::vector<std::string> remove;
+        for (const auto& [resident_key, worker] : workers_) {
+          if (worker->in_flight || resident_key == key) continue;
+          const bool shared = compatible_worker(*worker, profile.policy_for(worker->model->id));
+          const bool high_priority = effective_priority(*worker) >= 100;
+          if (strategy_ == "single" || (strategy_ == "balanced" && !shared && !high_priority)) remove.push_back(resident_key);
+        }
+        for (const auto& resident_key : remove) erase_worker_locked(resident_key);
+        last_request_workload_ = profile.name;
+      }
+      auto found = workers_.find(key);
+      bool wait = strategy_ == "single" && std::any_of(workers_.begin(), workers_.end(),
+          [&](const auto& item) { return item.first != key && item.second->in_flight > 0; });
+      if (found != workers_.end()) {
+        if (!compatible_worker(*found->second, policy)) {
+          if (found->second->in_flight) wait = true;
+          else erase_worker_locked(key);
+        } else {
+          const int limit = policy ? policy->max_concurrent_requests : 1;
+          wait = wait || found->second->in_flight >= limit;
+          if (!wait) {
+            found->second->retention_priority = std::max(found->second->retention_priority, policy ? policy->priority : 0);
+            ++found->second->in_flight; return found->second;
+          }
+        }
+      }
+      if (!wait) {
+        try { return acquire_locked(id, backend, quantization); }
+        catch (const std::runtime_error& error) {
+          if (std::string(error.what()) != "model_memory_budget_exceeded") throw;
+          wait = std::any_of(workers_.begin(), workers_.end(), [](const auto& item) { return item.second->in_flight > 0; });
+          if (!wait) throw;
+        }
+      }
+      if (!queued) { ++queued_requests_; queued = true; }
+      if (transition_cv_.wait_until(lock, deadline) == std::cv_status::timeout)
+        throw std::runtime_error("model_queue_timeout");
+      transition_cv_.wait(lock, [this] { return !swapping_; });
+    }
   }
 
   std::shared_ptr<Worker> acquire_locked(const std::string& id, Backend backend,
                                          Quantization quantization) {
-    if (std::find(active_backends_.begin(), active_backends_.end(), backend) ==
-        active_backends_.end()) {
+    const auto& profile = request_profile_locked();
+    if (profile.schema < 3 && std::find(active_backends_.begin(), active_backends_.end(), backend) == active_backends_.end())
       throw std::runtime_error("backend is not active: " + to_string(backend));
-    }
     const auto selected_quantizations = quantizations_for(id, backend);
     if (std::find(selected_quantizations.begin(), selected_quantizations.end(), quantization) ==
         selected_quantizations.end()) {
@@ -1333,7 +1473,6 @@ class WorkerManager {
       return found->second;
     }
     const auto& model = registry_.model(id);
-    const auto& profile = registry_.profile(state_.profile);
     if (std::find(profile.models.begin(), profile.models.end(), id) == profile.models.end()) {
       throw std::runtime_error("model is not in active profile: " + id);
     }
@@ -1350,6 +1489,7 @@ class WorkerManager {
     worker->engine = &registry_.engine(profile_policy ? profile_policy->engine
                                                        : artifact.engine);
     worker->profile_policy = profile_policy;
+    worker->retention_priority = profile_policy ? profile_policy->priority : 0;
     worker->backend = backend;
     worker->quantization = quantization;
     worker->artifact = artifact;
@@ -1399,287 +1539,91 @@ class WorkerManager {
       stop_worker(worker);
       workers_.erase(key);
     }
+    if (strategy_ == "balanced" && !last_request_workload_.empty()) {
+      const auto& latest = registry_.profile(last_request_workload_);
+      std::vector<std::string> stale;
+      for (const auto& [key, resident] : workers_)
+        if (!resident->in_flight && effective_priority(*resident) < 100 &&
+            !compatible_worker(*resident, latest.policy_for(resident->model->id))) stale.push_back(key);
+      for (const auto& key : stale) erase_worker_locked(key);
+    }
     transition_cv_.notify_all();
   }
 
+  json set_strategy(const std::string& strategy) {
+    if (strategy != "high" && strategy != "single" && strategy != "balanced")
+      throw std::invalid_argument("strategy must be high, single or balanced");
+    std::lock_guard lock(mutex_);
+    strategy_ = strategy;
+    // Existing streams drain naturally. The next acquisition reconciles
+    // residency; changing strategy never kills an in-flight worker.
+    last_request_workload_.clear();
+    transition_cv_.notify_all();
+    return {{"strategy", strategy_}, {"applied", true}, {"restart_required", false}};
+  }
+
   json swap_profile(const std::string& target_id) {
-    std::unique_lock lock(mutex_);
-    if (swapping_ || !ready_.load()) {
-      throw std::runtime_error("server must be ready before switching tasks");
-    }
+    std::lock_guard lock(mutex_);
+    if (!ready()) throw std::runtime_error("server must be ready before changing its default workload");
+    ensure_profile_locked(target_id);
     const auto& target = registry_.profile(target_id);
-    if (target.schema < 4) {
-      throw std::invalid_argument("live switching requires a schema-4 workload profile");
-    }
-    if (target_id == state_.profile) {
-      return {{"profile", target_id}, {"unchanged", true},
-              {"retained", json::array()}, {"unloaded", json::array()}};
-    }
-    if (state_.schema < 6) {
-      throw std::runtime_error("runtime must be refreshed with setup before live switching");
-    }
+    if (target.schema < 4) throw std::invalid_argument("live selection requires a YAML workload");
     if (!registry_.allow_partial_workload &&
-        (target.required_ram_gib > state_.max_ram_gib + 1e-9 ||
-         target.required_vram_gib > state_.max_vram_gib + 1e-9)) {
-      throw std::runtime_error("global memory allocation is below target workload requirements");
-    }
-    std::vector<Backend> next_backends;
+        (target.required_ram_gib > state_.max_ram_gib + 1e-9 || target.required_vram_gib > state_.max_vram_gib + 1e-9))
+      throw std::invalid_argument("workload requirements exceed global allocation");
+    const auto previous = state_.profile;
+    if (previous == target_id) return {{"profile", target_id}, {"unchanged", true}, {"ready", true}};
+    std::ifstream input(root_ / "state/runtime.json"); auto persisted = json::parse(input);
+    json configured = json::object(); std::map<std::string, json> policies;
+    std::map<std::string, std::vector<Quantization>> quantizations;
+    std::set<Quantization> selected; std::set<Backend> backends;
     for (const auto& policy : target.model_policies) {
-      if (std::find(state_.installed_backends.begin(),
-                    state_.installed_backends.end(), policy.backend) ==
-          state_.installed_backends.end()) {
-        throw std::runtime_error("target task requires an uninstalled backend: " +
-                                 to_string(policy.backend));
-      }
-      if (std::find(next_backends.begin(), next_backends.end(), policy.backend) ==
-          next_backends.end()) next_backends.push_back(policy.backend);
-      const auto& engine = registry_.engine(policy.engine);
-      std::filesystem::path launcher;
-      if (policy.backend == Backend::gguf) {
-        launcher = root_ / "runtimes" / engine.runtime_directory /
-                   engine.server_executable;
-      } else if (policy.backend == Backend::mlx) {
-        launcher = root_ / "environments/mlx/bin/python";
-      } else {
-        launcher = root_ / "environments/vllm/bin/vllm";
-      }
-      if (!std::filesystem::exists(launcher)) {
-        throw std::runtime_error("target task engine is not installed: " +
-                                 policy.engine + "; run setup before switching");
-      }
+      const auto engine = inspect_engine(registry_.engine(policy.engine), runtime_hardware(state_), root_);
+      if (!engine.value("installed", false)) throw std::invalid_argument("workload engine is not installed: " + policy.engine);
+      const auto family = to_string(policy.backend);
+      json item = {{"enabled", true}, {"variants", {{family, json::array({to_string(policy.quantization)})}}},
+        {"engine", policy.engine}, {"execution", policy.execution}, {"residency", to_string(policy.residency)}, {"priority", policy.priority},
+        {"startup", policy.startup}, {"idle_seconds", policy.idle_seconds}, {"max_input_tokens", policy.max_input_tokens},
+        {"max_output_tokens", policy.max_output_tokens}, {"max_total_tokens", policy.max_total_tokens},
+        {"max_concurrent_requests", policy.max_concurrent_requests}, {"kv_cache_precision", policy.kv_cache_precision},
+        {"placement_mode", policy.placement_mode}, {"device", policy.device}, {"gpu_layers", policy.gpu_layers},
+        {"ram_reservation_gib", policy.ram_reservation_gib}, {"vram_reservation_gib", policy.vram_reservation_gib},
+        {"native_options", profile_native_options(policy)}};
+      configured[policy.id] = item; policies[policy.id] = item;
+      quantizations[policy.id + "@" + family] = {policy.quantization};
+      selected.insert(policy.quantization); backends.insert(policy.backend);
     }
-    std::sort(next_backends.begin(), next_backends.end());
-
-    validate_memory_strategy(registry_, target, state_.max_ram_gib + state_.max_vram_gib);
-    // Every selected model must fit the global allocation. Pinned models
-    // coexist; each swappable model must also fit alongside that baseline.
-    const auto hardware = runtime_hardware(state_);
-    struct Footprint {
-      double ram{0.0};
-      std::map<std::string, double> vram;
-    };
-    Footprint pinned;
-    std::vector<Footprint> swappable;
-    std::size_t pinned_count = 0;
-    for (const auto& policy : target.model_policies) {
-      const auto& artifact = registry_.model(policy.id)
-                                 .artifact_for(policy.backend, policy.quantization, policy.engine);
-      const auto placement = resolve_model_placement(policy, artifact, hardware);
-      Footprint item;
-      item.ram = placement.ram_reservation_gib;
-      if (placement.vram_reservation_gib > 0) {
-        const auto device = memory_device_for(placement.device, state_);
-        item.vram[device] = placement.vram_reservation_gib;
-      }
-      if (policy.residency == Residency::pinned) {
-        ++pinned_count;
-        pinned.ram += item.ram;
-        for (const auto& [device, amount] : item.vram) pinned.vram[device] += amount;
-      } else {
-        swappable.push_back(std::move(item));
-      }
-    }
-    if (target.maximum_resident_workers > 0 &&
-        pinned_count + (swappable.empty() ? 0 : 1) >
-            static_cast<std::size_t>(target.maximum_resident_workers)) {
-      throw std::runtime_error("target task cannot serve all models with its pinned-worker count");
-    }
-    const auto fits_target = [&](double ram,
-                                 const std::map<std::string, double>& vram) {
-      double combined = ram;
-      for (const auto& [_, amount] : vram) combined += amount;
-      if (target.memory_limit_gib > 0 && combined > target.memory_limit_gib - target.memory_safety_reserve_gib + 1e-9) return false;
-      if (ram > std::max(0.0, state_.max_ram_gib -
-                                 target.memory_safety_reserve_gib) + 1e-9) return false;
-      const double common = std::max(0.0, state_.max_vram_gib -
-                                             target.memory_safety_reserve_gib);
-      for (const auto& [device, amount] : vram) {
-        if (!fits_device_reservation({}, state_.dedicated_memory_gib,
-                                     device, amount, common)) return false;
-      }
-      return true;
-    };
-    if (!fits_target(pinned.ram, pinned.vram)) {
-      throw std::runtime_error("pinned target workers exceed global memory allocation");
-    }
-    for (const auto& item : swappable) {
-      if (registry_.allow_partial_workload) continue;
-      auto vram = pinned.vram;
-      for (const auto& [device, amount] : item.vram) vram[device] += amount;
-      if (!fits_target(pinned.ram + item.ram, vram)) {
-        throw std::runtime_error("target task model exceeds global memory allocation");
-      }
-    }
-
-    std::set<std::string> retained;
-    std::set<std::string> unloaded;
-    for (const auto& [key, worker] : workers_) {
-      const auto* policy = target.policy_for(worker->model->id);
-      bool compatible = policy && worker->profile_policy &&
-          worker->backend == policy->backend &&
-          worker->quantization == policy->quantization &&
-          worker->engine->id == policy->engine;
-      if (compatible) {
-        const auto& old = *worker->profile_policy;
-        compatible = old.max_input_tokens == policy->max_input_tokens &&
-            old.max_output_tokens == policy->max_output_tokens &&
-            old.max_total_tokens == policy->max_total_tokens &&
-            old.max_concurrent_requests == policy->max_concurrent_requests &&
-            old.kv_cache_precision == policy->kv_cache_precision &&
-            old.placement_mode == policy->placement_mode &&
-            old.device == policy->device && old.gpu_layers == policy->gpu_layers &&
-            old.ram_reservation_gib == policy->ram_reservation_gib &&
-            old.vram_reservation_gib == policy->vram_reservation_gib &&
-            profile_native_options(old) == profile_native_options(*policy);
-      }
-      if (compatible) retained.insert(key);
-      else unloaded.insert(key);
-    }
-    const auto retained_fits = [&] {
-      double ram = 0;
-      std::map<std::string, double> vram;
-      for (const auto& key : retained) {
-        const auto& worker = *workers_.at(key);
-        ram += worker.ram_reservation_gib;
-        if (worker.vram_reservation_gib > 0) {
-          vram[worker.memory_device] += worker.vram_reservation_gib;
-        }
-      }
-      return (target.maximum_resident_workers == 0 ||
-              retained.size() <= static_cast<std::size_t>(target.maximum_resident_workers)) &&
-             fits_target(ram, vram);
-    };
-    while (!retained_fits()) {
-      auto candidate = retained.end();
-      for (auto it = retained.begin(); it != retained.end(); ++it) {
-        const auto* policy = target.policy_for(workers_.at(*it)->model->id);
-        if (policy->residency == Residency::pinned) continue;
-        if (candidate == retained.end() ||
-            policy->priority < target.policy_for(
-                workers_.at(*candidate)->model->id)->priority) candidate = it;
-      }
-      if (candidate == retained.end()) {
-        throw std::runtime_error("retained pinned workers exceed target memory allocation");
-      }
-      unloaded.insert(*candidate);
-      retained.erase(candidate);
-    }
-
-    swapping_ = true;
-    try {
-      const auto drained = transition_cv_.wait_for(lock, 30s, [&] {
-        for (const auto& key : unloaded) {
-          const auto found = workers_.find(key);
-          if (found != workers_.end() && found->second->in_flight > 0) return false;
-        }
-        return true;
-      });
-      if (!drained) throw std::runtime_error("profile swap timed out waiting for active requests");
-
-      std::ifstream input(root_ / "state/runtime.json");
-      if (!input) throw std::runtime_error("runtime state is unavailable");
-      auto persisted = json::parse(input);
-      json configured = json::object();
-      std::map<std::string, std::vector<Quantization>> quantizations;
-      std::map<std::string, json> policies;
-      std::set<Quantization> selected_quantizations;
-      for (const auto& policy : target.model_policies) {
-        const auto backend = to_string(policy.backend);
-        const auto quantization = to_string(policy.quantization);
-        json entry = {
-            {"enabled", true},
-            {"variants", {{backend, json::array({quantization})}}},
-            {"engine", policy.engine}, {"execution", policy.execution},
-            {"residency", to_string(policy.residency)},
-            {"priority", policy.priority}, {"startup", policy.startup},
-            {"idle_seconds", policy.idle_seconds},
-            {"max_input_tokens", policy.max_input_tokens},
-            {"max_output_tokens", policy.max_output_tokens},
-            {"max_total_tokens", policy.max_total_tokens},
-            {"max_concurrent_requests", policy.max_concurrent_requests},
-            {"kv_cache_precision", policy.kv_cache_precision},
-            {"placement_mode", policy.placement_mode}, {"device", policy.device},
-            {"gpu_layers", policy.gpu_layers},
-            {"ram_reservation_gib", policy.ram_reservation_gib},
-            {"vram_reservation_gib", policy.vram_reservation_gib}};
-        entry["native_options"] = profile_native_options(policy);
-        configured[policy.id] = entry;
-        policies[policy.id] = std::move(entry);
-        quantizations[policy.id + "@" + backend] = {policy.quantization};
-        selected_quantizations.insert(policy.quantization);
-      }
-      persisted["profile"] = target.name;
-      persisted["profile_schema"] = target.schema;
-      persisted["profile_mode"] = target.mode;
-      persisted["profile_required_ram_gib"] = target.required_ram_gib;
-      persisted["profile_required_vram_gib"] = target.required_vram_gib;
-      persisted["profile_memory_safety_reserve_gib"] =
-          target.memory_safety_reserve_gib;
-      persisted["profile_maximum_resident_workers"] =
-          target.maximum_resident_workers;
-      persisted["configured_models"] = configured;
-      persisted["quantizations"] = json::array();
-      for (const auto& quantization : selected_quantizations) {
-        persisted["quantizations"].push_back(to_string(quantization));
-      }
-      const auto default_quantization = *selected_quantizations.begin();
-      persisted["default_quantization"] = to_string(default_quantization);
-      write_json_atomic(root_ / "state/runtime.json", persisted);
-
-      for (const auto& key : unloaded) {
-        const auto found = workers_.find(key);
-        if (found == workers_.end()) continue;
-        reserved_ram_gib_ -= found->second->ram_reservation_gib;
-        adjust_reserved_vram(*found->second, -1.0);
-        stop_worker(found->second);
-        workers_.erase(found);
-      }
-      for (const auto& key : retained) {
-        auto& worker = workers_.at(key);
-        worker->profile_policy = target.policy_for(worker->model->id);
-      }
-      const auto previous = state_.profile;
-      state_.profile = target.name;
-      state_.profile_mode = target.mode;
-      state_.profile_required_ram_gib = target.required_ram_gib;
-      state_.profile_required_vram_gib = target.required_vram_gib;
-      state_.profile_memory_safety_reserve_gib = target.memory_safety_reserve_gib;
-      state_.profile_maximum_resident_workers = target.maximum_resident_workers;
-      state_.configured_quantizations = std::move(quantizations);
-      state_.configured_policies = std::move(policies);
-      state_.quantizations.assign(selected_quantizations.begin(),
-                                  selected_quantizations.end());
-      state_.default_quantization = default_quantization;
-      active_backends_ = std::move(next_backends);
-      ready_.store(false);
-      {
-        std::lock_guard error_lock(error_mutex_);
-        readiness_error_.clear();
-      }
-      swapping_ = false;
-      transition_cv_.notify_all();
-      json to_start = json::array();
-      for (const auto& policy : target.model_policies) {
-        if (!policy.startup) continue;
-        if (!retained.contains(worker_key(policy.id, policy.backend,
-                                          policy.quantization))) {
-          to_start.push_back(policy.id);
-        }
-      }
-      return {{"previous_profile", previous}, {"profile", target.name},
-              {"retained", retained}, {"unloaded", unloaded},
-              {"startup_pending", to_start}, {"ready", false}};
-    } catch (...) {
-      swapping_ = false;
-      transition_cv_.notify_all();
-      throw;
-    }
+    persisted["profile"] = target_id; persisted["profile_schema"] = target.schema; persisted["profile_mode"] = target.mode;
+    persisted["profile_required_ram_gib"] = target.required_ram_gib; persisted["profile_required_vram_gib"] = target.required_vram_gib;
+    persisted["profile_memory_safety_reserve_gib"] = target.memory_safety_reserve_gib;
+    persisted["profile_maximum_resident_workers"] = target.maximum_resident_workers;
+    persisted["configured_models"] = configured; persisted["quantizations"] = json::array();
+    for (auto q : selected) persisted["quantizations"].push_back(to_string(q));
+    const auto default_quantization = *selected.begin(); persisted["default_quantization"] = to_string(default_quantization);
+    write_json_atomic(root_ / "state/runtime.json", persisted);
+    state_.profile = target_id; state_.profile_mode = target.mode; state_.configured_policies = std::move(policies);
+    state_.profile_required_ram_gib = target.required_ram_gib;
+    state_.profile_required_vram_gib = target.required_vram_gib;
+    state_.profile_memory_safety_reserve_gib = target.memory_safety_reserve_gib;
+    state_.profile_maximum_resident_workers = target.maximum_resident_workers;
+    state_.configured_quantizations = std::move(quantizations); state_.quantizations.assign(selected.begin(), selected.end());
+    state_.default_quantization = default_quantization; active_backends_.assign(backends.begin(), backends.end());
+    // Residency is reconciled on requests. Selecting a default never interrupts
+    // another app's in-flight stream or rewrites its request-scoped selection.
+    json retained = json::array(); for (const auto& [key, _] : workers_) retained.push_back(key);
+    return {{"previous_profile", previous}, {"profile", target_id}, {"retained", retained},
+      {"unloaded", json::array()}, {"startup_pending", json::array()}, {"ready", true}};
   }
 
   json models_json() const {
     std::lock_guard lock(mutex_);
     json data = json::array();
-    const auto& profile = registry_.profile(state_.profile);
+    const auto& profile = request_profile_locked();
+    auto visible_backends = active_backends_;
+    if (profile.schema >= 3) {
+      visible_backends.clear();
+      for (const auto& policy : profile.model_policies) if (std::find(visible_backends.begin(), visible_backends.end(), policy.backend) == visible_backends.end()) visible_backends.push_back(policy.backend);
+    }
     for (const auto& id : profile.models) {
       const auto& definition = registry_.model(id);
       json interactions = json::array();
@@ -1689,7 +1633,7 @@ class WorkerManager {
                                 {"optional_inputs", interaction.optional_inputs},
                                 {"outputs", interaction.outputs}});
       }
-      for (const auto backend : active_backends_) {
+      for (const auto backend : visible_backends) {
         const auto selected_quantizations = quantizations_for(id, backend);
         for (const auto quantization : selected_quantizations) {
           const auto backend_it = definition.artifacts.find(backend);
@@ -1747,7 +1691,7 @@ class WorkerManager {
                           {"repository", artifact.files.empty()
                                              ? definition.repositories.at(backend)
                                              : artifact.files.front().repository},
-                          {"state", loaded == workers_.end() ? "stopped" : "ready"}};
+                          {"state", loaded == workers_.end() || !compatible_worker(*loaded->second, profile.policy_for(id)) ? "stopped" : "ready"}};
           if (const auto* policy = profile.policy_for(id)) {
             item["native_options"] = profile_native_options(*policy);
             item["engine"] = policy->engine;
@@ -1869,6 +1813,10 @@ class WorkerManager {
                                            policy.vram_reservation_gib}}}});
     }
     return {{"ready", ready()}, {"active_backends", active},
+            {"scheduler", {{"strategy", strategy_}, {"last_request_workload", last_request_workload_},
+              {"queued_requests", queued_requests_}, {"high_priority_minimum", 100},
+              {"active_app_workloads", active_app_workloads_},
+              {"memory_basis", "weights + components + context KV + batching + runtime overhead estimates"}}},
             {"profile", {{"name", profile.name},
                          {"schema", profile.schema},
                          {"mode", profile.mode},
@@ -1901,7 +1849,7 @@ class WorkerManager {
 
   std::vector<Quantization> quantizations_for(const std::string& id,
                                                Backend backend) const {
-    const auto& profile = registry_.profile(state_.profile);
+    const auto& profile = request_profile_locked();
     if (const auto* policy = profile.policy_for(id)) {
       if (policy->backend != backend) return {};
       return {policy->quantization};
@@ -2386,7 +2334,7 @@ class WorkerManager {
 
   bool fits_resources(double requested_ram, double requested_vram,
                       const std::string& memory_device) const {
-    const auto& profile = registry_.profile(state_.profile);
+    const auto& profile = request_profile_locked();
     if (profile.memory_limit_gib > 0) {
       double total = reserved_ram_gib_ + requested_ram + requested_vram;
       for (const auto& [_, amount] : reserved_vram_by_device_) total += amount;
@@ -2400,10 +2348,9 @@ class WorkerManager {
 
   void make_room(double requested_ram, double requested_vram,
                  const std::string& memory_device) {
-    const auto& profile = registry_.profile(state_.profile);
+    const auto& profile = request_profile_locked();
     const auto has_capacity = [&] {
-      const bool workers_ok = profile.maximum_resident_workers <= 0 ||
-          workers_.size() < static_cast<std::size_t>(profile.maximum_resident_workers);
+      const bool workers_ok = strategy_ != "single" || workers_.empty();
       return fits_resources(requested_ram, requested_vram, memory_device) && workers_ok;
     };
     if (has_capacity()) return;
@@ -2424,8 +2371,6 @@ class WorkerManager {
     const auto now = monotonic_ns();
     for (const auto& [_, worker] : workers_) {
       if (worker->in_flight != 0) continue;
-      if (worker->profile_policy &&
-          worker->profile_policy->residency == Residency::pinned) continue;
       // When a memory pool is over budget, do not evict a worker that cannot
       // release anything from either constrained pool. In particular, a
       // CPU-only worker must never be selected to solve VRAM pressure.
@@ -2456,13 +2401,13 @@ class WorkerManager {
     };
     std::sort(candidates.begin(), candidates.end(), [&](const auto& left,
                                                         const auto& right) {
+      const int left_priority = effective_priority(*left);
+      const int right_priority = effective_priority(*right);
+      if (left_priority != right_priority) return left_priority < right_priority;
       if (expired(left) != expired(right)) return expired(left) > expired(right);
       if (residency_rank(left) != residency_rank(right)) {
         return residency_rank(left) < residency_rank(right);
       }
-      const int left_priority = left->profile_policy ? left->profile_policy->priority : 0;
-      const int right_priority = right->profile_policy ? right->profile_policy->priority : 0;
-      if (left_priority != right_priority) return left_priority < right_priority;
       const double left_relief =
           std::min(ram_shortfall, left->ram_reservation_gib) +
           (left->memory_device == memory_device
@@ -2495,14 +2440,14 @@ class WorkerManager {
   }
 
   double ram_limit() const {
-    const auto& profile = registry_.profile(state_.profile);
+    const auto& profile = request_profile_locked();
     double ram_limit = state_.max_ram_gib;
     ram_limit = std::max(0.0, ram_limit - profile.memory_safety_reserve_gib);
     return ram_limit;
   }
 
   double vram_limit() const {
-    const auto& profile = registry_.profile(state_.profile);
+    const auto& profile = request_profile_locked();
     if (state_.max_vram_gib <= 0) return 0;
     double limit = state_.max_vram_gib;
     return std::max(0.0, limit - profile.memory_safety_reserve_gib);
@@ -2549,7 +2494,7 @@ class WorkerManager {
     worker->pid = -1;
   }
 
-  const Registry& registry_;
+  Registry registry_;
   RuntimeState state_;
   std::filesystem::path root_;
   std::vector<Backend> active_backends_;
@@ -2565,6 +2510,12 @@ class WorkerManager {
   std::atomic<bool> stop_{false};
   std::string readiness_error_;
   std::thread sweeper_;
+  std::string strategy_;
+  inline static thread_local std::string request_workload_;
+  std::string last_request_workload_;
+  std::vector<std::string> active_app_workloads_;
+  std::uint64_t app_interest_refreshed_ns_{0};
+  int queued_requests_{0};
 };
 
 bool authorized(const httplib::Request& request, const std::string& key) {
@@ -2630,6 +2581,7 @@ std::string worker_model_name(const Worker& worker) {
 std::string rewrite_json_model(const std::string& body, const Worker& worker,
                                const RuntimeState&, std::string operation = {}) {
   auto parsed = json::parse(body);
+  parsed.erase("workload");
   if (operation.empty()) operation = worker.model->capability == "tts" ? "audio.synthesize_speech" : "chat.generate";
   const auto& endpoint = worker_contract(worker, operation);
   if (parsed.value("stream", false) && !endpoint.streaming) {
@@ -2876,7 +2828,7 @@ ResolvedModelRequest WorkerManager::resolve_request(
 
 ResolvedModelRequest WorkerManager::resolve_request_locked(
     const std::string& requested) const {
-  const auto& profile = registry_.profile(state_.profile);
+  const auto& profile = request_profile_locked();
   if (profile.schema >= 3) {
     const auto separator = requested.rfind('@');
     const auto id = requested.substr(0, separator);
@@ -2969,7 +2921,8 @@ nlohmann::json server_endpoints() {
   add("GET", "/v1/workloads", "Workload descriptions and hot-swap prerequisites");
   add("GET", "/v1/catalog", "Curated model registry");
   add("GET", "/admin/models", "Active workload, memory policy and resident workers");
-  add("POST", "/admin/profile/activate", "Hot-swap an installed workload");
+  add("POST", "/admin/profile/activate", "Select default workload; app-bound requests remain independent");
+  add("POST", "/admin/scheduler", "Change global residency strategy without restarting");
   add("POST", "/admin/server/stop", "Gracefully stop the server and its model workers");
   add("POST", "/v1/chat/completions", "Chat, tools and supported multimodal inputs");
   add("POST", "/v1/completions", "Single-prompt text completion adapter");
@@ -3000,6 +2953,7 @@ nlohmann::json server_endpoints() {
       else {
         json payload = json::object();
         if (path == "/admin/profile/activate") payload = {{"profile", "WORKLOAD_ID"}};
+        if (path == "/admin/scheduler") payload = {{"strategy", "balanced"}};
         if (path == "/v1/chat/completions") payload = {{"model", "MODEL_ID"}, {"messages", json::array({{{"role", "user"}, {"content", "Hello"}}})}};
         if (path == "/v1/completions") payload = {{"model", "MODEL_ID"}, {"prompt", "Hello"}};
         if (path == "/v1/embeddings") payload = {{"model", "MODEL_ID"}, {"input", "A document to embed"}};
@@ -3100,7 +3054,7 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
     throw std::runtime_error("API-token file must contain 16 to 512 printable characters");
   }
   auto manager = std::make_shared<WorkerManager>(registry, state, options.root,
-                                                 active_backends);
+                                                 active_backends, options.scheduling_strategy);
   manager->start_background();
   std::thread prewarm([manager] { manager->prewarm(); });
   std::mutex profile_warmup_mutex;
@@ -3144,7 +3098,14 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
 
   server.Get("/v1/models", [manager, require_auth](const auto& request, auto& response) {
     if (!require_auth(request, response)) return;
-    response.set_content(manager->models_json().dump(), "application/json");
+    try {
+      const auto workload = request.has_param("workload") ? request.get_param_value("workload") : request.get_header_value("X-Mica-Workload");
+      if (request.has_param("workload") && request.has_header("X-Mica-Workload") &&
+          workload != request.get_header_value("X-Mica-Workload"))
+        throw std::invalid_argument("conflicting workload selectors");
+      auto scope = manager->bind_workload(workload);
+      response.set_content(manager->models_json().dump(), "application/json");
+    } catch (const std::exception& error) { json_error(response, 400, "invalid_workload", error.what()); }
   });
   server.Get("/v1/workloads", [manager, require_auth](const auto& request, auto& response) {
     if (!require_auth(request, response)) return;
@@ -3181,6 +3142,15 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
     if (!require_auth(request, response)) return;
     response.set_content(manager->admin_json().dump(), "application/json");
   });
+  server.Post("/admin/scheduler", [manager, require_auth](const auto& request, auto& response) {
+    if (!require_auth(request, response)) return;
+    try {
+      const auto body = json::parse(request.body);
+      if (!body.is_object() || body.size() != 1 || !body.contains("strategy") || !body["strategy"].is_string())
+        throw std::invalid_argument("body must contain only a string strategy");
+      response.set_content(manager->set_strategy(body["strategy"].template get<std::string>()).dump(), "application/json");
+    } catch (const std::exception& error) { json_error(response, 400, "invalid_scheduler_request", error.what()); }
+  });
   server.Post("/admin/profile/activate",
               [manager, require_auth, &profile_warmup_mutex,
                &profile_warmups](const auto& request, auto& response) {
@@ -3193,7 +3163,7 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
       }
       const auto result = manager->swap_profile(
           body.at("profile").template get<std::string>());
-      if (!result.value("unchanged", false)) {
+      if (!result.value("unchanged", false) && !result.value("ready", false)) {
         std::lock_guard warmup_lock(profile_warmup_mutex);
         profile_warmups.emplace_back([manager] { manager->prewarm(); });
       }
@@ -3749,6 +3719,11 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
     const auto field = [&](const std::string& name, const std::string& fallback = "") {
       return request.form.has_field(name) ? request.form.get_field(name) : fallback;
     };
+    const auto workload = field("workload", request.get_header_value("X-Mica-Workload"));
+    if (request.form.has_field("workload") && request.has_header("X-Mica-Workload") &&
+        workload != request.get_header_value("X-Mica-Workload"))
+      throw std::invalid_argument("conflicting workload selectors");
+    auto workload_scope = manager->bind_workload(workload);
     const auto raw_session = field("session_id");
     const auto session_id = safe_component(
         raw_session.empty() ? "session-" + std::to_string(monotonic_ns()) : raw_session,
@@ -4287,10 +4262,16 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
     }
     try {
       std::string requested_model;
+      std::string requested_workload = request.get_header_value("X-Mica-Workload");
       json public_request;
       if (request.is_multipart_form_data()) {
         const auto form = request.form;
         if (form.has_field("model")) requested_model = form.get_field("model");
+        if (form.has_field("workload")) {
+          const auto value = form.get_field("workload");
+          if (!requested_workload.empty() && requested_workload != value) throw std::invalid_argument("conflicting workload selectors");
+          requested_workload = value;
+        }
       } else {
         try {
           public_request = json::parse(request.body);
@@ -4306,7 +4287,14 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
           }
           requested_model = public_request.at("model").get<std::string>();
         }
+        if (public_request.contains("workload")) {
+          if (!public_request["workload"].is_string()) throw std::invalid_argument("workload must be a string");
+          const auto value = public_request["workload"].get<std::string>();
+          if (!requested_workload.empty() && requested_workload != value) throw std::invalid_argument("conflicting workload selectors");
+          requested_workload = value;
+        }
       }
+      auto workload_scope = manager->bind_workload(requested_workload);
       const std::string route = request.path == "/v1/audio/transcriptions" ? "asr" :
                          request.path == "/v1/audio/diarizations" ? "diar" :
                          request.path == "/v1/completions" ? "completion" :
@@ -4346,8 +4334,10 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
       if (wants_stream && !endpoint.streaming) throw std::invalid_argument("endpoint does not support streaming");
       httplib::Headers headers;
       for (const auto& [name, value] : request.headers) {
-        if (name != "Authorization" && name != "Host" && name != "Content-Length" &&
-            !(request.is_multipart_form_data() && name == "Content-Type")) {
+        auto normalized = name;
+        std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](unsigned char c) { return std::tolower(c); });
+        if (normalized != "authorization" && normalized != "host" && normalized != "content-length" && normalized != "x-mica-workload" &&
+            !(request.is_multipart_form_data() && normalized == "content-type")) {
           headers.emplace(name, value);
         }
       }
@@ -4451,6 +4441,7 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
       if (request.is_multipart_form_data()) {
         httplib::UploadFormDataItems items;
         for (const auto& [name, field] : request.form.fields) {
+          if (name == "workload") continue;
           items.push_back({name,
                            name == "model"
                                ? worker_model_name(*worker)

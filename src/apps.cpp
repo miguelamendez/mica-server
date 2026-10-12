@@ -4,6 +4,8 @@
 #include "mica_server/profiles.hpp"
 #include "mica_server/config.hpp"
 #include "mica_server/catalog.hpp"
+#include "mica_server/inventory.hpp"
+#include "mica_server/hardware.hpp"
 #include "mica_server/service.hpp"
 #include <nlohmann/json.hpp>
 #include <algorithm>
@@ -216,6 +218,21 @@ void validate_app_index(const json& j) {
     for (auto key : {"name", "description"}) if (a.at(key).get<std::string>().empty()) throw std::invalid_argument("empty app description/name");
   }
 }
+std::vector<std::string> active_app_workloads(const fs::path& root) {
+  std::set<std::string> workloads;
+  const auto path = root / "state/apps";
+  if (!fs::is_directory(path) || fs::is_symlink(path)) return {};
+  for (const auto& file : fs::directory_iterator(path)) {
+    if (!file.is_regular_file() || file.is_symlink() || file.path().extension() != ".json") continue;
+    try {
+      const auto state = read_json(file.path());
+      if (running(state) && state.contains("workload") && state["workload"].is_string())
+        workloads.insert(state["workload"].get<std::string>());
+    } catch (const std::exception&) { /* Stale/corrupt app records never block inference. */ }
+  }
+  return {workloads.begin(), workloads.end()};
+}
+
 json app_inventory(const fs::path& root, const fs::path& config) {
   json result = {{"sources", json::array()}, {"apps", json::array()}};
   const auto base = bundled(config); const auto index = base / "apps.yaml";
@@ -255,6 +272,7 @@ json app_inventory(const fs::path& root, const fs::path& config) {
     const auto receipt = read_json(dir / "receipt.json");
     const auto state = read_json(root / "state/apps" / (id + ".json"));
     app["installed"] = !receipt.empty(); app["running"] = running(state);
+    if (state.contains("workload")) app["bound_workload"] = state["workload"];
     if (state.contains("url")) app["url"] = state["url"];
     if (!receipt.empty()) { app["installed_source"] = receipt.value("source_id", ""); app["workloads"] = receipt.value("workloads", json::array()); }
   }
@@ -265,10 +283,12 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
                 const fs::path& executable) {
   if (arguments.empty()) throw std::invalid_argument("app needs list|show|source-add|source-remove|install|setup|start|stop|uninstall");
   auto root = default_root, config = default_config; std::vector<std::string> positional; bool accept = false;
+  std::string workload_binding;
   for (std::size_t i = 1; i < arguments.size(); ++i) {
     const auto& arg = arguments[i];
     if (arg == "--root" || arg == "--config-dir") { if (++i == arguments.size()) throw std::invalid_argument("missing app option value"); (arg == "--root" ? root : config) = arguments[i]; }
     else if (arg == "--accept-code") accept = true;
+    else if (arg == "--workload") { if (++i == arguments.size()) throw std::invalid_argument("missing workload ID"); workload_binding = arguments[i]; }
     else if (arg.starts_with("--")) throw std::invalid_argument("unknown app option: " + arg);
     else positional.push_back(arg);
   }
@@ -391,12 +411,22 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
     if (digest(dir / p) != file.at("sha256").get<std::string>()) throw std::runtime_error("installed app changed; revalidate package before launch");
   }
   if (!local_server_running(root)) throw std::runtime_error("start Mica with a compatible workload first (apps never switch workloads silently)");
-  const auto models = local_server_request(root, "GET", "/v1/models", json::object());
+  if (workload_binding.empty()) {
+    auto registry = load_registry(config); merge_installed_profiles(registry, root);
+    const auto hardware = detect_hardware();
+    for (const auto& id : read_json(dir / "receipt.json").at("workloads"))
+      if (inspect_workload(registry, registry.profile(id.get<std::string>()), hardware, root).value("compatible", false)) { workload_binding = id; break; }
+  }
+  if (!workload_binding.empty() && (workload_binding.size() > 128 ||
+      !std::isalnum(static_cast<unsigned char>(workload_binding.front())) ||
+      !std::all_of(workload_binding.begin(), workload_binding.end(), [](unsigned char c) { return std::isalnum(c) || c == '-' || c == '_' || c == '.'; })))
+    throw std::invalid_argument("invalid app workload ID");
+  const auto models = local_server_request(root, "GET", "/v1/models" + (workload_binding.empty() ? std::string() : "?workload=" + workload_binding), json::object());
   std::set<std::string> operations;
   for (const auto& model : models.at("data")) for (const auto& endpoint : model.value("endpoint_contracts", json::array()))
     for (const auto& interaction : model.value("supported_interactions", json::array()))
       if (interaction.at("operation") == endpoint.at("operation")) operations.insert(endpoint.at("operation").get<std::string>());
-  for (const auto& op : doc.at("requirements").at("operations")) if (!operations.contains(op.get<std::string>())) throw std::runtime_error("active workload lacks required operation: " + op.get<std::string>());
+  for (const auto& op : doc.at("requirements").at("operations")) if (!operations.contains(op.get<std::string>())) throw std::runtime_error("requested workload lacks required operation: " + op.get<std::string>());
   const auto& launch = doc.at("launch"); auto program = launch.at("executable").get<std::string>();
   if (program.starts_with("{app_dir}/")) program = (dir / program.substr(10)).string();
   if (!command_exists(program)) throw std::runtime_error("app dependency is missing: " + program + " (Mica never installs arbitrary app dependencies silently)");
@@ -404,7 +434,7 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
   for (const auto& raw : launch.at("arguments")) {
     auto arg = raw.get<std::string>();
     if (arg.find("{port}") != std::string::npos && !launch.contains("port")) throw std::invalid_argument("headless app cannot use {port}");
-    for (const auto& [key, value] : std::vector<std::pair<std::string, std::string>>{{"{app_dir}", dir.string()}, {"{mica_config}", (root / "config/server.json").string()}, {"{port}", std::to_string(launch.value("port", 0))}}) {
+    for (const auto& [key, value] : std::vector<std::pair<std::string, std::string>>{{"{app_dir}", dir.string()}, {"{mica_config}", (root / "config/server.json").string()}, {"{port}", std::to_string(launch.value("port", 0))}, {"{workload}", workload_binding}}) {
       std::size_t pos = 0; while ((pos = arg.find(key, pos)) != std::string::npos) { arg.replace(pos, key.size(), value); pos += value.size(); }
     }
     argv.push_back(arg);
@@ -417,7 +447,7 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
   if (pid == 0) { setsid(); chdir(dir.c_str()); dup2(output, STDOUT_FILENO); dup2(output, STDERR_FILENO); close(output); const int input = open("/dev/null", O_RDONLY); dup2(input, STDIN_FILENO); close(input); execvp(native[0], native.data()); _exit(127); }
   close(output); if (pid < 0) throw std::runtime_error("cannot launch app");
   const auto started = birth(pid); if (started.empty()) { waitpid(pid, nullptr, WNOHANG); throw std::runtime_error("app exited during launch; inspect its private log"); }
-  state = {{"pid", pid}, {"birth", started}};
+  state = {{"pid", pid}, {"birth", started}, {"workload", workload_binding}};
   if (launch.contains("port")) state["url"] = "http://127.0.0.1:" + std::to_string(launch.at("port").get<int>()) + launch.at("path").get<std::string>();
   save(statepath, state); std::cout << "App process launched: " << state.value("url", "headless") << " (check app list/log for readiness).\n"; return 0;
 }

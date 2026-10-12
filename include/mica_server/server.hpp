@@ -21,6 +21,7 @@ struct ServerOptions {
   std::optional<Backend> active_backend;
   bool ignore_context_limit{false};
   bool allow_partial_workload{false};
+  std::string scheduling_strategy{"balanced"};
 };
 
 int run_server(const Registry& registry, const ServerOptions& options);

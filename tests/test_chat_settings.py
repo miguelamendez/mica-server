@@ -39,7 +39,8 @@ class ChatSettingsTests(unittest.TestCase):
         calls = []
         class Backend(BaseHTTPRequestHandler):
             def do_GET(self):
-                self.reply({'data': [{'id': 'test-workload'}], 'active_workload':'test-workload'})
+                self.reply({'data': [{'id': 'test-workload'}], 'active_workload':'test-workload'},
+                    409 if self.headers.get('X-Mica-Workload') == 'reject' else 200)
             def do_POST(self):
                 data = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
                 self.reply({'profile':data['profile']}, 409 if data['profile']=='reject' else 200)
@@ -71,7 +72,11 @@ class ChatSettingsTests(unittest.TestCase):
                 request('/api/workloads/activate','reject','test-key')
             self.assertEqual(rejected.exception.code,409)
             self.assertEqual(calls[0],('/v1/workloads','Bearer test-key'))
-            self.assertEqual(calls[1],('/admin/profile/activate','Bearer test-key'))
+            self.assertEqual(calls[1],('/v1/models','Bearer test-key'))
+            self.assertEqual(ui.workload, 'new')
+            self.assertFalse(any(path == '/admin/profile/activate' for path, _ in calls))
+            with request('/api/workloads',key='test-key') as response:
+                self.assertEqual(json.load(response)['active_workload'], 'new')
             with request('/mica-chat-settings.js') as response:self.assertIn(b'createWorkloadPicker',response.read())
         finally:
             for server in [ui,backend]:server.shutdown();server.server_close()

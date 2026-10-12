@@ -26,6 +26,7 @@ mkdir -p "$test_root/state" "$test_root/config/profiles" \
 cp "$fixture_directory/swap-a.yaml" "$fixture_directory/swap-b.yaml" \
   "$test_root/config/profiles/"
 : > "$test_root/runtimes/llama.cpp/build-mica/bin/llama-server"
+chmod 755 "$test_root/runtimes/llama.cpp/build-mica/bin/llama-server"
 : > "$test_root/models/gguf/spark-x25-4b/Spark-X2.5-4B-Q4_K_M.gguf"
 printf '%s\n%s\n' 'miguelamendez/mica-spark-x25-4b' \
   '6c242d2945f11bb3587c437a1bf1088666ca6e2f' > \

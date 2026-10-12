@@ -294,7 +294,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       values = {"Add source", "Sources"};
       for (const auto& app : data.apps["apps"]) values.push_back(app.at("id"));
     } else if (section == "settings") {
-      values = {"Check for updates", "Update latest release", "Update latest source", "Bind address", "Port", "Default workload", "RAM limit (GiB)",
+      values = {"Check for updates", "Update latest release", "Update latest source", "Bind address", "Port", "Default workload", "Scheduling strategy", "RAM limit (GiB)",
                 "Dedicated GPU limit (GiB)", "Import API key file", "Rotate API key"};
     }
     values.erase(std::remove_if(values.begin(), values.end(), [&](const auto& value) {
@@ -419,7 +419,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
           row("Package integrity", "Manifest and downloaded files verified before registration. Downloaded code is not sandboxed.");
         } else row("Inspect first", "Enter fetches the manifest to review before installing.");
         section_heading("Controls"); row("Actions", "Enter inspect · i install · w prepare workload · s launch · x stop · d uninstall");
-        row("Safety", "Launch never swaps workloads automatically. OS/browser controls permissions.");
+        row("Safety", "Apps bind their own workload; launch never restarts Mica. OS/browser controls permissions.");
       }
     } else if (section == "server" && !server_picker && selected == "Updates") {
       update_info(); row("Actions", "Enter checks the latest release. Use Settings to select release/source installation.");
@@ -456,7 +456,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       section_heading("Editing and application");
       row("Selected", selected);
       row("Actions", "Enter edits the selected setting. API keys stay hidden; import a file or generate a replacement.");
-      row("Apply", "When running, confirmation stops Mica, saves validated settings and restarts the active workload. Requests may be interrupted.");
+      row("Apply", "Default workload and scheduling strategy apply live. Listener, key and allocation changes restart Mica after confirmation; requests may be interrupted.");
       row("Network", "0.0.0.0 listens on all IPv4 interfaces. Use a trusted LAN and a firewall; HTTP is not encrypted.");
     } else if (selected.empty()) row("Entries", "No matches");
     else if (section == "workloads" || (section == "server" && server_picker)) {
@@ -698,7 +698,12 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
           queue({executable.string(), "app", "source-remove", edit_value, "--config-dir", config.string(), "--root", root.string()});
         } else if (edit_option == "app workload ID") {
           auto values = entries(); queue({executable.string(), "app", "setup", values.at(row_index), edit_value, "--config-dir", config.string(), "--root", root.string()});
-        } else queue({executable.string(), "config", "set", edit_option, edit_value, "--restart", "--config-dir", config.string(), "--root", root.string()});
+        } else {
+          std::vector<std::string> args{executable.string(), "config", "set", edit_option, edit_value,
+            "--config-dir", config.string(), "--root", root.string()};
+          if (edit_option != "--strategy" && edit_option != "--default-workload") args.push_back("--restart");
+          queue(args);
+        }
         edit_option.clear(); return true;
       }
       return edit_input->OnEvent(event);
@@ -821,7 +826,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
         command({"update", "--channel", selected == "Update latest source" ? "source" : "release", "--restart"}); return true;
       }
       const std::map<std::string, std::string> options{{"Bind address", "--host"}, {"Port", "--port"},
-          {"Default workload", "--default-workload"}, {"RAM limit (GiB)", "--ram-gib"},
+          {"Default workload", "--default-workload"}, {"Scheduling strategy", "--strategy"}, {"RAM limit (GiB)", "--ram-gib"},
           {"Dedicated GPU limit (GiB)", "--vram-gib"}, {"Import API key file", "--api-key-file"}};
       if (selected == "Rotate API key") command({"config", "set", "--rotate-api-key", "--restart", "--config-dir", config.string()});
       else { edit_option = options.at(selected); edit_value.clear(); }
