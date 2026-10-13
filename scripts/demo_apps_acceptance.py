@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Opt-in real-model demo acceptance; uses private key files, never mock workers.
 
-Run on the Mica host after preparing both app workloads. The single-residency
-test temporarily changes the scheduler and restores it even on failure.
+Run on the Mica host after preparing both app workloads. Single and balanced
+tests temporarily change the scheduler and restore it even on failure.
 Microphone/hotkey/paste checks remain an explicit desktop-user test.
 """
 import argparse
@@ -122,6 +122,33 @@ def main():
             state = snapshot()
             assert len(state['workers']) <= 1, state
             add('two-app-overlapping-requests-single-strategy', {'results': results, 'state': state})
+            for app, workload, tool, arguments in (
+                ('mica-dictation', args.dictation_workload, 'transcribe', {'audio_path': str(args.audio), 'cleanup': True}),
+                ('mica-assistant', args.assistant_workload, 'assistant_chat', {'text': 'Reply exactly MICA_APPS_OK. No explanation.'}),
+            ):
+                messages = [{'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {'protocolVersion': '2025-11-25'}},
+                            {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/call', 'params': {'name': tool, 'arguments': arguments}}]
+                command = ['python3', str(args.root / 'apps' / app / 'mcp.py'), '--root', str(temporary),
+                           '--config', str(config), '--workload', workload, '--allow-directory', str(args.audio.parent)]
+                result = subprocess.run(command, input=''.join(json.dumps(m) + '\n' for m in messages),
+                                        text=True, capture_output=True, timeout=300)
+                if result.returncode: raise RuntimeError('MCP adapter failed: ' + result.stderr)
+                responses = [json.loads(line) for line in result.stdout.splitlines()]
+                response = next(r for r in responses if r['id'] == 2)
+                assert 'error' not in response, response
+                assert not response['result'].get('isError'), response
+                value = json.loads(response['result']['content'][0]['text'])
+                if app == 'mica-dictation': assert normalize(value['text']) == normalize(args.expected), value
+                else: assert value['answer'].strip() == 'MICA_APPS_OK', value
+                add('actual-mcp-' + app, {'tool': tool, 'passed': True})
+            request('/admin/scheduler', {'strategy': 'balanced'})
+            for name, invoke in (('dictation', dictate), ('assistant', assistant), ('dictation-again', dictate)):
+                value = invoke()
+                if 'text' in value: assert normalize(value['text']) == normalize(args.expected), value
+                state = snapshot()
+                assert state['reserved_ram_gib'] <= started['effective_ram_limit_gib'], state
+                assert state['reserved_vram_gib'] <= started['effective_vram_limit_gib'], state
+                add('balanced-' + name, {**value, 'state': state})
         after = status()
         assert after['pid'] == started['pid'], (started['pid'], after['pid'])
         assert after['profile']['name'] == started['profile']['name']

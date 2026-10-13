@@ -141,8 +141,9 @@ python3 scripts/demo_apps_acceptance.py \
 The defaults target the CUDA/CPU workloads and port 8092. For another host,
 pass `--base-url`, `--assistant-workload`, and `--dictation-workload`. The script
 reads private key files, checks actual ASR and LLM cleanup, calls Assistant
-through its authenticated app route, and overlaps requests from both clients
-under the single-worker strategy. It restores the prior scheduler strategy and
+through its authenticated app route, tests both MCP adapters, overlaps requests
+under the single-worker strategy, and checks balanced-mode memory reservations.
+It restores the prior scheduler strategy and
 checks that the server PID and default workload did not change. This is a smoke
 test with known speech, not a quality benchmark or a microphone permission test.
 

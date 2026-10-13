@@ -1586,6 +1586,11 @@ class WorkerManager {
     auto registry = load_registry(config, registry_.ignore_context_limit, registry_.allow_partial_workload);
     merge_custom_models(registry, root_); merge_installed_profiles(registry, root_);
     auto state = load_runtime_state(root_);
+    // Engine compatibility needs OS/architecture as well as accelerator targets.
+    // runtime_hardware is intentionally only a placement snapshot.
+    const auto hardware = detect_hardware();
+    registry.runtime_root = root_.string();
+    registry.resolution_hardware = hardware;
     for (auto& [id, profile] : registry.profiles) {
       // Match startup: preserve the concrete engine selected during setup.
       if (id == state.profile) for (auto& policy : profile.model_policies) {
@@ -1596,7 +1601,7 @@ class WorkerManager {
           policy.engine_explicit = true;
         }
       }
-      resolve_profile_engines(registry, profile, runtime_hardware(state), root_);
+      resolve_profile_engines(registry, profile, hardware, root_);
     }
     validate_runtime_profile(state, registry.profile(state.profile));
     registry_ = std::move(registry); state_ = std::move(state);
