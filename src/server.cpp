@@ -1118,8 +1118,8 @@ class WorkerManager {
  public:
   WorkerManager(const Registry& registry, const RuntimeState& state,
                 std::filesystem::path root, std::vector<Backend> active_backends,
-                std::string strategy = "balanced")
-      : registry_(registry), state_(state), root_(std::move(root)),
+                std::string strategy = "balanced", std::filesystem::path speech_fixture = {})
+      : registry_(registry), speech_fixture_(std::move(speech_fixture)), state_(state), root_(std::move(root)),
         active_backends_(std::move(active_backends)), strategy_(std::move(strategy)) {
     if (strategy_ != "high" && strategy_ != "single" && strategy_ != "balanced")
       throw std::invalid_argument("strategy must be high, single or balanced");
@@ -1586,7 +1586,18 @@ class WorkerManager {
     auto registry = load_registry(config, registry_.ignore_context_limit, registry_.allow_partial_workload);
     merge_custom_models(registry, root_); merge_installed_profiles(registry, root_);
     auto state = load_runtime_state(root_);
-    for (auto& [_, profile] : registry.profiles) resolve_profile_engines(registry, profile, runtime_hardware(state), root_);
+    for (auto& [id, profile] : registry.profiles) {
+      // Match startup: preserve the concrete engine selected during setup.
+      if (id == state.profile) for (auto& policy : profile.model_policies) {
+        const auto configured = state.configured_policies.find(policy.id);
+        if (configured != state.configured_policies.end() && !policy.engine_explicit) {
+          policy.engine = configured->second.at("engine").get<std::string>();
+          policy.backend = registry.engine(policy.engine).backend;
+          policy.engine_explicit = true;
+        }
+      }
+      resolve_profile_engines(registry, profile, runtime_hardware(state), root_);
+    }
     validate_runtime_profile(state, registry.profile(state.profile));
     registry_ = std::move(registry); state_ = std::move(state);
     active_backends_.clear();
@@ -2254,6 +2265,8 @@ class WorkerManager {
   }
 
   std::filesystem::path asr_fixture() const {
+    if (std::filesystem::is_regular_file(speech_fixture_) &&
+        !std::filesystem::is_symlink(speech_fixture_)) return speech_fixture_;
     const auto path = root_ / "run/workers/asr-warmup.wav";
     if (std::filesystem::exists(path)) return path;
 #ifdef __APPLE__
@@ -2528,6 +2541,7 @@ class WorkerManager {
   }
 
   Registry registry_;
+  std::filesystem::path speech_fixture_;
   RuntimeState state_;
   std::filesystem::path root_;
   std::vector<Backend> active_backends_;
@@ -3110,7 +3124,8 @@ int run_server(const Registry& source_registry, const ServerOptions& options) {
   auto credentials = std::make_shared<Credentials>(api_key, api_key_path, admin_key_path, separate_admin,
       separate_admin ? (options.server_config_file.empty() ? options.root / "config/server.json" : options.server_config_file) : std::filesystem::path());
   auto manager = std::make_shared<WorkerManager>(registry, state, options.root,
-                                                 active_backends, options.scheduling_strategy);
+                                                 active_backends, options.scheduling_strategy,
+                                                 options.config_directory / "fixtures/asr-warmup.wav");
   manager->start_background();
   std::thread prewarm([manager] { manager->prewarm(); });
   std::mutex profile_warmup_mutex;

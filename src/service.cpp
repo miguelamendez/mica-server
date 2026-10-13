@@ -143,6 +143,31 @@ json local_server_request(const std::filesystem::path& root,
   return result;
 }
 
+void prepare_workload_on_server(const std::filesystem::path& root,
+                                const std::string& workload) {
+  if (!local_server_status(root).value("dashboard", false))
+    throw std::runtime_error("Live workload preparation requires the management dashboard. "
+                             "Enable --dashboard on the next start, or prepare while Mica is stopped.");
+  auto job = local_server_request(root, "POST", "/admin/dashboard/jobs",
+                                  {{"action", "workload.prepare"}, {"id", workload}});
+  const auto id = job.at("id").get<std::string>();
+  std::cout << "Preparing " << workload << " (job " << id
+            << "). Inference drains temporarily; Mica and apps are not restarted.\n";
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::hours(1);
+  while (std::chrono::steady_clock::now() < deadline) {
+    job = local_server_request(root, "GET", "/admin/dashboard/jobs/" + id, json::object());
+    const auto state = job.value("state", "");
+    if (state == "completed") {
+      std::cout << "Workload prepared; active/default workload unchanged.\n";
+      return;
+    }
+    if (state != "running")
+      throw std::runtime_error("Workload preparation failed: " + job.value("error", "inspect dashboard job " + id));
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+  throw std::runtime_error("Workload preparation is still running; inspect dashboard job " + id);
+}
+
 json local_server_status(const std::filesystem::path& root) {
   if (!local_server_running(root)) return {{"status", "stopped"}};
   try {

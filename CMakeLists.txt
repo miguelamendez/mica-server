@@ -937,9 +937,11 @@ install(FILES ${ftxui_SOURCE_DIR}/LICENSE
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/licenses RENAME FTXUI.txt)
 install(DIRECTORY config/
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/config
-        FILES_MATCHING PATTERN "*.lua" PATTERN "*.json" PATTERN "*.yaml")
+        FILES_MATCHING PATTERN "*.lua" PATTERN "*.json" PATTERN "*.yaml" PATTERN "*.wav")
 install(DIRECTORY scripts/ DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/scripts
         FILES_MATCHING PATTERN "*.py" PATTERN "__pycache__" EXCLUDE)
+install(FILES config/fixtures/README.md
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/config/fixtures)
 install(FILES profiles/catalog.yaml
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/profiles)
 install(FILES schemas/profile-v3.schema.json

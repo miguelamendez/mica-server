@@ -62,6 +62,55 @@ class AppsTests(unittest.TestCase):
         self.assertTrue(list((self.root / "apps").glob(".removed-mica-dictation-*")))
         self.assertFalse((self.root / "apps/mica-dictation").exists())
 
+    def test_live_setup_uses_management_job_without_restarting(self):
+        self.command("install", "mica-dictation", "--accept-code")
+        workload = self.root / "config/profiles/mica-dictation--cuda.yaml"
+        workload.write_text(workload.read_text().replace("'cuda:0'", "'cpu'").replace("gpu_layers: 99", "gpu_layers: 0"))
+        observed = []
+        class Management(BaseHTTPRequestHandler):
+            dashboard = True
+            def log_message(self, *_): pass
+            def reply(self, data):
+                encoded = json.dumps(data).encode()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(encoded)))
+                self.end_headers(); self.wfile.write(encoded)
+            def do_GET(self):
+                observed.append(("GET", self.path))
+                self.reply({"dashboard": self.dashboard, "profile": {"name": "unchanged"}}
+                           if self.path == "/admin/models" else {"id": "test-job", "state": "completed"})
+            def do_POST(self):
+                payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                observed.append(("POST", self.path, payload))
+                self.reply({"id": "test-job", "state": "running"})
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Management)
+        thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+        run = self.root / "run"; run.mkdir()
+        key = self.root / "private-key"; key.write_text("test_management_key_not_real_12345")
+        (run / "server.json").write_text(json.dumps({"host": "127.0.0.1", "port": server.server_port,
+                                                     "pid": os.getpid(), "dashboard": True,
+                                                     "api_key_file": str(key), "admin_api_key_file": str(key)}))
+        lock = (run / "server.lock").open("w")
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        try:
+            self.command("setup", "mica-dictation", "mica-dictation--cuda")
+            result = subprocess.run([str(BINARY), "workload", "install", "mica-dictation--cuda",
+                                     "--root", str(self.root), "--config-dir", str(CONFIG)],
+                                    text=True, capture_output=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            posts = [item for item in observed if item[0] == "POST"]
+            self.assertEqual(posts, [("POST", "/admin/dashboard/jobs", {"action": "workload.prepare", "id": "mica-dictation--cuda"})] * 2)
+            self.assertFalse((self.root / "state/runtime.json").exists(), "Client must not rewrite runtime state")
+            Management.dashboard = False
+            control = json.loads((run / "server.json").read_text())
+            control["dashboard"] = False
+            (run / "server.json").write_text(json.dumps(control))
+            result = self.command("setup", "mica-dictation", "mica-dictation--cuda", success=False)
+            self.assertIn("requires the management dashboard", result.stderr)
+            self.assertEqual(len([item for item in observed if item[0] == "POST"]), 2)
+        finally:
+            lock.close(); server.shutdown(); server.server_close(); thread.join()
+
     def test_bad_checksum_and_traversal_abort_without_registration(self):
         fixture = Path(self.temporary.name) / "package"
         shutil.copytree(CONFIG.parent / "apps", fixture / "apps", ignore=shutil.ignore_patterns("__pycache__"))

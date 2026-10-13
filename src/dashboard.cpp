@@ -207,7 +207,16 @@ struct Jobs {
     if (active == id && job.value("state", "") != "running") {
       if (maintenance) {
         try { host.reload(); if (resume_after) host.resume(); }
-        catch (const std::exception& error) { job["state"] = "failed"; job["error"] = error.what(); }
+        catch (const std::exception& error) {
+          job["state"] = "failed"; job["error"] = error.what(); job["exit_code"] = 1;
+          // Reload validates before replacing the old manager registry. Do not
+          // strand the previously running server in maintenance on failure.
+          if (resume_after) {
+            try { host.resume(); }
+            catch (const std::exception& resume_error) { job["error"] = std::string(error.what()) + "; resume failed: " + resume_error.what(); }
+          }
+          write_private_file(base() / (id + ".json"), job.dump());
+        }
       }
       active.clear(); maintenance = false;
     }

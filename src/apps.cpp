@@ -437,6 +437,10 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
     auto registry=load_registry(config);merge_custom_models(registry,root);merge_installed_profiles(registry,root);
     const auto inspection=inspect_workload(registry,registry.profile(positional[1]),detect_hardware(),root);
     if(!inspection.value("compatible",false))throw std::invalid_argument("workload unsupported on this host: "+inspection.value("reason",""));
+    if (local_server_running(root)) {
+      prepare_workload_on_server(root, positional[1]);
+      return 0;
+    }
     return run_command({executable.string(), "workload", "install", positional[1], "--root", root.string(), "--config-dir", config.string()}).exit_code;
   }
   if (action == "uninstall") {

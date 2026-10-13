@@ -77,6 +77,11 @@ mica-server app connection-select mica-assistant --connection linux
 TUI Apps: **c** adds a connection, **k** chooses one, **s** starts. **w** prepares
 local inference separately. Bundled workload selection follows engine/device
 compatibility, not file ordering; Linux must not select Mac-only workloads.
+With a running dashboard-enabled server, **w**, `app setup`, and `workload install`
+use the same serialized preparation job. Inference drains and pauses during
+preparation, then resumes; the server listener, open apps, and default workload
+stay unchanged. Without the dashboard, prepare while stopped. Setup-only machine
+overrides are rejected during live preparation rather than silently ignored.
 `app upgrade ID --accept-code` replaces verified files after closing the app,
 retains previous files, and preserves workload edits/connections. Updating Mica
 does not automatically replace already installed app packages.
@@ -121,6 +126,34 @@ workload rather than its bundled default using `app start ID --workload ID
 --accept-code`. Opening/stopping apps does not restart Mica. Requests from
 multiple apps use the [global scheduler](scheduling.md); app workload selection
 and resident model workers are separate concepts.
+
+## Real-model acceptance
+
+After installing both demos, preparing their workloads, and starting Assistant,
+run the opt-in acceptance script on the Mica host:
+
+```sh
+python3 scripts/demo_apps_acceptance.py \
+  --audio artifacts/benchmarks/audio8-gguf/q8_0-plain.wav \
+  --output /tmp/mica-demo-apps-acceptance.json
+```
+
+The defaults target the CUDA/CPU workloads and port 8092. For another host,
+pass `--base-url`, `--assistant-workload`, and `--dictation-workload`. The script
+reads private key files, checks actual ASR and LLM cleanup, calls Assistant
+through its authenticated app route, and overlaps requests from both clients
+under the single-worker strategy. It restores the prior scheduler strategy and
+checks that the server PID and default workload did not change. This is a smoke
+test with known speech, not a quality benchmark or a microphone permission test.
+
+Desktop validation is separate: run `mica-dictation --tui` on the device with
+the microphone, save its server connection, use **Record / stop**, and check the
+transcript and clipboard. Then enable the global shortcut and test it outside
+the TUI. Automatic paste remains opt-in: validate it in a scratch text document,
+not a terminal or valuable document. macOS permission prompts require user action;
+successful file transcription does not certify recording, shortcuts, or paste.
+ASR worker warm-up uses a small packaged synthetic speech WAV; Linux does not
+need `espeak` for a matching binary/config installation.
 
 ## Add another source
 

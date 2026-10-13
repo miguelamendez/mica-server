@@ -711,8 +711,17 @@ int main(int argc, char** argv) {
     if (args[1] == "plan" || args[1] == "setup") {
       auto options = parse_setup(args);
       if (install_workload_models) {
-        if (mica::local_server_running(options.root))
-          throw std::runtime_error("stop Mica before installing a workload; activate uses hot-swap instead");
+        if (mica::local_server_running(options.root)) {
+          // Do not silently apply setup-only overrides to a running machine.
+          for (std::size_t i = 2; i < args.size(); ++i) {
+            if (args[i] != "--profile" && args[i] != "--root" && args[i] != "--config-dir")
+              throw std::invalid_argument("Live workload installation uses the running machine policy; "
+                                          "setup overrides require Mica to be stopped.");
+            ++i;
+          }
+          mica::prepare_workload_on_server(options.root, options.profile);
+          return 0;
+        }
         const auto machine_file = options.machine_policy_file.empty()
                                       ? options.root / "config/machine.yaml" : options.machine_policy_file;
         if (std::find(args.begin(), args.end(), "--ram-gib") == args.end() &&

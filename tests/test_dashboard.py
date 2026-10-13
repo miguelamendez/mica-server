@@ -171,6 +171,19 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(self.get("/admin/dashboard/inventory")["server"]["inference_status"],"paused")
         self.rejected("/v1/chat/completions",{"workload":"app-a","messages":[]},key=base.TOKEN,status=503)
         self.post("/admin/inference/resume",{});self.chat("app-a")
+    def test_failed_preparation_resumes_prior_server_and_preserves_error(self):
+        self.start(); pid = self.server.pid
+        self.chat("app-a")
+        job = self.job({"action": "workload.prepare", "id": "missing-workload"})
+        self.assertEqual(job["state"], "failed", job)
+        self.assertTrue(job.get("error"), job)
+        persisted = self.get("/admin/dashboard/jobs/" + job["id"])
+        self.assertEqual(persisted["state"], "failed")
+        self.assertEqual(persisted["error"], job["error"])
+        self.assertEqual(self.get("/admin/models")["inference_status"], "ready")
+        self.chat("app-a")
+        self.assertEqual(self.server.pid, pid)
+        self.assertEqual(self.get("/v1/models")["profile"], "app-a")
     def test_native_job_clone_and_app_install_do_not_restart_or_download_models(self):
         self.start();pid=self.server.pid
         cloned=self.job({"action":"workload.clone","id":"app-a","new_id":"copy-workload"})
