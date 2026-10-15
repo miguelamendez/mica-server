@@ -2,7 +2,11 @@
 
 The optional browser dashboard mirrors these seven sections using buttons,
 filters, dialogs and clickable model/engine relationships. Enable it with
-`mica-server start --dashboard` and open `/dashboard` on that host. It uses the
+`mica-server start --dashboard --port 8092` and open
+`http://127.0.0.1:8092/dashboard` on that host. It is disabled by default;
+**Settings → Dashboard** saves enable/disable for future starts. The dashboard
+shares the API port (8080 by default, or your saved/explicit port). Use
+`mica-server dashboard` to see actual URLs. It uses the
 same native inventory; no web-framework installation is required. Its admin
 key is distinct from inference keys. See [dashboard administration](api.md#dashboard-and-administration).
 
@@ -40,8 +44,11 @@ include hardware-incompatible alternatives; press `u` to inspect those.
 
 Apps lists the bundled **Mica demo apps** source and explicitly registered
 repository sources. Select a demo, inspect with Enter, install with `i`, prepare
-a bundled workload with `w`, then start/select that workload in Server. `s`
-launches trusted app code, `x` stops the app only, and `d` uninstalls it. Sources
+a compatible bundled workload with `w`. Start Mica if stopped; apps keep their
+own workload bindings, so they do not need to become the server default. `o`
+opens a web UI or a native app's foreground TUI; `s` launches a background
+instance, `x` closes the app only, and `d` uninstalls it. `c` adds a named inference
+connection and `k` chooses it. Sources
 can be added with a GitHub/Hugging Face repository or direct HTTPS manifest/index
 URL. **Sources → d** removes a custom catalogue without deleting installed apps.
 
@@ -69,6 +76,14 @@ inventory too.
 **Machine** is a Server subsection. It shows detected OS, CPU, accelerators,
 physical/unified memory, runtime targets and user allocation policy. Settings
 edits allocations; it never changes detected hardware facts.
+
+**Dashboard** is a Server subsection; `o` opens it on this host's desktop when
+enabled, or reviews enabling it persistently when disabled. Overview shows its
+enabled state, local URL, network URLs when listening on all IPv4 interfaces,
+and the TUI/server build revisions. Opening the TUI alone does not start Mica.
+Over SSH, browser actions run on the Linux host, not your Mac. On headless hosts
+open a printed network URL on your own device; no tunnel is required. The web
+dashboard uses the separate admin key, never a key embedded in the URL.
 
 **Updates** is another Server subsection: Enter checks the latest published
 release. Settings provides **Check for updates**, **Update latest release** and

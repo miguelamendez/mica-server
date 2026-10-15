@@ -16,7 +16,7 @@
     "port": {"$ref": "#/$defs/port", "default": 8080},
     "default_workload": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
     "scheduling_strategy": {"type": "string", "enum": ["high", "single", "balanced"], "default": "balanced"},
-    "dashboard": {"type": "boolean", "default": false},
+    "dashboard": {"type": "boolean", "default": false, "description": "Persistently enable /dashboard on the API listener. CLI --dashboard/--no-dashboard override it for one launch. Login uses the separate admin key."},
     "admin_api_key_file": {"$ref": "#/$defs/file"},
     "api_key": {"$ref": "#/$defs/key", "description": "Discouraged inline secret. Prefer a private api_key_file."},
     "api_key_file": {"$ref": "#/$defs/file"},

@@ -328,6 +328,7 @@ void register_dashboard(httplib::Server& server, const ServerOptions& options,
       {"/dashboard/logo.svg", "logo.svg", "image/svg+xml"}}) {
     if (!fs::is_regular_file(assets / file)) throw std::runtime_error("dashboard assets missing; install binary and packaged files together");
     server.Get(route, [path=assets/file, mime](const auto&, auto& response) {
+      response.set_header("Cache-Control", "no-store");
       response.set_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
       response.set_header("X-Content-Type-Options", "nosniff"); response.set_header("Referrer-Policy", "no-referrer");
       response.set_content(contents(path), mime);

@@ -10,24 +10,29 @@ does not update the installed binary or running server.
 > hardware/model testing. Expect some profiles and engine integrations to
 > change before the first stable release.
 
-## Choose an engine profile
+## Choose a workload
 
-| Profile | Platform | Engines | Python |
-| --- | --- | --- | --- |
-| `mica-assistant-mlx` | Apple Silicon macOS | `mlx-lm`, `mlx-vlm`, `mlx-audio` | Yes |
-| `mica-assistant-gguf` | macOS, Linux, WSL2 | `llama.cpp`, `audio.cpp` | No |
-| `mica-assistant-gptq` | Future CUDA/ROCm/XPU target | vLLM | Blocked pending four-modality certification |
+| Workload | Platform | Intended use |
+| --- | --- | --- |
+| `mac_assistant` | Apple Silicon macOS | Multimodal assistant |
+| `mac_coder` | Apple Silicon macOS | Coding and visual references |
+| `gpu_16g_assistant` | Linux NVIDIA GPU | Multimodal assistant |
+| `gpu_16g_coder` | Linux NVIDIA GPU | Coding, text and visual model modes |
 
-`auto` selects MLX on Apple Silicon and GGUF elsewhere. A schema-5 profile
-selects the concrete engine and artifact for every model; CLI backend flags do
-not silently override it.
+Use `mica-server workload list` for the current catalogue or choose **Workloads**
+in the TUI. These are examples, not a fixed required model set. The workload and
+model manifests select or resolve compatible engines/artifacts; CLI backend
+flags do not silently override them. Python is required only by engines/clients
+that use it, not by native GGUF inference.
 
 ## Install a release
 
-Tagged releases contain a static-Lua `mica-server` binary, the Lua/JSON
+When available, published releases contain a static-Lua `mica-server` binary, matching
 configuration, helper scripts, the license, and a SHA-256 file. Choose the
 archive for macOS ARM64, Linux x86-64, or Linux ARM64 from
 [GitHub Releases](https://github.com/miguelamendez/mica-server/releases).
+If no matching release is published, use the source-build instructions below;
+an example archive name is not a promise that a release exists.
 
 Example for Apple Silicon:
 
@@ -97,7 +102,7 @@ mica-server detect --output "$HOME/.mica/state/hardware.yaml"
 Plan makes no changes:
 
 ```sh
-mica-server plan --profile mica-assistant-mlx --ram-gib 8
+mica-server plan --profile mac_assistant --ram-gib 14
 ```
 
 `plan` reads `~/.mica/config/machine.yaml` if it exists. The machine file is
@@ -123,7 +128,7 @@ engines do not yet have a common CPU-thread control.
 Set up only the engines required by the selected profile:
 
 ```sh
-mica-server setup --profile mica-assistant-mlx --ram-gib 8
+mica-server setup --profile mac_assistant --ram-gib 14
 ```
 
 Setup uses detected hardware and machine policy to choose Metal, CUDA,
@@ -146,7 +151,8 @@ mica-server tui
 mica-server workload list
 mica-server workload show mica-spark-small-gguf
 mica-server workload install mica-spark-small-gguf
-mica-server start --host 0.0.0.0 --port 8092
+mica-server start --dashboard --host 0.0.0.0 --port 8092
+mica-server dashboard
 mica-server status
 mica-server endpoints
 mica-server workload activate ANOTHER_PREPARED_WORKLOAD
@@ -155,25 +161,28 @@ mica-server stop
 
 `workload install` detects hardware, installs or verifies required engines, and
 downloads missing model bundles immediately. It inherits the RAM allocation
-from `machine.yaml` unless `--ram-gib` narrows it. Stop before installation:
-setup changes the saved runtime selection. For a fresh installation,
+from `machine.yaml` unless `--ram-gib` narrows it. With a running dashboard-enabled
+server, preparation drains/pauses inference, preserves the default workload and
+resumes without restarting Mica. Machine/setup overrides require stopping first.
+For a fresh installation,
 `start --workload mica-spark-small-gguf` combines setup, download and background
 launch. Closing the terminal or TUI does not stop that server; this command
 does not enable reboot autostart. Logs are in `~/.mica/logs/server.log`.
 
 `workload activate` hot-swaps a prepared workload without restarting. Compatible
-workers are retained. Missing engines require stopping and installing first.
+workers are retained. Prepare missing engines/models before activation; the
+dashboard-enabled preparation path keeps the listener and apps running.
 `workload edit ID` uses `$EDITOR`, validates YAML, and retains a failed edit as a
 draft. Edited definitions are read after restart; the running registry is not
 silently replaced. The older `profile` commands remain available for managing
 YAML definitions; `profile install` installs a definition only, not its engines
 and weights.
 
-The TUI has six views: Server, Workloads, Models, Engines, Endpoints and Settings.
+The TUI has seven views: Server, Workloads, Models, Engines, Endpoints, Settings and Apps.
 Machine is a Server subsection. Choose a workload from Server to start or swap;
 Enter on a workload browses its models, and Enter on a model browses its supported
 engines. Model categories and compatible-only inventories keep the lists focused;
-`u` reveals other hardware targets. Arrows select, Tab switches focus, `1`–`6`
+`u` reveals other hardware targets. Arrows select, Tab switches focus, `1`–`7`
 select a view, `/` filters, and `?` shows actions. Mutations require confirmation.
 Long operations run outside the UI thread; API keys stay hidden. See the
 [TUI walkthrough](tui.md) for installation markers, cache checks and shortcuts.
@@ -217,6 +226,21 @@ The authenticated API key is generated at `~/.mica/secrets/api-key`. See the
 routes.
 
 ## Run the chat client
+
+The installed app is the easiest route: select **Apps → Local Assistant → o**
+in the TUI, or use the dashboard's **Open** action. CLI:
+
+```sh
+mica-server app install mica-assistant --accept-code
+mica-server app start mica-assistant --workload YOUR_PREPARED_WORKLOAD --accept-code
+mica-server app open mica-assistant
+```
+
+With the dashboard enabled, the browser logs in there and opens the app under
+`/apps/mica-assistant/chat` on the same API port. Opening a native app over SSH
+does not open a browser on your Mac; use the dashboard's network URL instead.
+The separate port 8090 example below is the optional local development bridge,
+not the dashboard and not a port you need to expose on a remote host.
 
 Chat Settings lists server workloads with their descriptions, selected models,
 memory requirements, and known installation blockers. Choose one and select

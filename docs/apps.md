@@ -12,7 +12,10 @@ Open `mica-server tui`, press **7** for **Apps**, and select a demo:
 2. **i** installs verified files and registers its bundled workloads.
 3. **w** prepares a bundled workload; the editable field lets you choose its ID.
 4. Start Mica if stopped. Other apps can keep their own workload bindings.
-5. Return to **Apps**, press **s**, and confirm execution of trusted code.
+5. Return to **Apps**, press **o** to open the UI, and confirm trusted code.
+   Browser apps start if needed, then open the authenticated dashboard app link.
+   A native app with declared `launch.tui_arguments` opens in the current terminal;
+   closing it returns to Mica's TUI. **s** starts a background instance instead.
 6. Assistant's local bridge uses `http://127.0.0.1:8090/chat`; the dashboard's
    Open action authorizes and opens `/apps/mica-assistant/chat` on Mica's own
    address. Native Dictation records on the device running the app; configure it
@@ -85,6 +88,9 @@ overrides are rejected during live preparation rather than silently ignored.
 `app upgrade ID --accept-code` replaces verified files after closing the app,
 retains previous files, and preserves workload edits/connections. Updating Mica
 does not automatically replace already installed app packages.
+After updating, close an old Dictation instance and use
+`app upgrade mica-dictation --accept-code` to obtain its new interactive launch
+declaration.
 
 ## MCP
 
@@ -114,6 +120,8 @@ mica-server app show mica-dictation
 mica-server app install mica-dictation --accept-code
 mica-server app setup mica-dictation mica-dictation--mac
 mica-server start --workload mica-dictation--mac
+mica-server app open mica-dictation --accept-code
+# Or start the global-shortcut client in the background:
 mica-server app start mica-dictation --accept-code
 mica-server app stop mica-dictation
 ```
@@ -243,6 +251,17 @@ or native desktop app. `launch.executable` can name a program on PATH, or a
 verified package file such as `{app_dir}/bin/app`. The latter must declare
 `executable: true` in its distribution file record. Arguments are passed as an
 argv array, not interpreted as a shell command.
+
+For an interactive terminal UI, declare `interfaces: [tui, ...]` and add
+`launch.tui_arguments`: the full alternative argument array for the same
+executable. `app open` uses it in the foreground with a real terminal; `app start`
+continues to use `launch.arguments` in the background. Interactive arguments
+can use `{app_dir}`, `{mica_config}`, `{mica_root}`, `{connection}` and
+`{workload}`. Opening the setup TUI does not require a local model server.
+Browser apps need `launch.port` and `launch.path`; CLI/TUI open uses a
+`/dashboard?app=APP_ID` login link when the local dashboard is enabled, without
+putting credentials in the URL. The dashboard then authorizes the app cookie
+and opens `/apps/APP_ID/...`. Popup-blocked browsers navigate in the same tab.
 
 Bundled workloads are schema-5 YAMLs registered as `APP_ID--WORKLOAD_ID`, with
 their models checked against Mica's model/engine registry before registration.

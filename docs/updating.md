@@ -33,6 +33,9 @@ and `share/mica-server`; staging lives under `~/.mica/updates/`. User settings,
 credentials, model caches, engines and user-owned workloads are not replaced.
 Restart failures are reported, not described as success. Close/reopen an existing
 TUI after installation so it uses the new binary.
+`mica-server --version`, Server's **TUI build / Server build**, and `status`
+make it possible to distinguish the installed CLI, an already-open TUI and the
+running server. Dashboard assets are served without browser caching.
 
 `--prefix PATH` selects a user-writable installation prefix; no automatic sudo
 or account changes are performed. `--force` explicitly permits reinstalling a

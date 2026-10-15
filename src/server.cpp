@@ -1861,7 +1861,8 @@ class WorkerManager {
                                           {"vram_reservation_gib",
                                            policy.vram_reservation_gib}}}});
     }
-    return {{"ready", ready()}, {"inference_status", paused_ ? "paused" : ready() ? "ready" : "warming"}, {"active_backends", active},
+    return {{"version", MICA_SERVER_VERSION}, {"revision", MICA_SERVER_REVISION},
+            {"ready", ready()}, {"inference_status", paused_ ? "paused" : ready() ? "ready" : "warming"}, {"active_backends", active},
             {"scheduler", {{"strategy", strategy_}, {"last_request_workload", last_request_workload_},
               {"queued_requests", queued_requests_}, {"high_priority_minimum", 100},
               {"active_app_workloads", active_app_workloads_},

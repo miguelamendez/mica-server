@@ -105,5 +105,19 @@ bool command_exists(const std::string& command) {
   return false;
 }
 
+void open_browser(const std::string& url) {
+  if ((!url.starts_with("http://") && !url.starts_with("https://")) ||
+      url.find_first_of("\r\n\t ") != std::string::npos)
+    throw std::invalid_argument("browser URL must use HTTP(S) without whitespace");
+#ifdef __APPLE__
+  const auto result = run_command({"/usr/bin/open", url}, true);
+#else
+  if ((!std::getenv("DISPLAY") && !std::getenv("WAYLAND_DISPLAY")) || !command_exists("xdg-open"))
+    throw std::runtime_error("No desktop browser on this host. Open a printed network URL on your device; no SSH tunnel is needed.");
+  const auto result = run_command({"xdg-open", url}, true);
+#endif
+  if (result.exit_code) throw std::runtime_error("Browser launch failed. Open the printed URL manually.");
+}
+
 }  // namespace mica
 

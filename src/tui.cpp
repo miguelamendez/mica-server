@@ -144,6 +144,7 @@ ViewData refresh_data(const std::filesystem::path& root, const std::filesystem::
   data.settings["api_key"] = configured ? "configured (hidden)" : "not configured";
   data.settings["host"] = data.settings.value("host", "127.0.0.1");
   data.settings["port"] = data.settings.value("port", ServerOptions{}.port);
+  data.settings["dashboard"] = data.settings.value("dashboard", false);
   data.models = registry_catalog(data.registry, std::nullopt, std::nullopt, false);
   data.engines = json::object();
   for (const auto& [id, engine] : data.registry.engines)
@@ -241,15 +242,15 @@ json tui_inventory(const std::filesystem::path& root, const std::filesystem::pat
       }
     return json{{"sections", navigation}, {"server", data.server}, {"machine", data.hardware},
                      {"settings", data.settings}, {"updates", data.update}, {"live_memory", data.live_memory}, {"disk_usage_bytes", data.disk}, {"workloads", workloads},
-                     {"server_subsections", {"Overview", "Choose workload", "Machine", "Updates"}},
-                     {"models", data.models}, {"engines", engines}, {"apps", data.apps}, {"endpoints", server_endpoints()}};
+                     {"server_subsections", {"Overview", "Choose workload", "Machine", "Updates", "Dashboard"}},
+                     {"models", data.models}, {"engines", engines}, {"apps", data.apps}, {"endpoints", server_endpoints(data.server.value("dashboard", data.settings.value("dashboard", false)))}};
 }
 
 int run_tui(const std::filesystem::path& executable, const std::filesystem::path& root,
             const std::filesystem::path& config, bool snapshot) {
   const auto sections = sections_from_lua(config / "tui.lua");
-  const auto endpoint_catalog = server_endpoints();
   auto data = refresh_data(root, config);
+  auto endpoint_catalog = server_endpoints(data.server.value("dashboard", data.settings.value("dashboard", false)));
   if (snapshot) {
     std::cout << tui_inventory(root, config).dump(2) << '\n';
     return 0;
@@ -279,9 +280,10 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
   auto edit_input = Input(&edit_value, "Enter a value...");
 
   const auto entries = [&]() {
+    endpoint_catalog=server_endpoints(data.server.value("dashboard",data.settings.value("dashboard",false)));
     std::vector<std::string> values;
     const auto& section = sections[section_index].id;
-    if (section == "server" && !server_picker) values = {"Overview", "Choose workload", "Machine", "Updates"};
+    if (section == "server" && !server_picker) values = {"Overview", "Choose workload", "Machine", "Updates", "Dashboard"};
     else if (section == "workloads" || (section == "server" && server_picker)) {
       for (const auto& [id, profile] : data.registry.profiles)
         if (data.workloads.contains(id) && data.workloads[id]["visible"].get<bool>() &&
@@ -307,7 +309,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       values = {"Add source", "Sources"};
       for (const auto& app : data.apps["apps"]) values.push_back(app.at("id"));
     } else if (section == "settings") {
-      values = {"Check for updates", "Update latest release", "Update latest source", "Bind address", "Port", "Default workload", "Scheduling strategy", "RAM limit (GiB)",
+      values = {"Check for updates", "Update latest release", "Update latest source", "Bind address", "Port", "Dashboard", "Default workload", "Scheduling strategy", "RAM limit (GiB)",
                 "Dedicated GPU limit (GiB)", "Import API key file", "Rotate API key", "Rotate admin API key"};
     }
     values.erase(std::remove_if(values.begin(), values.end(), [&](const auto& value) {
@@ -334,6 +336,18 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     if (worker.joinable()) worker.join();
     busy = true; confirm = false;
     const auto command = pending;
+    if (command.size() > 3 && command[1] == "app" && command[2] == "open") {
+      auto id=command[3]; if(auto colon=id.find(':');colon!=std::string::npos)id.erase(0,colon+1);
+      const auto manifest=root/"apps"/id/"app.yaml";
+      if (std::filesystem::is_regular_file(manifest) && read_profile_file(manifest).at("launch").contains("tui_arguments")) {
+        confirm=false; busy=false;
+        CommandResult result;
+        screen.WithRestoredIO([&]{result=run_command(command,false);})();
+        data=refresh_data(root,config);
+        message=result.exit_code==0?"App terminal closed; Mica is unchanged.":"Terminal app exited with an error. Review its connection and permissions.";
+        return;
+      }
+    }
     message = "Running " + display_command(command) + " — wait for completion";
     worker = std::thread([&, command] {
       CommandResult result;
@@ -421,7 +435,12 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
         row("Name", app["name"]); row("Description", app["description"]); row("Source", app["source_id"]);
         row("Installed", app["installed"]); row("Running", app["running"]);
         if(app.contains("connections")){section_heading("Server connections");object(app["connections"]);row("Default connection",app.value("default_connection",""));}
-        if (app.contains("url")) row("Open in browser", app["url"]);
+        if (app.contains("url")) {
+          if(data.server.value("dashboard",false)) {
+            auto id=selected.substr(selected.find(':')==std::string::npos?0:selected.find(':')+1);
+            row("Open on this host",data.server.at("dashboard_url").get<std::string>()+"?app="+id);
+          } else row("Private UI (this host only)", app["url"]);
+        }
         if (app.contains("workloads")) { section_heading("Bundled workloads"); row("Registered IDs", app["workloads"]); }
         json manifest;
         if (app["installed"].get<bool>()) {
@@ -434,7 +453,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
           section_heading("Source and launch"); object(manifest["source"]); object(manifest["launch"]);
           row("Package integrity", "Manifest and downloaded files verified before registration. Downloaded code is not sandboxed.");
         } else row("Inspect first", "Enter fetches the manifest to review before installing.");
-        section_heading("Controls"); row("Actions", "Enter inspect · i install here · w prepare compatible workload · c add server connection · k choose connection · s launch · x stop · d uninstall");
+        section_heading("Controls"); row("Actions", "Enter inspect · i install · w prepare · o open UI · s background launch · c add connection · k choose connection · x close · d uninstall");
         row("Install location", "The TUI installs on this device. Remote inference needs only an app connection; local Mica/engine/model setup is optional.");
         row("Safety", "Apps bind their own workload; launch never restarts Mica. OS/browser controls permissions.");
       }
@@ -444,6 +463,12 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       section_heading("Server · Overview");
       row("Status", data.server.value("status", "stopped"));
       row("Default workload", data.settings.value("default_workload", "not configured"));
+      row("TUI build", MICA_SERVER_REVISION);
+      row("Dashboard", data.server.value("dashboard",false) ? "enabled" : data.settings.value("dashboard",false) ? "configured for next start" : "disabled (default; enable in Settings)");
+      if(data.server.contains("dashboard_url")&&!data.server["dashboard_url"].is_null())row("Dashboard URL",data.server["dashboard_url"]);
+      if(data.server.contains("network_dashboard_urls")&&!data.server["network_dashboard_urls"].empty())row("Network dashboard URLs",data.server["network_dashboard_urls"]);
+      if(data.server.contains("revision"))row("Server build",data.server["revision"]);
+      if(selected=="Dashboard")row("Dashboard controls","o opens this host's browser. Enter enables it persistently if disabled. SSH users should open a network URL on their own device; admin key required.");
       if (data.server.contains("profile")) {
         row("Workload", data.server["profile"]["name"]);
         row("Listening", compact(data.server["host"]) + ":" + compact(data.server["port"]));
@@ -458,14 +483,14 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       else row("Loaded models", "none — server stopped");
       section_heading("Stored data (logical file size; not RAM)");
       for (const auto& item : data.disk.items()) row(item.key(), gib_text(item.value().get<std::uintmax_t>()));
-      section_heading("Actions"); row("Controls", "Choose workload + Enter to start or swap · s choose/start · x stop · r refresh");
+      section_heading("Actions"); row("Controls", "Choose workload + Enter to start or swap · s choose/start · o dashboard · x stop · r refresh");
       update_info();
       row("Memory accounting", "Reservations are planning estimates, not measurements or a universal hard RSS/VRAM cap.");
     } else if (section == "server" && !server_picker && selected == "Machine") {
       section_heading("Live memory (transient observations)"); object(data.live_memory);
       section_heading("Detected machine (facts)"); object(data.hardware);
       section_heading("User limits (machine.yaml)"); object(data.machine);
-      row("Edit limits", "Use Settings. Changes require stopping and reconciling the workload.");
+      row("Edit limits", "Use Settings. Allocation changes restart the active workload after confirmation.");
     } else if (section == "settings") {
       update_info();
       section_heading("Server configuration"); object(data.settings);
@@ -473,7 +498,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       section_heading("Editing and application");
       row("Selected", selected);
       row("Actions", "Enter edits the selected setting. API keys stay hidden; import a file or generate a replacement.");
-      row("Apply", "Default workload and scheduling strategy apply live. Listener, key and allocation changes restart Mica after confirmation; requests may be interrupted.");
+      row("Apply", "Default workload, scheduler and key rotation apply live. Listener, dashboard and allocation changes restart Mica after confirmation; requests may be interrupted.");
       row("Network", "0.0.0.0 listens on all IPv4 interfaces. Use a trusted LAN and a firewall; HTTP is not encrypted.");
     } else if (selected.empty()) row("Entries", "No matches");
     else if (section == "workloads" || (section == "server" && server_picker)) {
@@ -640,9 +665,9 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
                         filler(), text(" " + state + (busy ? " · working " : " ")) | color(state == "ready" ? good : muted)});
     const auto& selected_section = sections[section_index].id;
     const std::string actions = selected_section == "workloads" ? " Enter models · i install · s start · a swap · e edit · c clone " :
-                                selected_section == "server" ? " s start · x stop · r refresh " :
+                                selected_section == "server" ? " s start/swap · o dashboard · x stop · r refresh " :
                                 selected_section == "settings" ? " Enter edit selected setting " :
-                                selected_section == "apps" ? " Enter inspect · i install · w setup · s launch · x stop · d remove " : " r refresh · PgUp/PgDn details ";
+                                selected_section == "apps" ? " Enter inspect · i install · w prepare · o open UI · s background · c/k connections · x close · d remove " : " r refresh · PgUp/PgDn details ";
     auto base = vbox({header, separator(), paragraph(" " + sections[section_index].hint) | color(muted), body | flex,
                       separator(), paragraph(" " + message.substr(0, 500)) | size(HEIGHT, LESS_THAN, 4),
                       text(actions) | color(accent),
@@ -661,12 +686,14 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     if (search_open) return dbox({base, vbox({text(" Filter "), search_input->Render(), text(" Enter closes · Esc clears ")}) | border | size(WIDTH, LESS_THAN, 60) | clear_under | center});
     if (help) return dbox({base, vbox({text(" Mica controls ") | bold, separator(),
       text(" Workloads: i install · s start · a activate · e edit · c clone "),
-      text(" Server: Enter Choose workload · s choose/start · x stop · Machine subsection "),
+      text(" Server: s choose/start/swap · o dashboard · x stop · Machine/Updates subsections "),
       text(" Workload → Enter models → Enter engines · Esc returns · g model group "),
       text(" u shows incompatible hardware; hidden legacy examples stay hidden "),
       text(" ✓ cached/installed · ↓ needs installation/download · ! unsupported · $ exceeds allocation "),
-      text(" Settings: select a field and press Enter "),
-      text(" Apps: Enter inspect · i install · w prepare workload · s launch · x stop · d remove "),
+      text(" Settings: Enter edits; Dashboard persists enable/disable (restart if running) "),
+      text(" Apps: Enter inspect · i install · w prepare · o open UI · s background · x close "),
+      text(" Apps: c add inference connection · k choose one; native UI uses this terminal "),
+      text(" Browser actions run on this host; SSH users open its network URL themselves "),
       text(" Changes are confirmed and use the same CLI as the terminal. "),
       text(" Closing the TUI leaves the inference server running. "), text(" Esc closes help ")}) | border | clear_under | center});
     return base;
@@ -793,6 +820,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
           else { message = "Inspect the publisher, permissions and launch command first; Enter fetches the manifest."; }
         }
         if (event == Event::Character("s")) command({"app", "start", selected, "--accept-code", "--config-dir", config.string()});
+        if (event == Event::Character("o")) command({"app", "open", selected, "--accept-code", "--config-dir", config.string()});
         if (event == Event::Character("x")) command({"app", "stop", selected, "--config-dir", config.string()});
         if (event == Event::Character("d")) command({"app", "uninstall", selected, "--config-dir", config.string()});
         if (event == Event::Character("w")) {
@@ -804,6 +832,11 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
         }
       }
     } else if (section == "server") {
+      if(event==Event::Character("o") || (!server_picker && selected=="Dashboard" && event==Event::Return)) {
+        if(data.server.value("dashboard",false))command({"dashboard","--open"});
+        else command({"config","set","--dashboard","--restart","--config-dir",config.string()});
+        return true;
+      }
       if (!server_picker && selected == "Updates" && event == Event::Return) { command({"update", "--check"}); return true; }
       if (event == Event::Character("s") || event == Event::Return) {
         if (server_picker && !selected.empty()) {
@@ -852,13 +885,17 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       message = "Supported engines for " + selected + ". View only; engine pins are edited in the workload YAML.";
     } else if (section == "settings" && event == Event::Return && !selected.empty()) {
       if (selected == "Check for updates") { command({"update", "--check"}); return true; }
+      if (selected == "Dashboard") {
+        command({"config", "set", data.settings.value("dashboard", false)?"--no-dashboard":"--dashboard", "--restart", "--config-dir", config.string()});
+        return true;
+      }
       if (selected == "Update latest release" || selected == "Update latest source") {
         command({"update", "--channel", selected == "Update latest source" ? "source" : "release", "--restart"}); return true;
       }
       const std::map<std::string, std::string> options{{"Bind address", "--host"}, {"Port", "--port"},
           {"Default workload", "--default-workload"}, {"Scheduling strategy", "--strategy"}, {"RAM limit (GiB)", "--ram-gib"},
           {"Dedicated GPU limit (GiB)", "--vram-gib"}, {"Import API key file", "--api-key-file"}};
-      if (selected == "Rotate API key") command({"config", "set", "--rotate-api-key", "--restart", "--config-dir", config.string()});
+      if (selected == "Rotate API key") command({"config", "set", "--rotate-api-key", "--config-dir", config.string()});
       else if (selected == "Rotate admin API key") command({"config", "set", "--rotate-admin-api-key", "--config-dir", config.string()});
       else { edit_option = options.at(selected); edit_value.clear(); }
     } else if (event == Event::Return) list_focus = true;

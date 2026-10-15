@@ -19,6 +19,9 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <arpa/inet.h>
 
 namespace mica {
 using json = nlohmann::json;
@@ -178,6 +181,31 @@ json local_server_status(const std::filesystem::path& root) {
     result["port"] = control.at("port");
     result["pid"] = control.at("pid");
     result["dashboard"] = control.value("dashboard", false);
+    auto host = control.at("host").get<std::string>();
+    if (host == "0.0.0.0") host = "127.0.0.1";
+    if (host == "::") host = "::1";
+    const auto authority = (host.find(':') != std::string::npos ? "[" + host + "]" : host) +
+                           ":" + std::to_string(control.at("port").get<int>());
+    result["api_url"] = "http://" + authority;
+    result["dashboard_url"] = result["dashboard"].get<bool>() ? json("http://" + authority + "/dashboard") : json(nullptr);
+    result["network_dashboard_urls"] = json::array();
+    if (result["dashboard"].get<bool>() && control.at("host") == "0.0.0.0") {
+      ifaddrs* addresses = nullptr;
+      if (getifaddrs(&addresses) == 0) {
+        for (auto* address = addresses; address; address = address->ifa_next) {
+          if (!address->ifa_addr || address->ifa_addr->sa_family != AF_INET ||
+              !(address->ifa_flags & IFF_UP) || (address->ifa_flags & IFF_LOOPBACK)) continue;
+          char buffer[INET_ADDRSTRLEN];
+          const auto* value = &reinterpret_cast<sockaddr_in*>(address->ifa_addr)->sin_addr;
+          if (inet_ntop(AF_INET, value, buffer, sizeof(buffer))) {
+            const auto url = "http://" + std::string(buffer) + ":" + std::to_string(control.at("port").get<int>()) + "/dashboard";
+            auto& urls = result["network_dashboard_urls"];
+            if (std::find(urls.begin(), urls.end(), json(url)) == urls.end()) urls.push_back(url);
+          }
+        }
+        freeifaddrs(addresses);
+      }
+    }
     return result;
   } catch (const std::exception& e) { return {{"status", "starting_or_unreachable"}, {"error", e.what()}}; }
 }
@@ -189,6 +217,7 @@ int service_command(const std::string& action, const std::vector<std::string>& a
   std::vector<std::string> serve_args{executable.string(), "serve"};
   std::vector<std::string> install_args{executable.string(), "workload", "install"};
   std::string workload;
+  bool browser = false, url_only = false;
   for (std::size_t i = 0; i < arguments.size(); ++i) {
     const auto& option = arguments[i];
     if (option == "--root") {
@@ -196,6 +225,8 @@ int service_command(const std::string& action, const std::vector<std::string>& a
       serve_args.insert(serve_args.end(), {option, root.string()});
       install_args.insert(install_args.end(), {option, root.string()});
     } else if (option == "--workload") workload = next_value(arguments, i);
+    else if (action == "dashboard" && option == "--open") browser = true;
+    else if (action == "dashboard" && option == "--url") url_only = true;
     else if (action == "start" && (option == "--dashboard" || option == "--no-dashboard")) serve_args.push_back(option);
     else if (action == "start" && (option == "--host" || option == "--port" || option == "--server-config" || option == "--strategy")) {
       const auto value = next_value(arguments, i);
@@ -208,6 +239,24 @@ int service_command(const std::string& action, const std::vector<std::string>& a
       const auto value = next_value(arguments, i);
       install_args.insert(install_args.end(), {option, value});
     } else throw std::invalid_argument("unknown " + action + " option: " + option);
+  }
+  if (action == "dashboard") {
+    const auto state = local_server_status(root);
+    if (!state.value("dashboard", false))
+      throw std::runtime_error(local_server_running(root)
+          ? "Dashboard is disabled. Run mica-server config set --dashboard --restart (saves the setting), or stop then start --dashboard (one launch)."
+          : "Mica is stopped. Run mica-server start --dashboard, then mica-server dashboard --open.");
+    const auto url = state.at("dashboard_url").get<std::string>();
+    if (url_only) std::cout << url << '\n';
+    else {
+      std::cout << "Dashboard on this host: " << url << '\n';
+      for (const auto& remote : state.at("network_dashboard_urls")) std::cout << "Network address: " << remote.get<std::string>() << '\n';
+      const auto control = read_json(root / "run/server.json");
+      std::cout << "Admin key file (not the inference key): " << control.value("admin_api_key_file", (root / "secrets/admin-api-key").string()) << '\n';
+      std::cout << "Use --open to launch this host's browser. Remote devices use a reachable network address above.\n";
+    }
+    if (browser) open_browser(url);
+    return 0;
   }
   if (action == "status") {
     std::cout << local_server_status(root).dump(2) << '\n';
@@ -224,6 +273,9 @@ int service_command(const std::string& action, const std::vector<std::string>& a
   }
   if (local_server_running(root)) {
     if (!workload.empty()) throw std::runtime_error("Mica is running; use workload activate " + workload);
+    if (std::find(arguments.begin(), arguments.end(), "--dashboard") != arguments.end() ||
+        std::find(arguments.begin(), arguments.end(), "--no-dashboard") != arguments.end())
+      throw std::runtime_error("Mica is already running; start flags do not change it. Use config set --dashboard --restart or config set --no-dashboard --restart.");
     std::cout << local_server_status(root).dump(2) << '\n';
     return 0;
   }
@@ -289,6 +341,8 @@ int configuration_command(const std::vector<std::string>& args,
     else if (args[0] == "set" && option == "--rotate-api-key") rotate = true;
     else if (args[0] == "set" && option == "--rotate-admin-api-key") rotate_admin = true;
     else if (args[0] == "set" && option == "--restart") restart = true;
+    else if (args[0] == "set" && option == "--dashboard") changes["dashboard"] = true;
+    else if (args[0] == "set" && option == "--no-dashboard") changes["dashboard"] = false;
     else if (args[0] == "set" && option == "--config-dir") config_directory = next_value(args, i);
     else if (args[0] == "set" && option == "--api-key-file") import_key = next_value(args, i);
     else if (args[0] == "set" && option == "--host") changes["host"] = next_value(args, i);
@@ -326,7 +380,7 @@ int configuration_command(const std::vector<std::string>& args,
   if (restart && executable.empty()) throw std::runtime_error("restart needs the Mica executable path");
   const auto active_workload = running ? local_server_status(root).value("profile", json::object()).value("name", "") : "";
   const bool restart_dashboard = running && local_server_status(root).value("dashboard", false);
-  for (const auto* key : {"host", "port", "default_workload", "scheduling_strategy"})
+  for (const auto* key : {"host", "port", "default_workload", "scheduling_strategy", "dashboard"})
     if (changes.contains(key)) server[key] = changes[key];
   server["schema"] = 1;
   validate_server_configuration(server);
@@ -386,7 +440,7 @@ int configuration_command(const std::vector<std::string>& args,
     std::vector<std::string> arguments{"--root", root.string()};
     if (!active_workload.empty()) arguments.insert(arguments.end(), {"--workload", active_workload});
     if (!config_directory.empty()) arguments.insert(arguments.end(), {"--config-dir", config_directory.string()});
-    if (restart_dashboard) arguments.push_back("--dashboard");
+    if (!changes.contains("dashboard") && restart_dashboard) arguments.push_back("--dashboard");
     try {
       const auto result = service_command("start", arguments, executable, root);
       if (result) throw std::runtime_error("setup exited with " + std::to_string(result));

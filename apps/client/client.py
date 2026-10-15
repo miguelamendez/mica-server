@@ -234,9 +234,9 @@ def main():
     config_path = root / "config/client-runtime" / (package["id"] + ".json")
     save(config_path, config)
     launch = package["launch"]
-    replacements = {"{app_dir}": str(directory), "{mica_config}": str(config_path), "{port}": str(launch.get("port", 0)), "{workload}": connection["workload"]}
+    replacements = {"{app_dir}": str(directory), "{mica_config}": str(config_path), "{mica_root}": str(root), "{connection}": selected, "{port}": str(launch.get("port", 0)), "{workload}": connection["workload"]}
     command = [launch["executable"]]
-    for raw in launch["arguments"]:
+    for raw in launch.get("tui_arguments", launch["arguments"]) if args.tui else launch["arguments"]:
         for key, value in replacements.items():
             raw = raw.replace(key, value)
         command.append(raw)
@@ -250,7 +250,7 @@ def main():
                 guarded_build(directory, ["cmake", "-S", str(directory / "native"), "-B", str(directory / "native/build"), "-DCMAKE_BUILD_TYPE=Release"], 2)
                 guarded_build(directory, ["cmake", "--build", str(directory / "native/build"), "--parallel", "1"], 2)
         environment["MICA_DICTATION_BINARY"] = binary
-        if args.tui:
+        if args.tui and "tui_arguments" not in launch:
             command.append("--tui")
     url = f"http://127.0.0.1:{launch['port']}{launch['path']}" if "port" in launch else "native Dictation (Ctrl+Alt/Option+R; --tui for setup)"
     print("App runs on this device:", url, "Inference:", connection["url"], flush=True)

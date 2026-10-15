@@ -12,6 +12,7 @@
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <chrono>
+#include <cerrno>
 #include <fstream>
 #include <iostream>
 #include <regex>
@@ -73,6 +74,16 @@ std::string digest(const fs::path& path) {
 #endif
   if (r.exit_code || r.output.size() < 64 || !hash_ok(r.output.substr(0, 64))) throw std::runtime_error("cannot compute app SHA-256");
   return r.output.substr(0, 64);
+}
+void plain_file(const fs::path& base, const std::string& relative);
+void verify_installed_app(const fs::path& dir, const json& doc) {
+  if (digest(dir / "app.yaml") != read_json(dir / "receipt.json").at("manifest_sha256").get<std::string>())
+    throw std::runtime_error("installed app manifest changed; reinstall/revalidate before launch");
+  for (const auto& file : doc.at("distribution").at("files")) {
+    const auto p = file.at("path").get<std::string>(); plain_file(dir, p);
+    if (digest(dir / p) != file.at("sha256").get<std::string>())
+      throw std::runtime_error("installed app changed; revalidate package before launch");
+  }
 }
 std::string fetch_text(const std::string& url) {
   https(url);
@@ -190,7 +201,7 @@ void validate_app_manifest(const json& j) {
   const std::set<std::string> permissions{"microphone", "clipboard", "files", "network", "accessibility", "global-hotkeys"};
   if (!j.at("permissions").is_array()) throw std::invalid_argument("permissions must be an array");
   for (const auto& p : j.at("permissions")) if (!permissions.contains(p.get<std::string>())) throw std::invalid_argument("unknown app permission");
-  const auto& launch = j.at("launch"); fields(launch, {"executable", "arguments", "port", "path"});
+  const auto& launch = j.at("launch"); fields(launch, {"executable", "arguments", "tui_arguments", "port", "path"});
   auto exe = launch.at("executable").get<std::string>();
   if (exe.starts_with("{app_dir}/")) {
     const auto file = exe.substr(10); path_ok(file);
@@ -200,6 +211,12 @@ void validate_app_manifest(const json& j) {
   } else if (!std::regex_match(exe, std::regex("[A-Za-z0-9_.-]+"))) throw std::invalid_argument("launch executable must be a PATH command or verified {app_dir} file (no shell string)");
   if (!launch.at("arguments").is_array() || launch.at("arguments").size() > 64) throw std::invalid_argument("invalid launch arguments");
   for (const auto& arg : launch.at("arguments")) { auto s = arg.get<std::string>(); if (s.find('\0') != std::string::npos || s.size() > 4096) throw std::invalid_argument("invalid launch argument"); }
+  if (launch.contains("tui_arguments")) {
+    if (!launch["tui_arguments"].is_array() || launch["tui_arguments"].size() > 64) throw std::invalid_argument("invalid TUI arguments");
+    for (const auto& arg : launch["tui_arguments"]) { auto s = arg.get<std::string>(); if (s.find('\0') != std::string::npos || s.size() > 4096) throw std::invalid_argument("invalid TUI argument"); }
+    const auto interfaces = j.value("interfaces", json::array());
+    if (std::find(interfaces.begin(), interfaces.end(), json("tui")) == interfaces.end()) throw std::invalid_argument("TUI arguments need a declared tui interface");
+  }
   if (launch.contains("port") || launch.contains("path")) {
     const int port = launch.at("port"); if (port < 1024 || port > 65535) throw std::invalid_argument("invalid app port");
     auto route = launch.at("path").get<std::string>(); if (!std::regex_match(route, std::regex("/[a-zA-Z0-9/_-]*"))) throw std::invalid_argument("invalid UI path");
@@ -295,14 +312,15 @@ json app_inventory(const fs::path& root, const fs::path& config) {
 
 int app_command(const std::vector<std::string>& arguments, const fs::path& default_root, const fs::path& default_config,
                 const fs::path& executable) {
-  if (arguments.empty()) throw std::invalid_argument("app needs list|show|source-add|source-remove|install|setup|start|stop|uninstall");
+  if (arguments.empty()) throw std::invalid_argument("app needs list|show|source-add|source-remove|install|setup|open|start|stop|uninstall");
   auto root = default_root, config = default_config; std::vector<std::string> positional; bool accept = false;
-  std::string workload_binding;
+  std::string workload_binding; bool url_only = false;
   std::string connection_name, connection_url, connection_key_file;
   for (std::size_t i = 1; i < arguments.size(); ++i) {
     const auto& arg = arguments[i];
     if (arg == "--root" || arg == "--config-dir") { if (++i == arguments.size()) throw std::invalid_argument("missing app option value"); (arg == "--root" ? root : config) = arguments[i]; }
     else if (arg == "--accept-code") accept = true;
+    else if (arg == "--url" && arguments[0] == "open") url_only = true;
     else if (arg == "--workload") { if (++i == arguments.size()) throw std::invalid_argument("missing workload ID"); workload_binding = arguments[i]; }
     else if (arg == "--connection" || arg == "--url" || arg == "--api-key-file") {
       if (++i == arguments.size()) throw std::invalid_argument("missing connection option value");
@@ -315,6 +333,73 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
   const auto action = arguments[0];
   if (action == "list") { std::cout << app_inventory(root, config).dump(2) << '\n'; return 0; }
   if (positional.empty()) throw std::invalid_argument("app action requires an ID or source");
+  if (action == "open") {
+    const auto entry = find_app(app_inventory(root, config), positional[0]);
+    auto id = entry.at("id").get<std::string>(); if (auto colon = id.find(':'); colon != std::string::npos) id.erase(0, colon + 1);
+    if (!id_ok(id)) throw std::invalid_argument("invalid app ID");
+    const auto dir = root / "apps" / id, statepath = root / "state/apps" / (id + ".json");
+    if (!fs::is_directory(dir) || fs::is_symlink(dir)) throw std::runtime_error("install the app first");
+    const auto doc = read_profile_file(dir / "app.yaml"); validate_app_manifest(doc);
+    { Lock lock(root); verify_installed_app(dir, doc); }
+    const auto& launch = doc.at("launch");
+    if (launch.contains("tui_arguments")) {
+      if (url_only) throw std::runtime_error("This is a terminal app, not a web app. Use app open in an interactive terminal.");
+      if (!accept) throw std::runtime_error("Opening downloaded code requires --accept-code; review app show first");
+      if (!isatty(STDIN_FILENO) || !isatty(STDOUT_FILENO)) throw std::runtime_error("This app needs an interactive terminal. Use app open from the TUI/terminal, not a background dashboard job.");
+      if (running(read_json(statepath))) throw std::runtime_error("Close this app's background instance before opening its TUI.");
+      const auto connections = read_json(root / "config/app-connections" / (id + ".json"));
+      if (connection_name.empty()) connection_name = connections.value("default", "");
+      fs::path client_config = root / "config/server.json";
+      if (!connection_name.empty()) {
+        const auto connection = connections.at("connections").at(connection_name);
+        workload_binding = connection.at("workload");
+        client_config = root / "config/client-runtime" / (id + ".json");
+        write_private_file(client_config, json{{"ui", {{"mica_url", connection.at("url")}}}, {"api_key_file", connection.at("api_key_file")}}.dump());
+      }
+      if (workload_binding.empty()) {
+        auto registry=load_registry(config); merge_custom_models(registry,root); merge_installed_profiles(registry,root);
+        const auto hardware=detect_hardware();
+        for (const auto& bundled:read_json(dir/"receipt.json").at("workloads"))
+          if(inspect_workload(registry,registry.profile(bundled.get<std::string>()),hardware,root).value("compatible",false)){workload_binding=bundled;break;}
+      }
+      auto program = launch.at("executable").get<std::string>();
+      if (program.starts_with("{app_dir}/")) program = (dir / program.substr(10)).string();
+      if (!command_exists(program)) throw std::runtime_error("app dependency is missing: " + program);
+      std::vector<std::string> command{program};
+      for (const auto& raw : launch.at("tui_arguments")) {
+        auto arg = raw.get<std::string>();
+        for (const auto& [key, value] : std::vector<std::pair<std::string,std::string>>{{"{app_dir}",dir.string()},{"{mica_config}",client_config.string()},{"{mica_root}",root.string()},{"{workload}",workload_binding},{"{connection}",connection_name}}) {
+          std::size_t at=0; while((at=arg.find(key,at))!=std::string::npos){arg.replace(at,key.size(),value);at+=value.size();}
+        }
+        command.push_back(arg);
+      }
+      std::vector<char*> native; for (auto& arg : command) native.push_back(arg.data()); native.push_back(nullptr);
+      pid_t pid;
+      { Lock lock(root); verify_installed_app(dir, doc);
+        pid=fork(); if(pid<0)throw std::runtime_error("cannot launch terminal app");
+        if(pid==0){if(chdir(dir.c_str()))_exit(126);execvp(native[0],native.data());_exit(127);}
+        const auto started=birth(pid);
+        save(statepath,{{"pid",pid},{"birth",started},{"workload",workload_binding},{"remote_connection",!connection_name.empty()}});
+      }
+      int status=0; while(waitpid(pid,&status,0)<0)if(errno!=EINTR)throw std::runtime_error("cannot wait for terminal app");
+      try { Lock lock(root); if(read_json(statepath).value("pid",0)==pid)save(statepath,json::object()); } catch (...) {}
+      return WIFEXITED(status)?WEXITSTATUS(status):128;
+    }
+    if (!launch.contains("port")) throw std::runtime_error("This app has no web UI or declared TUI. Inspect app show for its CLI/MCP entry points.");
+    if (!url_only && !entry.value("running",false)) {
+      auto start=arguments; start[0]="start";
+      const int result=app_command(start,root,config,executable); if(result)return result;
+    }
+    const auto server = local_server_status(root);
+    auto url="http://127.0.0.1:"+std::to_string(launch.at("port").get<int>())+launch.at("path").get<std::string>();
+    if (server.value("dashboard",false)) {
+      url=server.at("dashboard_url").get<std::string>()+"?app="+id;
+      if(!url_only)for(const auto& address:server.at("network_dashboard_urls"))std::cout<<"On another device: "<<address.get<std::string>()<<"?app="<<id<<'\n';
+    }
+    std::cout<<url<<'\n';
+    if(!url_only)open_browser(url);
+    return 0;
+  }
   Lock lock(root);
   if (action == "source-add") {
     if (positional.size() != 2 || !id_ok(positional[0]) || positional[0] == "mica-examples") throw std::invalid_argument("source-add needs ID URL (official source is reserved)");
@@ -464,11 +549,7 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
   if (action != "start") throw std::invalid_argument("unknown app action");
   if (!accept) throw std::runtime_error("Launching downloaded code requires --accept-code; review app show first");
   if (running(state)) throw std::runtime_error("app is already running");
-  if (digest(dir / "app.yaml") != read_json(dir / "receipt.json").at("manifest_sha256").get<std::string>()) throw std::runtime_error("installed app manifest changed; reinstall/revalidate before launch");
-  for (const auto& file : doc.at("distribution").at("files")) {
-    const auto p = file.at("path").get<std::string>(); plain_file(dir, p);
-    if (digest(dir / p) != file.at("sha256").get<std::string>()) throw std::runtime_error("installed app changed; revalidate package before launch");
-  }
+  verify_installed_app(dir, doc);
   const auto connections = read_json(connections_path);
   if (connection_name.empty()) connection_name = connections.value("default", "");
   fs::path client_config = root / "config/server.json";

@@ -13,4 +13,4 @@ apps:
     clipboard delivery. macOS can paste into the original focused app; Linux desktop
     support varies. Local or remote inference and a separate MCP interface.
   manifest: dictation/app.yaml
-  sha256: cd2c31ad17c969e7367a230be6eb24e4d8f5d6a6fc99363c5579b15b06f4e60a
+  sha256: 3feb3c77844d79ee9ec823f340345bf4473ea2d38420035f52da7fd1958e62d6

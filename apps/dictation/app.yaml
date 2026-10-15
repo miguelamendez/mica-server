@@ -5,7 +5,7 @@ description: Native WhisperFlow-style dictation client with a small connection T
   microphone recording, a global desktop shortcut, ASR, optional LLM cleanup and clipboard
   delivery. macOS can paste into the original focused app; Linux desktop support varies.
   Local or remote inference and a separate MCP interface.
-version: 0.2.0
+version: 0.2.1
 interfaces:
 - cli
 - tui
@@ -18,8 +18,8 @@ distribution:
   format: files
   files:
   - path: README.md
-    sha256: c58d078f85003dbae1fb7b06227e4366e1ecd5609ff5efe352801e079441f573
-    size_bytes: 1230
+    sha256: 8b1336a608c69f2afe71fded090df77509ea6e9d3d8c009196b74f2d38fc461c
+    size_bytes: 1673
   - path: app.py
     sha256: fae1a87fc10a4540f75afbd35fd1ced928c81e4c216781f2a93ca65a3a37d84c
     size_bytes: 5038
@@ -67,6 +67,18 @@ launch:
   arguments:
   - '{app_dir}/app.py'
   - --desktop
+  - --config
+  - '{mica_config}'
+  - --workload
+  - '{workload}'
+  tui_arguments:
+  - '{app_dir}/app.py'
+  - --desktop
+  - --tui
+  - --root
+  - '{mica_root}'
+  - --connection
+  - '{connection}'
   - --config
   - '{mica_config}'
   - --workload

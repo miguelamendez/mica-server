@@ -7,6 +7,11 @@ import os
 from pathlib import Path
 import shutil
 import socket
+import pty
+import select
+import signal
+import struct
+import termios
 import subprocess
 import sys
 import tempfile
@@ -167,6 +172,7 @@ class AppsTests(unittest.TestCase):
         manifest = fixture / "apps/dictation/app.yaml"
         old_hash = hashlib.sha256(manifest.read_bytes()).hexdigest()
         original=manifest.read_text().replace("  - --desktop\n", "")
+        original=original[:original.index("  tui_arguments:")]+original[original.index("workloads:"):]
         original=original.replace("workloads:\n", f"  - --port\n  - '{app_port}'\n  port: {app_port}\n  path: /\nworkloads:\n")
         manifest.write_text(original)
         index = fixture / "apps/apps.yaml"
@@ -210,7 +216,10 @@ class AppsTests(unittest.TestCase):
                             raise
                         time.sleep(0.05)
                 self.assertTrue(json.loads(self.command("show", "mica-dictation", config=fixture / "config").stdout)["running"])
+                opened=self.command("open","mica-dictation","--url",config=fixture/"config")
+                self.assertEqual(opened.stdout.strip(),f"http://127.0.0.1:{app_port}/")
                 self.command("stop", "mica-dictation", config=fixture / "config")
+
                 ModelServer.operation = "chat.generate"  # Engine alone is not enough.
                 denied = self.command("start", "mica-dictation", "--workload", "mica-spark-small-gguf", "--accept-code", config=fixture / "config", success=False)
                 self.assertIn("lacks required operation", denied.stderr)
@@ -219,6 +228,49 @@ class AppsTests(unittest.TestCase):
                 backend.shutdown()
                 backend.server_close()
                 thread.join()
+
+    def test_open_native_requires_terminal_and_does_not_start_server(self):
+        self.command("install", "mica-dictation", "--accept-code")
+        result=self.command("open","mica-dictation","--accept-code",success=False)
+        self.assertIn("interactive terminal",result.stderr)
+        result=self.command("open","mica-dictation","--url",success=False)
+        self.assertIn("terminal app",result.stderr)
+        self.assertFalse((self.root/"state/runtime.json").exists())
+
+    def test_open_native_tui_in_foreground_without_inference(self):
+        self.command("install", "mica-dictation", "--accept-code")
+        candidates=[BINARY.parent/"mica-dictation",BINARY.parent/"apps/dictation/native/mica-dictation"]
+        native=next((path for path in candidates if path.is_file()),None)
+        if native is None:self.skipTest("matching native Dictation executable not built")
+        master,slave=pty.openpty()
+        fcntl.ioctl(slave,termios.TIOCSWINSZ,struct.pack("HHHH",40,140,0,0))
+        process=subprocess.Popen([str(BINARY),"app","open","mica-dictation","--accept-code",
+                                  "--root",str(self.root),"--config-dir",str(CONFIG)],
+                                 stdin=slave,stdout=slave,stderr=slave,start_new_session=True,
+                                 env={**os.environ,"TERM":"xterm-256color","MICA_DICTATION_BINARY":str(native)})
+        os.close(slave)
+        try:
+            output=b"";deadline=time.monotonic()+10
+            while time.monotonic()<deadline and b"Mica Dictation" not in output:
+                if select.select([master],[],[],.1)[0]:
+                    try:output+=os.read(master,65536)
+                    except OSError:break
+            self.assertIn(b"Mica Dictation",output,output.decode(errors="replace"))
+            self.assertIsNone(process.poll())
+            self.assertFalse((self.root/"state/runtime.json").exists())
+            state=json.loads((self.root/"state/apps/mica-dictation.json").read_text())
+            self.assertGreater(state["pid"],1)
+            # Initial focus is the first control; reverse Tab selects Quit.
+            os.write(master,b"\x1b[Z\r")
+            process.wait(timeout=8)
+            self.assertEqual(process.returncode,0)
+            self.assertEqual(json.loads((self.root/"state/apps/mica-dictation.json").read_text()),{})
+        finally:
+            if process.poll() is None:
+                os.killpg(process.pid,signal.SIGTERM)
+                try:process.wait(timeout=5)
+                except subprocess.TimeoutExpired:os.killpg(process.pid,signal.SIGKILL);process.wait()
+            os.close(master)
 
     def test_dictation_bridge_origin_auth_and_routes(self):
         spec = importlib.util.spec_from_file_location("dictation_app", CONFIG.parent / "apps/dictation/app.py")

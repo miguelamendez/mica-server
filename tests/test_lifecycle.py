@@ -15,6 +15,19 @@ sys.argv = sys.argv[:1]
 
 
 class LifecycleTests(unittest.TestCase):
+    def test_topic_help_is_read_only_and_explains_dashboard(self):
+        with tempfile.TemporaryDirectory(prefix="mica-help-") as temporary:
+            root = Path(temporary) / "not-created"
+            for topic in ("start", "serve", "dashboard", "app", "tui", "workload"):
+                result = subprocess.run([str(BINARY), topic, "--help", "--root", str(root)],
+                                        text=True, capture_output=True, timeout=10)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                if topic in ("start", "serve", "dashboard"):
+                    for text in ("Disabled by default", "/dashboard", "8092", "8080", "--no-dashboard", "admin-api-key", "one launch", "one local API"):
+                        self.assertIn(text, result.stdout)
+                if topic == "app": self.assertIn("app open", result.stdout)
+            self.assertFalse(root.exists(), "Help must never run setup or create an application home")
+
     def test_server_configuration_contract_and_nested_key_redaction(self):
         with tempfile.TemporaryDirectory(prefix="mica-config-contract-") as temporary:
             root = Path(temporary)
@@ -152,6 +165,26 @@ class LifecycleTests(unittest.TestCase):
                 self.assertTrue(current["allocation_fits"])
                 self.assertTrue(all("example" in route for route in document["endpoints"]["endpoints"]))
                 self.assertNotIn(token, snap)
+                # Persist dashboard activation, report the actual URL, and retain
+                # it across an ordinary stop/start. Explicit disable must win.
+                run("config", "set", "--dashboard", "--restart", "--config-dir", str(CONFIG))
+                enabled = json.loads(run("status").stdout)
+                self.assertTrue(enabled["dashboard"])
+                self.assertEqual(enabled["dashboard_url"], f"http://127.0.0.1:{port}/dashboard")
+                self.assertEqual(run("dashboard", "--url").stdout.strip(), enabled["dashboard_url"])
+                with urllib.request.urlopen(enabled["dashboard_url"], timeout=3) as response:
+                    self.assertEqual(response.status, 200)
+                refused = run("start", "--no-dashboard", success=False)
+                self.assertIn("already running", refused.stderr)
+                run("stop")
+                run("start", "--config-dir", str(CONFIG))
+                self.assertTrue(json.loads(run("status").stdout)["dashboard"])
+                run("config", "set", "--no-dashboard", "--restart", "--config-dir", str(CONFIG))
+                disabled = json.loads(run("status").stdout)
+                self.assertFalse(disabled["dashboard"])
+                self.assertIsNone(disabled["dashboard_url"])
+                self.assertFalse(json.loads((root / "config/server.json").read_text())["dashboard"])
+                self.assertIn("Dashboard is disabled", run("dashboard", success=False).stderr)
                 run("stop")
                 self.assertEqual(json.loads(run("status").stdout)["status"], "stopped")
                 run("stop")

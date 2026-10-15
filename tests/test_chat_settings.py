@@ -19,6 +19,10 @@ spec.loader.exec_module(playground)
 
 class ChatSettingsTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which('node'), 'Node is an optional frontend test dependency')
+    def test_dashboard_app_open_logic(self):
+        subprocess.run(['node', str(ROOT / 'tests/test_dashboard_app_open.js')], check=True)
+
+    @unittest.skipUnless(shutil.which('node'), 'Node is an optional frontend test dependency')
     def test_workload_selector_and_speed_labels(self):
         subprocess.run(['node', str(ROOT / 'tests/test_chat_settings.js')], check=True)
         inline = re.findall(r'<script>(.*?)</script>', playground.CHAT_HTML, re.S)

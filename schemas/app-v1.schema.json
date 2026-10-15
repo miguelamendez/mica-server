@@ -178,6 +178,11 @@
             "maxLength": 4096
           }
         },
+        "tui_arguments": {
+          "description": "Foreground interactive launch arguments used by app open; executable is the same verified launcher. Supports app_dir, mica_config, mica_root and workload placeholders.",
+          "type": "array", "maxItems": 64,
+          "items": {"type": "string", "maxLength": 4096}
+        },
         "port": {
           "type": "integer",
           "minimum": 1024,
@@ -229,6 +234,10 @@
       }
     }
   },
+  "allOf": [{
+    "if": {"properties": {"launch": {"required": ["tui_arguments"]}}, "required": ["launch"]},
+    "then": {"required": ["interfaces"], "properties": {"interfaces": {"contains": {"const": "tui"}}}}
+  }],
   "required": [
     "schema",
     "id",

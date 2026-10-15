@@ -73,6 +73,20 @@ mica-server start --dashboard --host 0.0.0.0 --port 8092
 ```
 
 Open `http://HOST:8092/dashboard` from a device that can reach that host.
+The dashboard is **off by default**, unless enabled in your saved configuration.
+`--dashboard` enables it for this launch; to keep it enabled for later CLI/TUI
+starts, use `mica-server config set --dashboard --restart`. If Mica is stopped,
+this saves the setting; run `mica-server start` afterward.
+
+```sh
+mica-server dashboard         # Show actual local/network URLs and admin-key path
+mica-server dashboard --open  # Open a browser on the machine running this command
+mica-server start --help      # Startup, defaults, dashboard and LAN instructions
+```
+
+The dashboard shares the API listener: `/dashboard`, **not a separate port**.
+Without saved settings/flags the API port is 8080; the example above explicitly
+uses 8092. From another device use the server's IP, not `localhost` or `0.0.0.0`.
 Each Mica instance serves its own dashboard: server/workload controls, model
 and engine inventory, optional apps, endpoint examples, settings and background
 job logs. Plain HTML/CSS/JavaScript uses Mica's existing C++ HTTP server:
@@ -85,7 +99,9 @@ live; rotating admin access does not change app credentials. This browser tab
 remembers login across refreshes using session storage; Disconnect clears it.
 
 Browser apps open through `/apps/<id>/…` on that same server, without extra
-public ports. Apps can also be downloaded to your device and use remote
+public ports. In the TUI use **Apps → o**; from CLI use
+`mica-server app open APP_ID --accept-code`. Web apps open in the browser;
+native TUI apps open in the terminal. Apps can also be downloaded to your device and use remote
 inference without a local Mica server. Local inference setup is optional.
 The native Dictation client has a connection TUI and desktop recording shortcut;
 both demo apps also expose stdio MCP tools. [App setup and limits](docs/apps.md).

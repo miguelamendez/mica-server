@@ -32,6 +32,17 @@ at `/dashboard`; localhost remains the default. Add `--host 0.0.0.0` only when
 intentionally allowing trusted-network access. A third device needs only a
 browser; operations execute on the dashboard's host.
 
+The dashboard is disabled by default. `start --dashboard` is a one-launch
+override; `config set --dashboard --restart` saves it for later CLI/TUI starts.
+`config set --no-dashboard --restart` disables it persistently. Configuration
+changes while stopped do not launch Mica. A second `start --dashboard` cannot
+modify an already-running listener; use the configuration command instead.
+`mica-server dashboard` reports local/network URLs; `--open` opens this host's
+browser. `status` includes `api_url`, `dashboard_url` (null when disabled),
+`network_dashboard_urls`, and the running build revision. The API port defaults
+to 8080; examples using 8092 explicitly select it. `/dashboard` always uses that
+same API port, not a separate web server.
+
 Enabling it creates a private admin key at `~/.mica/secrets/admin-api-key`
 (override with `admin_api_key_file` or `serve --admin-api-key-file PATH`). The
 existing `api_key`/`api_key_file` remains the inference credential.

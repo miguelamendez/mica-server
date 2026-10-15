@@ -34,11 +34,80 @@ using json = nlohmann::json;
 
 std::filesystem::path executable_directory;
 
-void usage() {
+void usage(const std::string& topic = "") {
+  if (topic.empty() || topic == "start" || topic == "serve" || topic == "dashboard") {
+    std::cout << R"(Mica hosts model workloads behind one local API.
+
+Start with a dashboard (background server):
+  mica-server workload list
+  mica-server start --workload WORKLOAD_ID --dashboard --port 8092
+  mica-server dashboard          Show actual local/network URLs and admin-key path
+  mica-server dashboard --open   Open this host's browser
+  mica-server status             Show listener, dashboard, workload and workers
+  mica-server stop               Stop the background server
+
+Dashboard: /dashboard on the SAME port as the API; not the chat app's port.
+  Disabled by default unless server.json has "dashboard": true.
+  --dashboard / --no-dashboard override the setting for one launch only.
+  To save it, including for later TUI starts:
+    mica-server config set --dashboard --restart
+  To disable it persistently:
+    mica-server config set --no-dashboard --restart
+  A running server is not changed by another 'start'; use config set --restart.
+
+Default listener: http://127.0.0.1:8080 (saved settings/flags override it).
+The example above uses http://127.0.0.1:8092/dashboard.
+For a trusted LAN, add --host 0.0.0.0 and open http://SERVER_IP:8092/dashboard.
+0.0.0.0 is a bind address, not a browser address. No SSH tunnel is required.
+Login uses the ADMIN key, normally ~/.mica/secrets/admin-api-key.
+Apps/API clients use the separate inference key, normally ~/.mica/secrets/api-key.
+Never put a key in a URL. HTTP has no TLS; do not expose it to an untrusted network.
+
+'start' detaches until 'stop'; 'serve' stays in the foreground.
+If stopped, --restart saves configuration without starting the server.
+Models/dependencies may be prepared on first start; the dashboard needs no web install.
+
+)";
+    if (!topic.empty()) return;
+  }
+  if (topic == "app") {
+    std::cout << R"(Apps run separately from Mica; installing/opening an app never restarts it.
+  mica-server app list
+  mica-server app show APP_ID
+  mica-server app install APP_ID --accept-code
+  mica-server app setup APP_ID BUNDLED_WORKLOAD_ID
+  mica-server app open APP_ID --accept-code
+  mica-server app open APP_ID --url    Print a browser link without opening it
+  mica-server app start APP_ID --workload WORKLOAD_ID --accept-code
+  mica-server app stop APP_ID
+  mica-server app upgrade APP_ID --accept-code
+  mica-server app connect APP_ID --connection NAME --url http://HOST:8092 \
+    --api-key-file PRIVATE_INFERENCE_KEY_FILE --workload WORKLOAD_ID
+
+Open launches a web app if needed, then opens its browser UI. TUI apps open in
+this terminal using their declared interactive arguments, not as hidden daemons.
+On headless Linux use the dashboard's Open button from your own device.
+Run Dictation on the device with your microphone; remote Mica handles inference.
+Setup drains/pauses inference through a dashboard-enabled server without restarting it.
+Use --root PATH / --config-dir PATH for another installation.
+)";
+    return;
+  }
+  if (topic == "tui") {
+    std::cout << R"(mica-server tui [--root PATH] [--config-dir PATH]
+  1–7 views; Tab/arrows select; Enter explores; ? shows actions; q closes TUI.
+  Server: s choose/start/swap, o open dashboard, x stop.
+  Settings: Dashboard enables/disables and saves it (restart if running).
+  Apps: i install, w prepare, o open UI, s background launch, x close, Enter inspect.
+  Closing the TUI does not stop Mica. A TUI opened over SSH controls THAT host.
+  Its browser actions cannot open a browser on your Mac; use a printed network URL.
+)";
+    return;
+  }
   std::cout << R"(mica-server
 
 Usage:
-  mica-server app list|show|install|upgrade|start|stop|uninstall ID [--accept-code]
+  mica-server app list|show|install|upgrade|open|start|stop|uninstall ID [--accept-code]
   mica-server app connect ID --connection NAME --url ORIGIN --api-key-file PATH --workload ID
   mica-server app connection-select ID --connection NAME
   mica-server app source-add ID REPO_OR_MANIFEST_URL
@@ -47,14 +116,15 @@ Usage:
   mica-server update [--check] [--channel release|source] [--restart] [--force]
                      [--prefix PATH] [--root PATH]
   mica-server tui [--root PATH] [--config-dir PATH]
-  mica-server start [--workload ID] [--host HOST] [--port PORT] [--dashboard]
+  mica-server start [--workload ID] [--host HOST] [--port PORT] [--dashboard|--no-dashboard]
+  mica-server dashboard [--open|--url] [--root PATH]
   mica-server stop|status [--root PATH]
   mica-server workload list|show|edit|create|validate|install-file [profile options]
   mica-server workload install ID [setup options]
   mica-server workload activate ID [--root PATH]
   mica-server config show [--root PATH]
   mica-server config set [--host HOST] [--port PORT] [--default-workload ID]
-                         [--strategy high|single|balanced]
+                         [--strategy high|single|balanced] [--dashboard|--no-dashboard]
                          [--ram-gib N] [--vram-gib N] [--rotate-api-key|--rotate-admin-api-key] [--restart] [--root PATH]
   mica-server endpoints     List public API routes; no running server required
   mica-server detect [--output PATH]
@@ -98,6 +168,8 @@ Setup options:
   --dry-run                 Print actions without changing the machine
 
 Serve options:
+  --dashboard              Enable /dashboard on the API port for this launch
+  --no-dashboard           Disable it for this launch (default disabled unless saved)
   --host HOST               Bind address (default 127.0.0.1; 0.0.0.0 exposes IPv4 LAN)
   --port PORT               API listening port (default 8080)
   --backend mlx|gguf|vllm   Legacy-profile backend selection; workloads resolve engines
@@ -360,6 +432,11 @@ int main(int argc, char** argv) {
   try {
     executable_directory = locate_executable(argv[0]).parent_path();
     std::vector<std::string> args(argv, argv + argc);
+    if (std::find(args.begin() + 1, args.end(), "--help") != args.end() ||
+        std::find(args.begin() + 1, args.end(), "-h") != args.end()) {
+      usage(args.size() > 1 && args[1] != "--help" && args[1] != "-h" ? args[1] : "");
+      return 0;
+    }
     bool install_workload_models = false;
     if (args.size() >= 2 && args[1] == "workload") {
       if (args.size() < 3) throw std::invalid_argument("workload requires an action");
@@ -390,7 +467,7 @@ int main(int argc, char** argv) {
     if (args.size() >= 2 && args[1] == "update")
       return mica::update_command({args.begin() + 2, args.end()}, locate_executable(args[0]), default_root(),
                                   MICA_SERVER_VERSION, MICA_SERVER_REVISION);
-    if (args.size() >= 2 && (args[1] == "start" || args[1] == "stop" || args[1] == "status"))
+    if (args.size() >= 2 && (args[1] == "start" || args[1] == "stop" || args[1] == "status" || args[1] == "dashboard"))
       return mica::service_command(args[1], {args.begin() + 2, args.end()},
                                     locate_executable(args[0]), default_root());
     if (args.size() >= 2 && args[1] == "config")
