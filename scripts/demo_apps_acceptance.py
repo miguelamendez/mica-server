@@ -20,7 +20,7 @@ import uuid
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, default=Path.home() / '.mica')
-    parser.add_argument('--base-url', default='http://127.0.0.1:8092')
+    parser.add_argument('--base-url', default='http://127.0.0.1:55000')
     parser.add_argument('--mica-binary', type=Path, default=Path.home() / '.local/bin/mica-server')
     parser.add_argument('--dictation-binary', type=Path, default=Path.home() / '.local/bin/mica-dictation')
     parser.add_argument('--assistant-workload', default='mica-assistant--cuda')

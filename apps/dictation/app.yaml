@@ -5,7 +5,7 @@ description: Native WhisperFlow-style dictation client with a small connection T
   microphone recording, a global desktop shortcut, ASR, optional LLM cleanup and clipboard
   delivery. macOS can paste into the original focused app; Linux desktop support varies.
   Local or remote inference and a separate MCP interface.
-version: 0.2.1
+version: 0.3.0
 interfaces:
 - cli
 - tui
@@ -21,8 +21,8 @@ distribution:
     sha256: 8b1336a608c69f2afe71fded090df77509ea6e9d3d8c009196b74f2d38fc461c
     size_bytes: 1673
   - path: app.py
-    sha256: fae1a87fc10a4540f75afbd35fd1ced928c81e4c216781f2a93ca65a3a37d84c
-    size_bytes: 5038
+    sha256: e8d658a603ac808c680f25f78ad138d20d70d974f94e98b42f1db3fb21a38c27
+    size_bytes: 5040
   - path: index.html
     sha256: 748b9d6965a08157968cae0beaa23d8d4225a113056a8a4e48f1a2a024804272
     size_bytes: 7016
@@ -33,8 +33,8 @@ distribution:
     sha256: c2923be576415b3ed84c398aff51d0f51e0405952421856d6593bf4df22312b5
     size_bytes: 1753
   - path: native/main.cpp
-    sha256: 1f5d0558648e84da4fdf1fb22233acdc08ab830548f5bedd7740c20d5a21a540
-    size_bytes: 13806
+    sha256: 4cd27741eeb01a6dc6a263cda8457bedb14173ceb4827b14b1a2d381149a1605
+    size_bytes: 13807
   - path: native/platform.hpp
     sha256: 1c4821adba2898e290e8112edec797ea5f97cb8d1c628494ac310a0645c6df53
     size_bytes: 364
@@ -45,8 +45,8 @@ distribution:
     sha256: 99300dc94b4607a5660da85c6fd46784136c23d41ed102b6b55941941eba2805
     size_bytes: 5122
   - path: runtime/mcp_runtime.py
-    sha256: 10eb668885d0477cab3289e7f6cf883fff28abc731a497e5ea94d6348d1ac4b9
-    size_bytes: 11863
+    sha256: 8a49cca4cb9a455d851fd68f58935ab4f3834217bda67d34987b7bd44385fcad
+    size_bytes: 11864
   - path: workloads/cuda.yaml
     sha256: d0a928a48e61353cee3348c31a1211f80619c82b40cbe6ae384e1e2653028592
     size_bytes: 1258

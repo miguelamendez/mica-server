@@ -78,6 +78,7 @@ FetchContent_MakeAvailable(ftxui)
 
 add_library(mica_server_core
   src/apps.cpp
+  src/app_http.cpp
   src/catalog.cpp
   src/download.cpp
   src/command.cpp
@@ -89,6 +90,7 @@ add_library(mica_server_core
   src/machine.cpp
   src/memory.cpp
   src/profiles.cpp
+  src/ports.cpp
   src/scheduler.cpp
   src/setup.cpp
 )
@@ -134,11 +136,26 @@ target_compile_definitions(mica-server PRIVATE
   MICA_SERVER_VERSION="${PROJECT_VERSION}"
   MICA_SERVER_REVISION="${MICA_SERVER_REVISION}")
 
+add_executable(mica-client src/client_main.cpp src/client.cpp src/service.cpp)
+target_include_directories(mica-client PRIVATE ${MICA_LUA_INCLUDE_DIR})
+target_link_libraries(mica-client PRIVATE mica_server_core ftxui::component ftxui::dom ftxui::screen)
+target_compile_definitions(mica-client PRIVATE
+  MICA_SERVER_VERSION="${PROJECT_VERSION}"
+  MICA_SERVER_REVISION="${MICA_SERVER_REVISION}")
+
 include(GNUInstallDirs)
 
 if(MICA_SERVER_BUILD_TESTS)
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
   enable_testing()
+  add_executable(mica-port-tests tests/test_ports.cpp)
+  target_link_libraries(mica-port-tests PRIVATE mica_server_core)
+  # assert() assertions remain active in Release builds.
+  target_compile_options(mica-port-tests PRIVATE -UNDEBUG)
+  add_test(NAME mica-port-pools COMMAND mica-port-tests)
+  add_test(NAME mica-client-manager
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_client_manager.py
+      $<TARGET_FILE:mica-client> ${CMAKE_CURRENT_SOURCE_DIR}/config)
   add_test(NAME mica-demo-clients
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_demo_clients.py
             $<TARGET_FILE:mica-dictation> ${CMAKE_CURRENT_SOURCE_DIR}/config)
@@ -932,7 +949,7 @@ if(MICA_SERVER_BUILD_TESTS)
   )
 endif()
 
-install(TARGETS mica-server RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS mica-server mica-client RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES ${ftxui_SOURCE_DIR}/LICENSE
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/licenses RENAME FTXUI.txt)
 install(DIRECTORY config/
@@ -961,9 +978,11 @@ install(FILES apps/mica_playground.py apps/mica-logo.svg apps/mica-readme-header
 install(FILES apps/apps.yaml DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps)
 install(DIRECTORY apps/dashboard DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps)
 install(DIRECTORY apps/client DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps PATTERN "__pycache__" EXCLUDE)
+install(DIRECTORY apps/client-ui DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps)
 install(DIRECTORY apps/assistant apps/dictation DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/apps
         PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE PATTERN ".DS_Store" EXCLUDE)
 install(FILES schemas/app-v1.schema.json schemas/app-index-v1.schema.json
+              schemas/client-connections-v1.schema.json
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/schemas)
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/docs
         FILES_MATCHING PATTERN "*.md")

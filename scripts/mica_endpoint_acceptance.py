@@ -82,7 +82,7 @@ def record(cases: list[dict], name: str, started: float, status: int,
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base-url", default="http://127.0.0.1:8080")
+    parser.add_argument("--base-url", default="http://127.0.0.1:55000")
     parser.add_argument("--api-key-file", type=Path, required=True)
     parser.add_argument("--text-model")
     parser.add_argument("--asr-model")

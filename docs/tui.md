@@ -2,10 +2,10 @@
 
 The optional browser dashboard mirrors these seven sections using buttons,
 filters, dialogs and clickable model/engine relationships. Enable it with
-`mica-server start --dashboard --port 8092` and open
-`http://127.0.0.1:8092/dashboard` on that host. It is disabled by default;
+`mica-server start --dashboard --port 55000` and open
+`http://127.0.0.1:55000/dashboard` on that host. It is disabled by default;
 **Settings → Dashboard** saves enable/disable for future starts. The dashboard
-shares the API port (8080 by default, or your saved/explicit port). Use
+shares the API port (55000 by default, or your saved/explicit port). Use
 `mica-server dashboard` to see actual URLs. It uses the
 same native inventory; no web-framework installation is required. Its admin
 key is distinct from inference keys. See [dashboard administration](api.md#dashboard-and-administration).
@@ -42,20 +42,18 @@ include hardware-incompatible alternatives; press `u` to inspect those.
 
 ## Apps
 
-Apps lists the bundled **Mica demo apps** source and explicitly registered
-repository sources. Select a demo, inspect with Enter, install with `i`, prepare
-a compatible bundled workload with `w`. Start Mica if stopped; apps keep their
-own workload bindings, so they do not need to become the server default. `o`
-opens a web UI or a native app's foreground TUI; `s` launches a background
-instance, `x` closes the app only, and `d` uninstalls it. `c` adds a named inference
-connection and `k` chooses it. Sources
-can be added with a GitHub/Hugging Face repository or direct HTTPS manifest/index
-URL. **Sources → d** removes a custom catalogue without deleting installed apps.
+The server TUI lists **installed apps on this host**, plus a Mica Client guide.
+Select an app; **Enter** inspects its manifest, **w** prepares a compatible bundled
+workload, **o** opens its web UI or foreground terminal UI, **s** starts its
+background instance, **x** closes it and **d** unregisters it. **c** adds a named
+inference connection and **k** chooses one. App actions do not blindly restart
+Mica. An SSH TUI controls the SSH host, not the computer displaying the terminal.
 
-Every install verifies file sizes and SHA-256. Confirmation is not a sandbox:
-code runs as your user. Apps never silently swap workloads. See
-[Apps](apps.md) for package contracts, dependency requirements, permissions,
-offline discovery and recoverable uninstall behavior.
+Discovery and installation moved to **`mica-client tui`** or
+**`mica-client ui --open`** on the intended device. The server CLI retains explicit
+host app-management commands. A browser dashboard lists installed host apps and
+links to the client manager rather than claiming it can install on your device.
+See [Client](client.md), [Apps](apps.md) and [port pools](ports.md).
 
 ## Server and Machine
 
@@ -126,18 +124,13 @@ driver/toolchain readiness, or proof that a workload fits its measured peak.
 
 ## Apps and server connections
 
-Apps → Add source accepts GitHub/Hugging Face repositories containing one
-`app.yaml` or an `apps.yaml` index. Each app declares its own bundled workloads,
-permissions and optional `cli`/`tui`/`web`/`background`/`mcp` interfaces.
-**i** installs on this device; **w** prepares a hardware-compatible bundled
-workload separately; **c** adds a named local/remote server connection using a
-private inference-key file; **k** selects one; **s/x** start/stop the app without
-restarting Mica. Unsupported bundled workloads are not selected as defaults.
-
-`mica-dictation --tui` is the native Dictation app's separate setup/recording
-interface. It can use remote inference without a local model server. The web
-dashboard offers device downloads instead of pretending it can install on a
-browser's machine. See [Apps](apps.md) for MCP and desktop permission limits.
+Client discovery accepts GitHub/Hugging Face repositories with one `app.yaml`
+or an `apps.yaml` index. Each app supplies permissions, operation requirements,
+bundled workloads and optional CLI/TUI/web/background/MCP interfaces.
+`mica-client install` asks local, remote or later inference. Remote connections
+need no local inference engine or model. Local server installation and model
+preparation require separate confirmation. Servers are infrastructure, not
+ordinary apps. See [Client setup](client.md).
 
 ## Model, engine and endpoint information
 
@@ -192,7 +185,7 @@ use terminal selection. Clipboard contents can persist afterward. Existing keys
 stay redacted in settings, snapshots and command output; clients must update
 credentials after rotation. Use a trusted
 LAN/firewall for `0.0.0.0`; Mica's HTTP service does not provide TLS. The CLI
-equivalent is `mica-server config set --port 8092 --restart`; see [Updating Mica](updating.md).
+equivalent is `mica-server config set --port 55000 --restart`; see [Updating Mica](updating.md).
 
 See [installation](getting-started.md), [workload design](profiles.md),
 [memory estimation](memory-estimation.md), [configuration schemas](configuration-schemas.md)

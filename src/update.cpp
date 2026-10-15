@@ -141,29 +141,38 @@ void install_update_payload(const fs::path& payload, const fs::path& prefix, con
   const auto old_binary = prefix / "bin" / (".mica-server.previous-" + transaction);
   const auto old_data = prefix / "share" / (".mica-server.previous-" + transaction);
   const bool has_client=fs::is_regular_file(payload/"bin/mica-dictation");
+  const bool has_manager=fs::is_regular_file(payload/"bin/mica-client");
+  const auto manager=prefix/"bin/mica-client",new_manager=prefix/"bin"/(".mica-client.new-"+transaction),old_manager=prefix/"bin"/(".mica-client.previous-"+transaction);
+  if(has_manager&&(fs::is_symlink(manager)||(fs::exists(manager)&&!fs::is_regular_file(manager))))throw std::runtime_error("unexpected Mica Client installation target");
   const auto client=prefix/"bin/mica-dictation",new_client=prefix/"bin"/(".mica-dictation.new-"+transaction),old_client=prefix/"bin"/(".mica-dictation.previous-"+transaction);
   if(has_client&&(fs::is_symlink(client)||(fs::exists(client)&&!fs::is_regular_file(client))))throw std::runtime_error("unexpected dictation client installation target");
   if (fs::is_symlink(binary) || fs::is_symlink(data)) throw std::runtime_error("refusing to replace symlinked installation; select its real prefix");
   if ((fs::exists(binary) && !fs::is_regular_file(binary)) || (fs::exists(data) && !fs::is_directory(data)))
     throw std::runtime_error("existing installation has unexpected file types");
   fs::create_directories(binary.parent_path()); fs::create_directories(data.parent_path());
-  for (const auto& path : {new_binary, new_data, old_binary, old_data,new_client,old_client})
+  for (const auto& path : {new_binary, new_data, old_binary, old_data,new_client,old_client,new_manager,old_manager})
     if (fs::exists(path)) throw std::runtime_error("update transaction path already exists");
   fs::copy_file(payload / "bin/mica-server", new_binary);
   fs::permissions(new_binary, fs::perms::owner_all | fs::perms::group_read | fs::perms::group_exec | fs::perms::others_read | fs::perms::others_exec);
   fs::copy(payload / "share/mica-server", new_data, fs::copy_options::recursive);
   if(has_client){fs::copy_file(payload/"bin/mica-dictation",new_client);fs::permissions(new_client,fs::perms::owner_all|fs::perms::group_read|fs::perms::group_exec|fs::perms::others_read|fs::perms::others_exec);}
+  if(has_manager){fs::copy_file(payload/"bin/mica-client",new_manager);fs::permissions(new_manager,fs::perms::owner_all|fs::perms::group_read|fs::perms::group_exec|fs::perms::others_read|fs::perms::others_exec);}
   bool saved_binary = false, saved_data = false, installed_binary = false, installed_data = false;
   bool saved_client=false,installed_client=false;
+  bool saved_manager=false,installed_manager=false;
   try {
     if (fs::exists(binary)) { fs::rename(binary, old_binary); saved_binary = true; }
     if (fs::exists(data)) { fs::rename(data, old_data); saved_data = true; }
     if(has_client&&fs::exists(client)){fs::rename(client,old_client);saved_client=true;}
+    if(has_manager&&fs::exists(manager)){fs::rename(manager,old_manager);saved_manager=true;}
     fs::rename(new_data, data); installed_data = true;
     fs::rename(new_binary, binary); installed_binary = true;
     if(has_client){fs::rename(new_client,client);installed_client=true;}
+    if(has_manager){fs::rename(new_manager,manager);installed_manager=true;}
   } catch (...) {
     // Move new files back to their transaction paths before restoring backups.
+    if(installed_manager)fs::rename(manager,new_manager);
+    if(saved_manager)fs::rename(old_manager,manager);
     if(installed_client)fs::rename(client,new_client);
     if(saved_client)fs::rename(old_client,client);
     if (installed_binary) fs::rename(binary, new_binary);

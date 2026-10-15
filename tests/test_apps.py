@@ -173,7 +173,7 @@ class AppsTests(unittest.TestCase):
         old_hash = hashlib.sha256(manifest.read_bytes()).hexdigest()
         original=manifest.read_text().replace("  - --desktop\n", "")
         original=original[:original.index("  tui_arguments:")]+original[original.index("workloads:"):]
-        original=original.replace("workloads:\n", f"  - --port\n  - '{app_port}'\n  port: {app_port}\n  path: /\nworkloads:\n")
+        original=original.replace("workloads:\n", f"  - --port\n  - '{{port}}'\n  port: {app_port}\n  path: /\nworkloads:\n")
         manifest.write_text(original)
         index = fixture / "apps/apps.yaml"
         index.write_text(index.read_text().replace(old_hash, hashlib.sha256(manifest.read_bytes()).hexdigest()))
@@ -205,6 +205,9 @@ class AppsTests(unittest.TestCase):
             fcntl.flock(lock, fcntl.LOCK_EX)
             try:
                 self.command("start", "mica-dictation", "--workload", "mica-spark-small-gguf", "--accept-code", config=fixture / "config")
+                app_state=json.loads((self.root / "state/apps/mica-dictation.json").read_text())
+                app_port=int(app_state["url"].split(":")[2].split("/")[0])
+                self.assertTrue(55200 <= app_port <= 55399)
                 deadline = time.monotonic() + 5
                 while True:
                     try:

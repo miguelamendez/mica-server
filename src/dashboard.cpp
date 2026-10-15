@@ -8,6 +8,7 @@
 #include "mica_server/machine.hpp"
 #include "mica_server/command.hpp"
 #include "mica_server/apps.hpp"
+#include "mica_server/app_http.hpp"
 #include <algorithm>
 #include <atomic>
 #include <fstream>
@@ -344,8 +345,10 @@ void register_dashboard(httplib::Server& server, const ServerOptions& options,
     if(!auth(request,response))return;
     try {
       const auto id=request.matches[1].str();const auto app=running_app(options,id);
-      const auto local=app.at("url").template get<std::string>();std::smatch match;
-      if(!std::regex_match(local,match,std::regex(R"(http://127\.0\.0\.1:([0-9]{1,5})(/[^?#]*))")))throw std::invalid_argument("only loopback HTTP browser apps can be opened");
+      const auto manifest=read_profile_file(options.root/"apps"/id/"app.yaml");
+      const bool is_static=manifest.at("launch").contains("static_entry");
+      const auto local=app.value("url",std::string());std::smatch match;
+      if(!is_static&&!std::regex_match(local,match,std::regex(R"(http://127\.0\.0\.1:([0-9]{1,5})(/[^?#]*))")))throw std::invalid_argument("only loopback HTTP browser apps can be opened");
       const auto prefix="/apps/"+id;const auto token=generate_api_key();
       { std::lock_guard lock(app_access->mutex);const auto now=std::chrono::steady_clock::now();
         std::erase_if(app_access->sessions,[&](const auto& item){return item.second.expires<=now;});
@@ -353,7 +356,7 @@ void register_dashboard(httplib::Server& server, const ServerOptions& options,
         app_access->sessions[token]={request.get_header_value("Authorization"),id,now+std::chrono::hours(8)};
       }
       response.set_header("Set-Cookie","mica_app="+token+"; Path="+prefix+"/; HttpOnly; SameSite=Strict; Max-Age=28800");
-      response.set_content(json{{"url",prefix+match[2].str()},{"host",request.get_header_value("Host")}}.dump(),"application/json");
+      response.set_content(json{{"url",prefix+(is_static?std::string("/"):match[2].str())},{"host",request.get_header_value("Host")}}.dump(),"application/json");
     }catch(const std::exception& error){response.status=400;response.set_content(json{{"error",error.what()}}.dump(),"application/json");}
   });
   server.Post("/admin/dashboard/apps/logout",[auth,app_access](const auto& request,auto& response){
@@ -386,6 +389,8 @@ void register_dashboard(httplib::Server& server, const ServerOptions& options,
     }
     if(!accepted){response.status=401;response.set_content("App access expired. Open this app again from the Mica dashboard.","text/plain");return;}
     try {
+      const auto app_manifest=read_profile_file(options.root/"apps"/id/"app.yaml");
+      if(app_manifest.at("launch").contains("static_entry")){(void)running_app(options,id);serve_app_http(request,response,options.root,id);return;}
       const auto app=running_app(options,id);std::smatch match;const auto local=app.at("url").get<std::string>();
       if(!std::regex_match(local,match,std::regex(R"(http://127\.0\.0\.1:([0-9]{1,5})(/[^?#]*))")))throw std::invalid_argument("app address is not private loopback");
       const int port=std::stoi(match[1]);if(port<1024||port>65535)throw std::invalid_argument("invalid app port");

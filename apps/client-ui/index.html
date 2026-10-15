@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mica Client</title><link rel="stylesheet" href="/client.css"><script defer src="/client.js"></script></head>
+<body><header><div><h1>Mica Client</h1><p>Apps on this device. Inference where you choose.</p></div><button id="disconnect">Disconnect</button></header>
+<main><form id="login"><h2>Connect to this device</h2><p>Use the client management key shown by <code>mica-client ui</code>. This is not a server admin or inference key.</p><label>Client key<input id="key" type="password" required autocomplete="off"></label><button>Connect</button></form>
+<section id="manager" hidden><nav><button data-view="installed">Installed</button><button data-view="discover">Discover</button><button data-view="servers">Servers</button><button id="refresh">Refresh</button></nav><p id="local-server"></p><p class="muted">Actions install and run apps on this device—not on a selected remote inference server.</p><section id="content"></section></section>
+<p id="notice" role="status" aria-live="polite"></p>
+<dialog id="editor"><form id="form"><h2 id="form-title"></h2><div id="fields"></div><p id="help"></p><div class="actions"><button type="button" id="cancel">Cancel</button><button id="apply">Apply</button></div></form></dialog>
+</main><footer>Local UI: 55001 · Server API/dashboard: 55000 · Downloaded code is not sandboxed.</footer></body></html>

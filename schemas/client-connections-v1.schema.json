@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/miguelamendez/mica-server/main/schemas/client-connections-v1.schema.json",
+  "title": "Mica Client named inference connections",
+  "description": "Device-local saved connections. Inference credentials live in private files, never inline in this document.",
+  "type": "object",
+  "propertyNames": {"pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$"},
+  "additionalProperties": {
+    "type": "object", "additionalProperties": false,
+    "required": ["url", "workload", "api_key_file"],
+    "properties": {
+      "url": {"type": "string", "pattern": "^https?://(?:[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:]+\\])(?::[0-9]{1,5})?/?$"},
+      "workload": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+      "api_key_file": {"type": "string", "minLength": 1}
+    }
+  }
+}

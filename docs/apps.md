@@ -4,27 +4,38 @@ Apps are optional programs that call Mica's API. Workloads still own the model
 collection, context, placement and residency policy; engines own inference.
 Installing an app never silently changes the active workload or starts code.
 
-## Use the TUI
+## Server versus device clients
 
-Open `mica-server tui`, press **7** for **Apps**, and select a demo:
+Use **`mica-client`** to discover/install apps on your device and select local,
+remote, or later inference setup. Its CLI, TUI and HTML manager share the same
+catalogue and package verifier. See [client setup](client.md).
 
-1. **Enter** inspects its manifest, permissions and requirements.
-2. **i** installs verified files and registers its bundled workloads.
-3. **w** prepares a bundled workload; the editable field lets you choose its ID.
-4. Start Mica if stopped. Other apps can keep their own workload bindings.
-5. Return to **Apps**, press **o** to open the UI, and confirm trusted code.
-   Browser apps start if needed, then open the authenticated dashboard app link.
-   A native app with declared `launch.tui_arguments` opens in the current terminal;
-   closing it returns to Mica's TUI. **s** starts a background instance instead.
-6. Assistant's local bridge uses `http://127.0.0.1:8090/chat`; the dashboard's
-   Open action authorizes and opens `/apps/mica-assistant/chat` on Mica's own
-   address. Native Dictation records on the device running the app; configure it
-   with `mica-dictation --tui`. Do not run it on headless Linux expecting it to
-   record your Mac microphone.
+The **server dashboard lists installed host apps only** and points to Mica
+Client for more apps. `mica-server app` remains the explicit host-management
+interface described below; when run over SSH it installs on the SSH host, not
+the computer displaying your terminal. No browser can silently install a native
+app on the browsing device.
 
-**x** stops the app without stopping Mica. **d** uninstalls it. The official
-`mica-examples` source is included offline with every matching installation;
-listing it does not download models or require internet. Nothing is prelaunched.
+Web apps share their hosting listener under `/apps/APP_ID/`. Private upstreams
+use the 200-slot app pool; inference uses a separate 100-slot worker pool. Native
+apps need no HTTP port unless they declare a service. See [port pools](ports.md).
+
+## Manage installed apps on a server
+
+Open `mica-server tui`, press **7** for **Apps**, and select an installed app.
+**Enter** inspects; **w** prepares a compatible bundled workload; **o** opens a
+browser UI or its declared foreground TUI; **s** starts a background instance;
+**x** closes the app; **d** unregisters it. Apps do not have to replace the
+server default workload. For discovery and installation, run `mica-client tui`
+on the intended device, or explicitly use `mica-server app install` on the host.
+
+The dashboard opens web apps under `/apps/APP_ID/` on the server's own address.
+Native Dictation belongs on the device with the microphone. An SSH session on
+headless Linux does not give your Mac a recording shortcut. A device's Mica
+Client manager hosts its own web apps on port 55001 and can use remote inference.
+
+The official `mica-examples` catalogue is bundled offline. Listing or installing
+an app does not start a model download, inference server or app process.
 
 The assistant packages browser chat. Dictation is a native C++ client with a
 small FTXUI setup interface, local/remote server connections, microphone capture,
@@ -44,17 +55,33 @@ other applications; file uploads require explicit allowed directories.
 
 ## App location and inference location are separate
 
-The dashboard offers host installation or a download for this device. Remote
-inference is recommended when already connected to a remote Mica; optional
-local Mica setup is separate and explicitly confirmed. A remote browser cannot
-silently install software or reliably detect your native apps. The client
-installer checks its local record and preserves existing apps/connections.
+The server dashboard manages installed apps on its host and links to Mica
+Client. Use `mica-client tui` or `mica-client ui --open` to discover/install on
+your device, then choose local, remote or later inference. Optional local server
+setup is separately confirmed. A browser cannot silently install software or
+reliably detect native apps on its device.
 
-Extract a downloaded client package, then:
+```sh
+mica-client install mica-assistant --accept-code --inference later
+mica-client connect linux --url http://HOST:55000 --workload WORKLOAD_ID \
+  --api-key-file /path/to/private-inference-key
+mica-client bind mica-assistant --connection linux
+mica-client ui --open
+```
+
+Client connections live in `~/.mica/client/config/connections.json`; per-app
+bindings in `~/.mica/client/config/app-connections/`. The server has a separate
+app registry and bindings under `~/.mica`. Installed apps and model caches are
+independent. See [Client](client.md) for local detection and installation.
+
+### Older portable exports
+
+Previously exported standalone packages remain a separate lightweight option.
+If you already have such an archive, extract it and run:
 
 ```sh
 python3 client.py install
-python3 client.py connect --connection linux --url http://HOST:8092 --workload WORKLOAD_ID
+python3 client.py connect --connection linux --url http://HOST:55000 --workload WORKLOAD_ID
 # Enter the inference key privately; never use the admin key.
 python3 client.py start --connection linux
 # Dictation setup interface:
@@ -63,7 +90,7 @@ python3 client.py start --connection linux --tui
 python3 client.py setup-local
 ```
 
-Connections are named per app in `~/.mica/config/app-connections/APP_ID.json`,
+Those older packages keep per-app connections in `~/.mica/config/app-connections/APP_ID.json`,
 with private key-file references. Choose another connection without reinstalling.
 A device-only Dictation install can build its small native client with CMake/C++
 and a capped single-job build; it does not build Mica or download models for
@@ -71,13 +98,14 @@ remote inference. Local Mica source setup additionally needs Lua development
 headers and asks before preparing engines/models.
 
 ```sh
-mica-server app connect mica-assistant --connection linux --url http://HOST:8092 \
+mica-server app connect mica-assistant --connection linux --url http://HOST:55000 \
   --api-key-file /private/path/inference-key --workload WORKLOAD_ID
 mica-server app start mica-assistant --connection linux --accept-code
 mica-server app connection-select mica-assistant --connection linux
 ```
 
-TUI Apps: **c** adds a connection, **k** chooses one, **s** starts. **w** prepares
+For explicit server-host app management, TUI Apps: **c** adds a connection,
+**k** chooses one, **s** starts. **w** prepares
 local inference separately. Bundled workload selection follows engine/device
 compatibility, not file ordering; Linux must not select Mac-only workloads.
 With a running dashboard-enabled server, **w**, `app setup`, and `workload install`
@@ -101,8 +129,10 @@ python3 ~/.mica/apps/mica-dictation/mcp.py --connection linux --allow-directory 
 python3 ~/.mica/apps/mica-assistant/mcp.py --connection linux --allow-directory /path/to/media
 ```
 
-For device-only installs use `~/.mica/clients/APP_ID/mcp.py` or
-`python3 client.py mcp --connection linux`. Dictation exposes `models`,
+For Mica Client installs use `~/.mica/client/apps/APP_ID/mcp.py` with
+`--root ~/.mica/client --connection linux`. Older portable exports used
+`~/.mica/clients/APP_ID/mcp.py` and `python3 client.py mcp --connection linux`.
+Dictation exposes `models`,
 `transcribe`, `cleanup`; Assistant exposes `models`, `assistant_chat` (text,
 session ID and optional media paths). MCP messages alone go to stdout; keys are
 read per request from private files, not embedded in inputs/downloads. The
@@ -146,7 +176,7 @@ python3 scripts/demo_apps_acceptance.py \
   --output /tmp/mica-demo-apps-acceptance.json
 ```
 
-The defaults target the CUDA/CPU workloads and port 8092. For another host,
+The defaults target the CUDA/CPU workloads and port 55000. For another host,
 pass `--base-url`, `--assistant-workload`, and `--dictation-workload`. The script
 reads private key files, checks actual ASR and LLM cleanup, calls Assistant
 through its authenticated app route, tests both MCP adapters, overlaps requests
@@ -166,28 +196,29 @@ need `espeak` for a matching binary/config installation.
 
 ## Add another source
 
-In **Apps → Add source**, enter a canonical GitHub/Hugging Face repository URL,
+In **Mica Client → Discover → Add publisher repository**, enter a canonical GitHub/Hugging Face repository URL,
 or a direct HTTPS `apps.yaml`/`app.yaml` URL. CLI equivalents:
 
 ```sh
-mica-server app source-add my-apps https://github.com/OWNER/REPO
-mica-server app source-add research https://huggingface.co/OWNER/REPO
-mica-server app source-add custom https://example.com/apps.yaml
-mica-server app list
-mica-server app show my-apps:APP_ID
-mica-server app install my-apps:APP_ID --accept-code
+mica-client source add my-apps https://github.com/OWNER/REPO
+mica-client source add research https://huggingface.co/OWNER/REPO
+mica-client source add custom https://example.com/apps.yaml
+mica-client discover
+mica-client show my-apps:APP_ID
+mica-client install my-apps:APP_ID --accept-code
 ```
 
 Repository discovery resolves an immutable HEAD/main commit, then searches
 `apps/apps.yaml`, `apps.yaml`, and `app.yaml`. GitHub discovery needs `git`;
 HTTPS discovery needs `curl`. Hugging Face model/dataset/Space repositories are
 supported. Other hosts need a direct HTTPS manifest/index URL, not an arbitrary
-web page. Re-run `source-add` with the same source ID to explicitly refresh it.
+web page. Re-run `source add` with the same source ID to explicitly refresh it.
 No authentication tokens are accepted in URLs; private-source authentication
 and signed publishers are not implemented.
 
 The cached catalogue works offline. Source entries are stored in
-`~/.mica/config/app-sources.json`; they are discovery metadata, not YAML workload
+`~/.mica/client/config/app-sources.json` (or `~/.mica/config/app-sources.json`
+for explicit server-host management); they are discovery metadata, not YAML workload
 policy. Remote catalogue IDs are namespaced as `SOURCE:APP_ID`. App IDs are unique
 per installation; selecting the same ID from another publisher cannot replace
 an installed app silently. Removing a source keeps installed apps discoverable.
@@ -233,18 +264,25 @@ permissions: [microphone, clipboard]
 launch:
   executable: python3
   arguments: ["{app_dir}/app.py", "--config", "{mica_config}", "--port", "{port}"]
-  port: 8091
+  port: 55201
   path: /
 workloads: []
 ```
 
 This is a **file-based package installer**, not a general-purpose package manager:
 1–512 files, at most 64 MiB each and 256 MiB total. Archives, arbitrary dependency
-recipes, automatic app upgrades, signatures and executable sandboxes are not
+recipes, unattended app upgrades, signatures and executable sandboxes are not
 implemented. Files default to URLs relative to the app manifest; explicit HTTPS
 URLs may point elsewhere. Paths must be safe ASCII relative paths. No symlinks,
 implicit shell interpretation or path traversal are accepted. `source.repository` is
 attribution; `distribution` determines the exact bytes downloaded.
+
+For a static web app use `launch: {static_entry: index.html}` and include that
+HTML file in the verified distribution; no executable or private port is needed.
+For process-backed web apps, `launch.port` is a legacy hint; the actual upstream
+is leased from 55200–55399 and passed via `{port}`. Always use that placeholder,
+not a hard-coded port in the arguments. The browser opens `/apps/APP_ID/` on
+55000 (server) or 55001 (client), not the upstream port.
 
 `launch.port` and `launch.path` are optional together: omit both for a headless
 or native desktop app. `launch.executable` can name a program on PATH, or a
@@ -258,7 +296,8 @@ executable. `app open` uses it in the foreground with a real terminal; `app star
 continues to use `launch.arguments` in the background. Interactive arguments
 can use `{app_dir}`, `{mica_config}`, `{mica_root}`, `{connection}` and
 `{workload}`. Opening the setup TUI does not require a local model server.
-Browser apps need `launch.port` and `launch.path`; CLI/TUI open uses a
+Process-backed browser apps need `launch.port` and `launch.path`; static apps
+instead declare only `launch.static_entry`. Host CLI/TUI open uses a
 `/dashboard?app=APP_ID` login link when the local dashboard is enabled, without
 putting credentials in the URL. The dashboard then authorizes the app cookie
 and opens `/apps/APP_ID/...`. Popup-blocked browsers navigate in the same tab.

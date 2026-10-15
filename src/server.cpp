@@ -1,5 +1,6 @@
 #include "mica_server/server.hpp"
 #include "mica_server/apps.hpp"
+#include "mica_server/ports.hpp"
 #include "mica_server/credentials.hpp"
 #include "mica_server/dashboard.hpp"
 #include "mica_server/config.hpp"
@@ -587,6 +588,7 @@ struct Worker {
   double vram_reservation_gib{0};
   pid_t pid{-1};
   int port{0};
+  std::shared_ptr<ports::Lease> port_lease;
   int in_flight{0};
   int retention_priority{0};
   std::uint64_t last_used_ns{0};
@@ -742,27 +744,6 @@ void validate_runtime_profile(const RuntimeState& state, const Profile& profile)
            profile.maximum_resident_workers)) {
     stale();
   }
-}
-
-int allocate_port() {
-  const int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-  if (socket_fd < 0) throw std::runtime_error("cannot allocate worker socket");
-  sockaddr_in address{};
-  address.sin_family = AF_INET;
-  address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  address.sin_port = 0;
-  if (bind(socket_fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) != 0) {
-    close(socket_fd);
-    throw std::runtime_error("cannot bind worker socket");
-  }
-  socklen_t length = sizeof(address);
-  if (getsockname(socket_fd, reinterpret_cast<sockaddr*>(&address), &length) != 0) {
-    close(socket_fd);
-    throw std::runtime_error("cannot inspect worker socket");
-  }
-  const int port = ntohs(address.sin_port);
-  close(socket_fd);
-  return port;
 }
 
 pid_t spawn_worker(const std::vector<std::string>& command,
@@ -1501,7 +1482,8 @@ class WorkerManager {
     make_room(worker->ram_reservation_gib, worker->vram_reservation_gib,
               worker->memory_device);
     worker->artifact_path = model_cache_directory(root_, model, backend, worker->engine->id) / artifact.pattern;
-    worker->port = allocate_port();
+    worker->port_lease = ports::acquire(false);
+    worker->port = worker->port_lease->port();
     worker->in_flight = 1;
     ensure_artifact(*worker);
     if (backend == Backend::gguf &&

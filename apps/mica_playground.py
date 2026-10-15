@@ -568,7 +568,7 @@ def main() -> int:
     if not isinstance(ui, dict):
         raise ValueError("server config field 'ui' must be an object")
     host = args.host or ui.get("host", "127.0.0.1")
-    port = args.port or int(ui.get("port", 8090))
+    port = args.port or int(ui.get("port", 55200))
     if args.mica_url:
         mica_url = args.mica_url
     elif ui.get("mica_url"):
@@ -577,9 +577,9 @@ def main() -> int:
         target_host = config.get("host", "127.0.0.1")
         if target_host in ("0.0.0.0", "::"):
             target_host = "127.0.0.1"
-        mica_url = f"http://{target_host}:{int(config.get('port', 8080))}"
+        mica_url = f"http://{target_host}:{int(config.get('port', 55000))}"
     else:
-        mica_url = "http://127.0.0.1:8080"
+        mica_url = "http://127.0.0.1:55000"
     server = ThreadingHTTPServer((host, port), Handler)
     server.mica_url = str(mica_url).rstrip("/")
     server.api_key = configured_key(args, config)

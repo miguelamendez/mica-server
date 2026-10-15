@@ -60,7 +60,7 @@ int main(int argc,char** argv){
   const auto path=root/"config/app-connections/mica-dictation.json";auto saved=read(path);auto document=read(config);
   if(connection_name.empty())connection_name=saved.value("default","");Connection connection;
   if(!connection_name.empty()){auto selected=saved.at("connections").at(connection_name);connection={selected.at("url"),selected.at("api_key_file"),selected.at("workload")};}
-  else{auto host=document.value("host","127.0.0.1");if(host=="0.0.0.0"||host=="::")host="127.0.0.1";connection={document.value("ui",json::object()).value("mica_url","http://"+host+":"+std::to_string(document.value("port",8080))),document.value("api_key_file",(root/"secrets/api-key").string()),workload.empty()?document.value("default_workload",""):workload};}
+  else{auto host=document.value("host","127.0.0.1");if(host=="0.0.0.0"||host=="::")host="127.0.0.1";connection={document.value("ui",json::object()).value("mica_url","http://"+host+":"+std::to_string(document.value("port",55000))),document.value("api_key_file",(root/"secrets/api-key").string()),workload.empty()?document.value("default_workload",""):workload};}
   if(!workload.empty())connection.workload=workload;
   if(!audio.empty()){const auto text=connection.transcribe(audio,cleanup);std::cout<<(json_output?json{{"text",text}}.dump():text)<<'\n';return 0;}
   using namespace ftxui;auto screen=ScreenInteractive::Fullscreen();std::mutex mutex;std::thread worker;std::atomic<bool> busy{false},hotkey{false},recording{false};std::atomic<long long> recording_start{0};bool shortcut_enabled=false;long focus=0;std::string status="Set a server connection, then record. Models run only on the selected server.",transcript;

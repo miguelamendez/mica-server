@@ -3,7 +3,7 @@ id: mica-assistant
 name: Local Assistant
 description: Browser chat with streamed text, media, optional voice, and conversation
   archives.
-version: 0.2.0
+version: 0.3.0
 interfaces:
 - web
 - mcp
@@ -14,8 +14,8 @@ distribution:
   format: files
   files:
   - path: README.md
-    sha256: f5f1cf8121938ba0d40fb10a1a7b629ac32481d2db51f4ebf6519788f4a8efb2
-    size_bytes: 1193
+    sha256: 476d474f99af8f22bb97035e7c263f3c301471cd40aa93cafa9d43690ea436ad
+    size_bytes: 1349
   - path: app.py
     sha256: dc722445ad34e1abe41fab38b0b9d64d34ae8d79049934fdae5b440ea7cd5b36
     size_bytes: 158
@@ -23,8 +23,8 @@ distribution:
     sha256: a2bcf97458a5f9815a16d9c95e7062234f472c7d280e484e8e642a7188787494
     size_bytes: 92
   - path: runtime/mcp_runtime.py
-    sha256: 10eb668885d0477cab3289e7f6cf883fff28abc731a497e5ea94d6348d1ac4b9
-    size_bytes: 11863
+    sha256: 8a49cca4cb9a455d851fd68f58935ab4f3834217bda67d34987b7bd44385fcad
+    size_bytes: 11864
   - path: runtime/mica-capabilities.js
     sha256: c20c42541bb5a7702e044d6a212ea58253a13c7f4da124515baabfd7469ab672
     size_bytes: 1889
@@ -35,8 +35,8 @@ distribution:
     sha256: 892548b91ddbb38d19b53826f4c579a52cd7d5a887fb698a3d279c7d4cdfb44e
     size_bytes: 522
   - path: runtime/mica_playground.py
-    sha256: 2696b73e05c05936ae5d5865555c36206c24d3e4fa7ccc83dc88c797d6d405be
-    size_bytes: 94471
+    sha256: 7e8f2d80d0a7ee055389abd32bfc4c5107a50814c27693cb727f15c0c0526a08
+    size_bytes: 94474
   - path: workloads/cuda.yaml
     sha256: f271454acc2d5f6e1eb02b801e15571573a7e594eea7f1144323a5df9df92474
     size_bytes: 2462
@@ -62,7 +62,7 @@ launch:
   - '{workload}'
   - --host
   - 127.0.0.1
-  port: 8090
+  port: 55200
   path: /chat
 workloads:
 - id: mac

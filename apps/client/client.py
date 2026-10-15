@@ -182,7 +182,7 @@ def setup_local(package, root, directory):
     key_path = config.get("api_key_file", str(root / "secrets/api-key"))
     path = root / "config/app-connections" / (package["id"] + ".json")
     saved = read(path) or {"schema": 1, "connections": {}}
-    saved["connections"]["local"] = {"url": f"http://{host}:{config.get('port', 8080)}", "api_key_file": key_path, "workload": registered}
+    saved["connections"]["local"] = {"url": f"http://{host}:{config.get('port', 55000)}", "api_key_file": key_path, "workload": registered}
     saved["default"] = "local"
     save(path, saved)
 

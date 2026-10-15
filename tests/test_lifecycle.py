@@ -23,7 +23,7 @@ class LifecycleTests(unittest.TestCase):
                                         text=True, capture_output=True, timeout=10)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 if topic in ("start", "serve", "dashboard"):
-                    for text in ("Disabled by default", "/dashboard", "8092", "8080", "--no-dashboard", "admin-api-key", "one launch", "one local API"):
+                    for text in ("Disabled by default", "/dashboard", "55000", "--no-dashboard", "admin-api-key", "one launch", "one local API"):
                         self.assertIn(text, result.stdout)
                 if topic == "app": self.assertIn("app open", result.stdout)
             self.assertFalse(root.exists(), "Help must never run setup or create an application home")

@@ -27,7 +27,8 @@ that use it, not by native GGUF inference.
 
 ## Install a release
 
-When available, published releases contain a static-Lua `mica-server` binary, matching
+When available, published releases contain static-Lua `mica-server` and
+`mica-client` binaries, the native Dictation executable, matching
 configuration, helper scripts, the license, and a SHA-256 file. Choose the
 archive for macOS ARM64, Linux x86-64, or Linux ARM64 from
 [GitHub Releases](https://github.com/miguelamendez/mica-server/releases).
@@ -41,6 +42,8 @@ shasum -a 256 -c mica-server-v0.1.0-macos-arm64.tar.gz.sha256
 tar -xzf mica-server-v0.1.0-macos-arm64.tar.gz
 install -d "$HOME/.local/bin" "$HOME/.local/share"
 install -m 755 mica-server-v0.1.0-macos-arm64/bin/mica-server "$HOME/.local/bin/"
+install -m 755 mica-server-v0.1.0-macos-arm64/bin/mica-client "$HOME/.local/bin/"
+install -m 755 mica-server-v0.1.0-macos-arm64/bin/mica-dictation "$HOME/.local/bin/"
 cp -R mica-server-v0.1.0-macos-arm64/share/mica-server "$HOME/.local/share/"
 export PATH="$HOME/.local/bin:$PATH"
 mica-server --version
@@ -48,6 +51,11 @@ mica-server --version
 
 The binary embeds Lua. Python is installed only when a selected MLX or vLLM
 engine needs it.
+
+For apps on this device, use `mica-client tui` or `mica-client ui --open`
+(`http://127.0.0.1:55001/`). Choose local, remote or later inference when installing
+an app. A remote connection needs no local inference server/engine/model. See
+[Client setup](client.md) and [55xxx port conventions](ports.md).
 
 ## Build from source
 
@@ -151,7 +159,7 @@ mica-server tui
 mica-server workload list
 mica-server workload show mica-spark-small-gguf
 mica-server workload install mica-spark-small-gguf
-mica-server start --dashboard --host 0.0.0.0 --port 8092
+mica-server start --dashboard --host 0.0.0.0 --port 55000
 mica-server dashboard
 mica-server status
 mica-server endpoints
@@ -192,7 +200,7 @@ Configure a stopped server using Settings or the CLI:
 
 ```sh
 mica-server config show
-mica-server config set --host 0.0.0.0 --port 8092 --default-workload mica-spark-small-gguf
+mica-server config set --host 0.0.0.0 --port 55000 --default-workload mica-spark-small-gguf
 mica-server config set --ram-gib 16 --vram-gib 15.5
 mica-server config set --rotate-api-key
 # Alternatively: config set --api-key-file /path/to/private/key
@@ -211,14 +219,14 @@ protected routes still require the API key, but Mica does not add HTTPS.
 `serve` remains the foreground command for systemd/launchd supervision:
 
 ```sh
-mica-server serve --port 8080
+mica-server serve --port 55000
 ```
 
 Check it from another terminal:
 
 ```sh
-curl http://127.0.0.1:8080/health
-curl http://127.0.0.1:8080/ready
+curl http://127.0.0.1:55000/health
+curl http://127.0.0.1:55000/ready
 ```
 
 The authenticated API key is generated at `~/.mica/secrets/api-key`. See the
@@ -239,7 +247,7 @@ mica-server app open mica-assistant
 With the dashboard enabled, the browser logs in there and opens the app under
 `/apps/mica-assistant/chat` on the same API port. Opening a native app over SSH
 does not open a browser on your Mac; use the dashboard's network URL instead.
-The separate port 8090 example below is the optional local development bridge,
+The separate port 55200 example below is the optional local development bridge,
 not the dashboard and not a port you need to expose on a remote host.
 
 Chat Settings lists server workloads with their descriptions, selected models,
@@ -252,9 +260,9 @@ From a source checkout:
 
 ```sh
 python3 apps/mica_playground.py \
-  --mica-url http://127.0.0.1:8080 \
+  --mica-url http://127.0.0.1:55000 \
   --api-key-file "$HOME/.mica/secrets/api-key" \
-  --port 8090
+  --port 55200
 ```
 
 The key may instead be passed with `--api-key` or configured in
@@ -264,7 +272,7 @@ listings. The Chat Settings panel can override the fallback for the current
 browser tab. With no configured or tab-level key, API calls return
 `401 api_key_required` and prompt for one.
 
-Open <http://127.0.0.1:8090/chat>. The playground supports text, voice,
+Open <http://127.0.0.1:55200/chat>. The playground supports text, voice,
 images, video, PDFs, Markdown, custom TTS voices, streaming, session history,
 and ZIP import/export. A key loaded from the config or key file stays in the
 local Python proxy. A key entered in Settings is held in `sessionStorage` and

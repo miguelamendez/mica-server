@@ -66,9 +66,11 @@ int main() {
   fs::create_directories(prefix / "bin"); fs::create_directories(prefix / "share/mica-server/config");
   std::ofstream(payload / "bin/mica-server") << "new binary";
   std::ofstream(payload / "bin/mica-dictation") << "new client";
+  std::ofstream(payload / "bin/mica-client") << "new manager";
   std::ofstream(payload / "share/mica-server/config/version") << "new data";
   std::ofstream(prefix / "bin/mica-server") << "old binary";
   std::ofstream(prefix / "bin/mica-dictation") << "old client";
+  std::ofstream(prefix / "bin/mica-client") << "old manager";
   std::ofstream(prefix / "share/mica-server/config/version") << "old data";
   mica::install_update_payload(payload, prefix, "test-transaction");
   assert(fs::exists(prefix / "bin/.mica-server.previous-test-transaction"));
@@ -77,6 +79,8 @@ int main() {
   assert(line == "new binary");
   assert(fs::exists(prefix / "bin/.mica-dictation.previous-test-transaction"));
   {std::ifstream file(prefix / "bin/mica-dictation");std::getline(file,line);}assert(line=="new client");
+  assert(fs::exists(prefix / "bin/.mica-client.previous-test-transaction"));
+  {std::ifstream file(prefix / "bin/mica-client");std::getline(file,line);}assert(line=="new manager");
   rejects([&] { mica::install_update_payload(payload, prefix, "../bad"); });
   fs::create_symlink("version", payload / "share/mica-server/config/link");
   rejects([&] { mica::install_update_payload(payload, prefix, "reject-link"); });

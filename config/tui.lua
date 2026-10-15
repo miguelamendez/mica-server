@@ -8,6 +8,6 @@ return {
     {id = "engines", title = "Engines", hint = "Runtime manifests, hardware support, installed revision and endpoints"},
     {id = "endpoints", title = "Endpoints", hint = "Public routes; model-dependent operations require a compatible workload"},
     {id = "settings", title = "Settings", hint = "Listener, dashboard, workload, RAM/VRAM, keys and updates; changes require confirmation"},
-    {id = "apps", title = "Apps", hint = "i installs, w prepares models, o opens UI, s starts background; apps use their own workload and do not restart Mica"},
+    {id = "apps", title = "Apps", hint = "Installed host apps: w prepare, o open, s background, x close. Discover/install on your device with mica-client tui"},
   },
 }

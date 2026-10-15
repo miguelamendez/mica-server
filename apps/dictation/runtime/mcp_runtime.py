@@ -29,7 +29,7 @@ class Client:
         host = config.get("host", "127.0.0.1")
         if host in ("0.0.0.0", "::"):
             host = "127.0.0.1"
-        return {"url": config.get("ui", {}).get("mica_url", f"http://{host}:{config.get('port', 8080)}"),
+        return {"url": config.get("ui", {}).get("mica_url", f"http://{host}:{config.get('port', 55000)}"),
                 "api_key_file": config.get("api_key_file", str(self.root / "secrets/api-key")),
                 "workload": self.workload or config.get("default_workload", "")}
 

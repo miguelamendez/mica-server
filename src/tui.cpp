@@ -306,8 +306,8 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       for (const auto& endpoint : endpoint_catalog["endpoints"])
         values.push_back(endpoint.at("method").get<std::string>() + " " + endpoint.at("path").get<std::string>());
     } else if (section == "apps") {
-      values = {"Add source", "Sources"};
-      for (const auto& app : data.apps["apps"]) values.push_back(app.at("id"));
+      values = {"Mica Client"};
+      for (const auto& app : data.apps["apps"]) if(app.value("installed",false))values.push_back(app.at("id"));
     } else if (section == "settings") {
       values = {"Check for updates", "Update latest release", "Update latest source", "Bind address", "Port", "Dashboard", "Default workload", "Scheduling strategy", "RAM limit (GiB)",
                 "Dedicated GPU limit (GiB)", "Import API key file", "Rotate API key", "Rotate admin API key"};
@@ -425,7 +425,12 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     const auto& section = sections[section_index].id;
     if (section == "apps") {
       section_heading("Apps · Catalogue");
-      if (selected == "Add source") {
+      if(selected=="Mica Client"){
+        section_heading("Apps on this server versus apps on your device");
+        row("Discover / install", "Run mica-client tui on the device where the app should live.");
+        row("HTML manager", "mica-client ui --open · http://127.0.0.1:55001/");
+        row("Inference", "Choose local, remote or configure later. A remote server needs no local engine/model installation.");
+      } else if (selected == "Add source") {
         row("Discover", "Enter a GitHub/Hugging Face repository or direct HTTPS manifest/index URL. Discovery never runs code.");
         row("Packaging", "Single app.yaml or an apps.yaml index. SHA-256 is mandatory for every package file.");
       } else if (selected == "Sources") {
@@ -453,8 +458,8 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
           section_heading("Source and launch"); object(manifest["source"]); object(manifest["launch"]);
           row("Package integrity", "Manifest and downloaded files verified before registration. Downloaded code is not sandboxed.");
         } else row("Inspect first", "Enter fetches the manifest to review before installing.");
-        section_heading("Controls"); row("Actions", "Enter inspect · i install · w prepare · o open UI · s background launch · c add connection · k choose connection · x close · d uninstall");
-        row("Install location", "The TUI installs on this device. Remote inference needs only an app connection; local Mica/engine/model setup is optional.");
+        section_heading("Controls"); row("Actions", "Enter inspect · w prepare · o open UI · s background launch · c add connection · k choose connection · x close · d uninstall");
+        row("Install location", "This view manages installed host apps. Use mica-client tui for discovery and device-local installation.");
         row("Safety", "Apps bind their own workload; launch never restarts Mica. OS/browser controls permissions.");
       }
     } else if (section == "server" && !server_picker && selected == "Updates") {
@@ -667,7 +672,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
     const std::string actions = selected_section == "workloads" ? " Enter models · i install · s start · a swap · e edit · c clone " :
                                 selected_section == "server" ? " s start/swap · o dashboard · x stop · r refresh " :
                                 selected_section == "settings" ? " Enter edit selected setting " :
-                                selected_section == "apps" ? " Enter inspect · i install · w prepare · o open UI · s background · c/k connections · x close · d remove " : " r refresh · PgUp/PgDn details ";
+                                selected_section == "apps" ? " Enter inspect · w prepare · o open UI · s background · c/k connections · x close · d remove · use mica-client to discover " : " r refresh · PgUp/PgDn details ";
     auto base = vbox({header, separator(), paragraph(" " + sections[section_index].hint) | color(muted), body | flex,
                       separator(), paragraph(" " + message.substr(0, 500)) | size(HEIGHT, LESS_THAN, 4),
                       text(actions) | color(accent),
@@ -691,7 +696,8 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       text(" u shows incompatible hardware; hidden legacy examples stay hidden "),
       text(" ✓ cached/installed · ↓ needs installation/download · ! unsupported · $ exceeds allocation "),
       text(" Settings: Enter edits; Dashboard persists enable/disable (restart if running) "),
-      text(" Apps: Enter inspect · i install · w prepare · o open UI · s background · x close "),
+      text(" Apps on this host: Enter inspect · w prepare · o open UI · s background · x close "),
+      text(" Discovery/device installs: mica-client tui or mica-client ui --open "),
       text(" Apps: c add inference connection · k choose one; native UI uses this terminal "),
       text(" Browser actions run on this host; SSH users open its network URL themselves "),
       text(" Changes are confirmed and use the same CLI as the terminal. "),
@@ -799,6 +805,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
       args.insert(args.begin(), executable.string()); args.insert(args.end(), {"--root", root.string()}); queue(std::move(args));
     };
     if (section == "apps") {
+      if(selected=="Mica Client"){message="Run mica-client tui or mica-client ui --open on the device where you want to install apps.";return true;}
       if (selected == "Add source" && event == Event::Return) { edit_option = "app source URL"; edit_value.clear(); }
       else if (selected == "Sources" && event == Event::Character("d")) { edit_option = "remove app source ID"; edit_value.clear(); }
       else if (selected != "Sources" && selected != "Add source" && !selected.empty()) {
@@ -814,10 +821,7 @@ int run_tui(const std::filesystem::path& executable, const std::filesystem::path
         if(event==Event::Character("k")){edit_option="app connection name";edit_value.clear();}
         if (event == Event::Return) command({"app", "show", selected, "--config-dir", config.string()});
         if (event == Event::Character("i")) {
-          bool reviewed = inspected_app.value("catalogue_id", "") == selected;
-          for (const auto& app : data.apps["apps"]) if (app["id"] == selected && app.contains("bundled_path")) reviewed = true;
-          if (reviewed) command({"app", "install", selected, "--accept-code", "--config-dir", config.string()});
-          else { message = "Inspect the publisher, permissions and launch command first; Enter fetches the manifest."; }
+          message="Discover and install with mica-client tui on the intended device; this view manages installed host apps.";
         }
         if (event == Event::Character("s")) command({"app", "start", selected, "--accept-code", "--config-dir", config.string()});
         if (event == Event::Character("o")) command({"app", "open", selected, "--accept-code", "--config-dir", config.string()});

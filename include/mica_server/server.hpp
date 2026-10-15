@@ -8,12 +8,13 @@
 #include <nlohmann/json_fwd.hpp>
 
 #include "mica_server/types.hpp"
+#include "mica_server/ports.hpp"
 
 namespace mica {
 
 struct ServerOptions {
   std::string host{"127.0.0.1"};
-  int port{8080};
+  int port{ports::server};
   std::filesystem::path root;
   std::filesystem::path config_directory;
   std::filesystem::path api_key_file;

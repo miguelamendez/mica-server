@@ -5,7 +5,7 @@ Unless otherwise noted, routes require a bearer token. Requests can bind to
 different workloads on the same server; see [global scheduling](scheduling.md).
 
 ```sh
-export MICA_BASE_URL=http://127.0.0.1:8080
+export MICA_BASE_URL=http://127.0.0.1:55000
 export MICA_API_KEY="$(< "$HOME/.mica/secrets/api-key")"
 ```
 
@@ -40,8 +40,13 @@ modify an already-running listener; use the configuration command instead.
 `mica-server dashboard` reports local/network URLs; `--open` opens this host's
 browser. `status` includes `api_url`, `dashboard_url` (null when disabled),
 `network_dashboard_urls`, and the running build revision. The API port defaults
-to 8080; examples using 8092 explicitly select it. `/dashboard` always uses that
+to 55000. `/dashboard` always uses that
 same API port, not a separate web server.
+
+Mica Client uses its own device-local listener on 55001. Web apps share
+`/apps/APP_ID/` on their hosting server/client; private app services use
+55200–55399 and inference workers 55900–55999. These are reusable bounded pools,
+not prestarted workers. See [ports](ports.md) and [client setup](client.md).
 
 Enabling it creates a private admin key at `~/.mica/secrets/admin-api-key`
 (override with `admin_api_key_file` or `serve --admin-api-key-file PATH`). The
@@ -53,7 +58,7 @@ configured/created; separation persists afterward, even with the dashboard
 disabled. The keys must be distinct.
 
 ```sh
-mica-server start --dashboard --host 0.0.0.0 --port 8092
+mica-server start --dashboard --host 0.0.0.0 --port 55000
 mica-server config set --rotate-admin-api-key
 mica-server config set --rotate-api-key
 ```
@@ -142,7 +147,7 @@ not add a `task` query parameter to the HTTP catalog.
 and `tool_call_parsers` come from the model YAML. Each endpoint contract also
 reports `engine_supports_tools` separately; this alone does not enable tools
 for every model on that engine.
-`serve --host 0.0.0.0 --port 8092` listens on all IPv4 interfaces with the same
+`serve --host 0.0.0.0 --port 55000` listens on all IPv4 interfaces with the same
 authentication rules. Use a trusted LAN and firewall; HTTP is not TLS.
 
 Activate an already-installed schema-5 workload without restarting the proxy:

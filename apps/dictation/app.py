@@ -53,7 +53,7 @@ class Handler(BaseHTTPRequestHandler):
                 key = key_path.read_text().strip()
             if key:
                 headers["Authorization"] = f"Bearer {key}"
-            base = config.get("ui", {}).get("mica_url") or f"http://{host}:{int(config.get('port', 8080))}"
+            base = config.get("ui", {}).get("mica_url") or f"http://{host}:{int(config.get('port', 55000))}"
             url = base.rstrip("/") + route[1]
             request = urllib.request.Request(url, body, headers, method=self.command)
             with urllib.request.urlopen(request, timeout=300) as response:
@@ -91,7 +91,7 @@ def main():
         os.execv(candidate, [candidate, *args])
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, required=True)
-    parser.add_argument("--port", type=int, default=8091)
+    parser.add_argument("--port", type=int, default=55201)
     parser.add_argument("--workload", default="")
     args = parser.parse_args()
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)

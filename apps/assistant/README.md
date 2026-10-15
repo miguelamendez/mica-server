@@ -6,7 +6,9 @@ import/export. Python 3 is needed only for this optional standard-library HTTP
 client, not for Mica's native app catalogue or GGUF engine.
 
 Install through Apps in the TUI, prepare one bundled workload, start Mica with
-that workload, then launch the app. Default URL: http://127.0.0.1:8090/chat.
+that workload, then launch the app. Open it through `/apps/mica-assistant/chat`
+on Mica Server (55000) or Mica Client (55001). Its private HTTP upstream uses
+a reusable port from 55200–55399; do not bookmark that internal address.
 Browser microphone permission is requested only when recording. Models are
 owned by Mica, not by this app. Hardware compatibility is not certification.
 

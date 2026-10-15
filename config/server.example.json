@@ -1,13 +1,13 @@
 {
   "schema": 1,
   "host": "127.0.0.1",
-  "port": 8080,
+  "port": 55000,
   "dashboard": false,
   "scheduling_strategy": "balanced",
   "api_key_file": "~/.mica/secrets/api-key",
   "ui": {
     "host": "127.0.0.1",
-    "port": 8090,
-    "mica_url": "http://127.0.0.1:8080"
+    "port": 55200,
+    "mica_url": "http://127.0.0.1:55000"
   }
 }

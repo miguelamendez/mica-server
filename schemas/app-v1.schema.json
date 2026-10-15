@@ -159,6 +159,10 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "static_entry": {
+          "description": "Verified HTML package file served directly; mutually exclusive with process launch fields.",
+          "type": "string", "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*\\.html$"
+        },
         "executable": {
           "type": "string",
           "anyOf": [
@@ -193,9 +197,9 @@
           "pattern": "^/[a-zA-Z0-9/_-]*$"
         }
       },
-      "required": [
-        "executable",
-        "arguments"
+      "oneOf": [
+        {"required": ["static_entry"], "maxProperties": 1},
+        {"required": ["executable", "arguments"], "not": {"required": ["static_entry"]}}
       ],
       "dependentRequired": {
         "port": [

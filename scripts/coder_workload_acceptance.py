@@ -19,7 +19,7 @@ from pathlib import Path
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--base-url", default="http://127.0.0.1:8092")
+    parser.add_argument("--base-url", default="http://127.0.0.1:55000")
     parser.add_argument("--api-key-file", type=Path, required=True)
     parser.add_argument("--profile", default="mica-coder-qwen-gguf")
     parser.add_argument("--swap-profile", default="coder-qwen-swap-test")

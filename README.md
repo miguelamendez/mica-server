@@ -31,7 +31,7 @@ Switch workloads without deleting caches; compatible workers stay loaded.
 | **Multiple engines** | Hardware-aware installation/build recipes for registered native GGUF, MLX and vLLM integrations. |
 | **One API** | Route chat, media, speech, embeddings and other implemented operations to compatible models. |
 | **Native TUI** | Inspect hardware, workloads, models, engines and endpoints; configure, start, stop and swap. |
-| **Optional apps** | Discover checksum-verified clients with bundled default workloads, then explicitly install and launch them. |
+| **Mica Client** | CLI, native TUI and HTML app management; install verified apps on your device and connect them to local or remote inference. |
 | **Small control plane** | C++/Lua orchestration; Python only for engines or optional clients that need it. |
 
 A model's abilities and its engine's implemented contracts determine available
@@ -59,7 +59,7 @@ or private credentials.*
 | **Engines** | Hardware support, installation, revisions, build recipes and endpoint contracts. |
 | **Endpoints** | Registered routes, descriptions, authentication and example calls. |
 | **Settings** | Address, port, default workload, RAM/VRAM, API-key rotation and release/source updates. |
-| **Apps** | Demo catalogue and custom sources; inspect, verify/install, prepare workloads, launch/stop. |
+| **Apps** | Inspect and manage apps hosted on this server; use `mica-client` for discovery and device-local installation. |
 
 **1–7** select views; **Tab** changes focus; **↑/↓** select; **Enter** explores;
 **Esc** returns. **g** cycles model categories; **u** reveals incompatible entries.
@@ -69,10 +69,10 @@ Actions require confirmation. Closing the TUI leaves the server running.
 ## Or manage each host from your browser
 
 ```sh
-mica-server start --dashboard --host 0.0.0.0 --port 8092
+mica-server start --dashboard --host 0.0.0.0 --port 55000
 ```
 
-Open `http://HOST:8092/dashboard` from a device that can reach that host.
+Open `http://HOST:55000/dashboard` from a device that can reach that host.
 The dashboard is **off by default**, unless enabled in your saved configuration.
 `--dashboard` enables it for this launch; to keep it enabled for later CLI/TUI
 starts, use `mica-server config set --dashboard --restart`. If Mica is stopped,
@@ -85,8 +85,8 @@ mica-server start --help      # Startup, defaults, dashboard and LAN instruction
 ```
 
 The dashboard shares the API listener: `/dashboard`, **not a separate port**.
-Without saved settings/flags the API port is 8080; the example above explicitly
-uses 8092. From another device use the server's IP, not `localhost` or `0.0.0.0`.
+Without saved settings/flags the API port is 55000. From another device use
+the server's IP, not `localhost` or `0.0.0.0`.
 Each Mica instance serves its own dashboard: server/workload controls, model
 and engine inventory, optional apps, endpoint examples, settings and background
 job logs. Plain HTML/CSS/JavaScript uses Mica's existing C++ HTTP server:
@@ -189,27 +189,38 @@ The default **Mica demo apps** source includes:
 
 - **Local Assistant:** the existing browser chat, with streaming, attachments,
   optional voice, workload selection and conversation import/export.
-- **Dictation:** an open-source, WhisperFlow-style demo: record/upload → ASR →
-  optional LLM cleanup → editable text → explicit copy. No global desktop hooks.
+- **Dictation:** a native WhisperFlow-style demo: desktop shortcut or recording
+  controls → ASR → optional LLM cleanup → clipboard / opt-in macOS paste.
 
 Each app has its own folder, `app.yaml`, verified assets and default workloads.
 Apps reuse Mica's API and shared caches. Each app binds its requests to its own
 workload, so multiple apps can stay open without switching the server default
 or restarting it. The scheduler loads/offloads models as requests arrive.
-Browse **TUI → Apps**, or:
+Use the separate device-local manager, included in the same repository:
 
 ```sh
-mica-server app list
-mica-server app show mica-dictation
-mica-server app install mica-dictation --accept-code
+mica-client tui
+mica-client ui --open
+mica-client discover
+mica-client install mica-dictation --accept-code
 ```
 
 Add GitHub/Hugging Face repositories or direct HTTPS manifests/indexes through
-**Add source**. Every package file has a verified SHA-256. Installation,
+Mica Client. The server dashboard lists apps installed on its host, not a device
+catalogue. Every package file has a verified SHA-256. Installation,
 workload setup and code execution are separate actions. Downloaded code is
 **not sandboxed**—only launch publishers you trust. The optional browser demos
 use Python's standard library, without a pip environment.
 [App setup, packaging and lifecycle](docs/apps.md).
+
+The app runs on the device where it is installed; inference can run elsewhere.
+Choose local inference (detect/reuse a server, or explicitly approve installation),
+remote inference, or configure later. App installation never silently installs
+engines/models or restarts a server. [Mica Client guide](docs/client.md).
+
+**Ports:** `55000` server API/dashboard, `55001` client UI, private reusable pools
+`55200–55399` for app services and `55900–55999` for inference workers. Web apps
+share `/apps/APP_ID/` on their host's listener. [Port allocation](docs/ports.md).
 
 ## Footprint and documentation
 
@@ -219,7 +230,7 @@ do. Backend environments and models are separate from the core binary.
 Application state defaults to `~/.mica` (`MICA_HOME` or `--root` overrides it).
 
 - [Install and run](docs/getting-started.md), including Linux GPU setup
-- [TUI](docs/tui.md) · [Apps](docs/apps.md) · [Updating](docs/updating.md)
+- [TUI](docs/tui.md) · [Client](docs/client.md) · [Apps](docs/apps.md) · [Ports](docs/ports.md) · [Updating](docs/updating.md)
 - [Workloads](docs/profiles.md) · [Engines and artifacts](docs/engines-and-profiles.md)
 - [API reference](docs/api.md) · [Schema vocabulary](docs/schema-vocabulary.md)
 - [Configuration schemas](docs/configuration-schemas.md) · [Models](docs/models.md)
@@ -229,7 +240,7 @@ Application state defaults to `~/.mica` (`MICA_HOME` or `--root` overrides it).
 ## Roadmap
 
 - [ ] Native macOS/Linux desktop app for Mica management.
-- [ ] Desktop dictation: global hotkeys, explicit typing and OS permissions.
+- [ ] Expand desktop dictation permission, shortcut and Wayland testing.
 - [ ] Signed app publishers, app upgrades and trusted distribution recipes.
 - [ ] Image-generation and music/audio-generation engine integrations.
 - [ ] Complete vLLM certification on native CUDA/ROCm/XPU hardware.

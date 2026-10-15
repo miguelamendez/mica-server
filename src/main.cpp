@@ -40,7 +40,7 @@ void usage(const std::string& topic = "") {
 
 Start with a dashboard (background server):
   mica-server workload list
-  mica-server start --workload WORKLOAD_ID --dashboard --port 8092
+  mica-server start --workload WORKLOAD_ID --dashboard --port 55000
   mica-server dashboard          Show actual local/network URLs and admin-key path
   mica-server dashboard --open   Open this host's browser
   mica-server status             Show listener, dashboard, workload and workers
@@ -55,9 +55,9 @@ Dashboard: /dashboard on the SAME port as the API; not the chat app's port.
     mica-server config set --no-dashboard --restart
   A running server is not changed by another 'start'; use config set --restart.
 
-Default listener: http://127.0.0.1:8080 (saved settings/flags override it).
-The example above uses http://127.0.0.1:8092/dashboard.
-For a trusted LAN, add --host 0.0.0.0 and open http://SERVER_IP:8092/dashboard.
+Default listener: http://127.0.0.1:55000 (saved settings/flags override it).
+The example above uses http://127.0.0.1:55000/dashboard.
+For a trusted LAN, add --host 0.0.0.0 and open http://SERVER_IP:55000/dashboard.
 0.0.0.0 is a bind address, not a browser address. No SSH tunnel is required.
 Login uses the ADMIN key, normally ~/.mica/secrets/admin-api-key.
 Apps/API clients use the separate inference key, normally ~/.mica/secrets/api-key.
@@ -81,7 +81,7 @@ Models/dependencies may be prepared on first start; the dashboard needs no web i
   mica-server app start APP_ID --workload WORKLOAD_ID --accept-code
   mica-server app stop APP_ID
   mica-server app upgrade APP_ID --accept-code
-  mica-server app connect APP_ID --connection NAME --url http://HOST:8092 \
+  mica-server app connect APP_ID --connection NAME --url http://HOST:55000 \
     --api-key-file PRIVATE_INFERENCE_KEY_FILE --workload WORKLOAD_ID
 
 Open launches a web app if needed, then opens its browser UI. TUI apps open in
@@ -98,7 +98,8 @@ Use --root PATH / --config-dir PATH for another installation.
   1–7 views; Tab/arrows select; Enter explores; ? shows actions; q closes TUI.
   Server: s choose/start/swap, o open dashboard, x stop.
   Settings: Dashboard enables/disables and saves it (restart if running).
-  Apps: i install, w prepare, o open UI, s background launch, x close, Enter inspect.
+  Apps: installed host apps; w prepare, o open UI, s background, x close, Enter inspect.
+  Discovery/install on a device: mica-client tui or mica-client ui --open (55001).
   Closing the TUI does not stop Mica. A TUI opened over SSH controls THAT host.
   Its browser actions cannot open a browser on your Mac; use a printed network URL.
 )";
@@ -171,7 +172,7 @@ Serve options:
   --dashboard              Enable /dashboard on the API port for this launch
   --no-dashboard           Disable it for this launch (default disabled unless saved)
   --host HOST               Bind address (default 127.0.0.1; 0.0.0.0 exposes IPv4 LAN)
-  --port PORT               API listening port (default 8080)
+  --port PORT               API listening port (default 55000)
   --backend mlx|gguf|vllm   Legacy-profile backend selection; workloads resolve engines
   --server-config PATH      Server JSON (default ~/.mica/config/server.json)
   --api-key TOKEN           Override API token (prefer a file; arguments are visible)

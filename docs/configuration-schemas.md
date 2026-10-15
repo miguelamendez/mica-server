@@ -14,14 +14,22 @@ can resolve outside the local repository too.
 | Engine | `config/engines/ID.yaml` | [engine v2](../schemas/engine-v2.schema.json) | Description, hardware support, installation/build recipes, launchers, endpoint contracts |
 | Model | `config/model-manifests/ID.yaml` | [model v2](../schemas/model-v2.schema.json) | Description, modalities, abilities, supported tasks/interactions, context guidance, engine-compatible artifacts, components, provenance and memory metadata |
 | Workload | `config/workloads/ID.yaml` or a user file | [workload v5](../schemas/workload-v5.schema.json) | Description, model collection, optional pins/defaults, context, batching, KV cache, placement, priority, residency and optional workload ceiling |
-| Server/client settings | `~/.mica/config/server.json` | [server config v1](../schemas/server-config-v1.schema.json) | Bind address, port, default workload, API-key file; optional browser-client settings |
+| Server settings | `~/.mica/config/server.json` | [server config v1](../schemas/server-config-v1.schema.json) | Bind address, port, default workload, API-key file; optional bridge settings |
 | App package | `apps/APP/app.yaml` | [app v1](../schemas/app-v1.schema.json) | Publisher, version, verified files, requirements, permissions, launch arguments and default workload files |
 | App catalogue | `apps/apps.yaml` | [app index v1](../schemas/app-index-v1.schema.json) | App IDs, descriptions, relative manifest paths and manifest SHA-256 |
+| Client connections | `~/.mica/client/config/connections.json` | [client connections v1](../schemas/client-connections-v1.schema.json) | Named server origins, workload IDs and private inference-key file references |
 
 The workload catalog is an index of workload documents. Modality/ability/operation
 and task values share the [vocabulary schema](../schemas/vocabulary-v1.schema.json).
 Compatibility, cache presence and installation status shown in the TUI are
 derived inventory—not fields to copy into all the manifests.
+
+The separate device manager uses `~/.mica/client/config/connections.json` for
+named server origins, workload IDs and private key-file references. App bindings
+live below that client's `config/app-connections/`; server settings and keys
+remain separate. `config/client.lua` controls native terminal presentation only.
+App v1 supports either a process launch or `launch.static_entry` pointing
+to a verified HTML file. See [Client](client.md), [Apps](apps.md) and [ports](ports.md).
 
 ## Validation and versions
 

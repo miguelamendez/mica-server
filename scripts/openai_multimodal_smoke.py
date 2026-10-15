@@ -32,7 +32,7 @@ def request_chat(base_url: str, payload: dict) -> tuple[dict, float]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base-url", default="http://127.0.0.1:8080")
+    parser.add_argument("--base-url", default="http://127.0.0.1:55000")
     parser.add_argument("--model", required=True)
     parser.add_argument("--image", type=Path, required=True)
     parser.add_argument("--video", type=Path, required=True)

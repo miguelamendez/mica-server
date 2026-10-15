@@ -4,6 +4,15 @@ Update the binary **and its packaged configuration files together**. A Git pull
 alone does not update the binary on PATH or a running server's registry. These
 commands preserve user-owned settings, API keys, models and engines in `~/.mica`.
 
+Current bundles include `mica-client` and its matching HTML/Lua assets as well as
+`mica-server` and native Dictation. Updates stage and back up those binaries
+together when supplied by the payload. Keep shared files with their matching
+binary versions; a server restart does not restart separate app processes.
+Client connections in `~/.mica/client` are not overwritten. See [Client](client.md).
+
+New server defaults use port 55000, client UI 55001. Existing explicit server
+ports are preserved; see [port migration and pools](ports.md).
+
 ## One-command updates
 
 ```sh
@@ -113,7 +122,7 @@ To select the CUDA Qwen27B coding workload explicitly:
 ```sh
 mica-server stop
 mica-server setup --profile gpu_16g_coder --ram-gib 16
-mica-server start --workload gpu_16g_coder --host 0.0.0.0 --port 8092
+mica-server start --workload gpu_16g_coder --host 0.0.0.0 --port 55000
 ```
 
 This workload also requires 15.5 GiB of dedicated GPU allocation and the CUDA
@@ -140,7 +149,7 @@ with the same ID and are not overwritten by distribution installation.
 ## Change settings and restart
 
 ```sh
-mica-server config set --port 8092 --restart
+mica-server config set --port 55000 --restart
 ```
 
 When running, `--restart` validates proposed values, stops Mica, saves them and

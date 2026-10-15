@@ -9,6 +9,7 @@
 #include "mica_server/service.hpp"
 #include "mica_server/credentials.hpp"
 #include "mica_server/setup.hpp"
+#include "mica_server/ports.hpp"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <chrono>
@@ -155,6 +156,7 @@ std::string birth(int pid) {
   return result.exit_code ? "" : result.output;
 }
 bool running(const json& state) {
+  if(state.value("static",false))return true;
   const int pid = state.value("pid", 0);
   return pid > 1 && !state.value("birth", "").empty() && birth(pid) == state.value("birth", "");
 }
@@ -201,7 +203,14 @@ void validate_app_manifest(const json& j) {
   const std::set<std::string> permissions{"microphone", "clipboard", "files", "network", "accessibility", "global-hotkeys"};
   if (!j.at("permissions").is_array()) throw std::invalid_argument("permissions must be an array");
   for (const auto& p : j.at("permissions")) if (!permissions.contains(p.get<std::string>())) throw std::invalid_argument("unknown app permission");
-  const auto& launch = j.at("launch"); fields(launch, {"executable", "arguments", "tui_arguments", "port", "path"});
+  const auto& launch = j.at("launch"); fields(launch, {"executable", "arguments", "tui_arguments", "port", "path", "static_entry"});
+  if(launch.contains("static_entry")) {
+    if(launch.size()!=1)throw std::invalid_argument("Static launch contains only static_entry, no process or port");
+    const auto entry=launch.at("static_entry").get<std::string>();path_ok(entry);
+    if(!paths.contains(entry)||!entry.ends_with(".html"))throw std::invalid_argument("Static entry must be a verified HTML package file");
+    const auto interfaces=j.value("interfaces",json::array());
+    if(std::find(interfaces.begin(),interfaces.end(),json("web"))==interfaces.end())throw std::invalid_argument("Static entry needs web interface");
+  } else {
   auto exe = launch.at("executable").get<std::string>();
   if (exe.starts_with("{app_dir}/")) {
     const auto file = exe.substr(10); path_ok(file);
@@ -220,6 +229,7 @@ void validate_app_manifest(const json& j) {
   if (launch.contains("port") || launch.contains("path")) {
     const int port = launch.at("port"); if (port < 1024 || port > 65535) throw std::invalid_argument("invalid app port");
     auto route = launch.at("path").get<std::string>(); if (!std::regex_match(route, std::regex("/[a-zA-Z0-9/_-]*"))) throw std::invalid_argument("invalid UI path");
+  }
   }
   if (!j.at("workloads").is_array()) throw std::invalid_argument("workloads must be an array");
   std::set<std::string> workload_ids;
@@ -296,7 +306,12 @@ json app_inventory(const fs::path& root, const fs::path& config) {
     if (state.contains("workload")) app["bound_workload"] = state["workload"];
     if (state.contains("url")) app["url"] = state["url"];
     const auto manifest_path=!receipt.empty()?dir/"app.yaml":app.contains("bundled_path")?fs::path(app.at("bundled_path").get<std::string>()):fs::path();
-    if(!manifest_path.empty()&&fs::is_regular_file(manifest_path))app["interfaces"]=read_profile_file(manifest_path).value("interfaces",json::array());
+    if(!manifest_path.empty()&&fs::is_regular_file(manifest_path)){
+      const auto manifest=read_profile_file(manifest_path);
+      app["interfaces"]=manifest.value("interfaces",json::array());
+      app["required_operations"]=manifest.at("requirements").at("operations");
+      app["service"]=manifest.at("launch").contains("static_entry")?"static":manifest.at("launch").contains("port")?"http":"native";
+    }
     const auto connections = read_json(root / "config/app-connections" / (id + ".json"));
     if (!connections.empty()) {
       app["connections"] = json::object();
@@ -342,6 +357,12 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
     const auto doc = read_profile_file(dir / "app.yaml"); validate_app_manifest(doc);
     { Lock lock(root); verify_installed_app(dir, doc); }
     const auto& launch = doc.at("launch");
+    if(launch.contains("static_entry")){
+      const auto server=local_server_status(root);
+      if(!server.value("dashboard",false))throw std::runtime_error("Open static apps through the running Mica Client UI, or enable the host server dashboard");
+      const auto url=server.at("dashboard_url").get<std::string>()+"?app="+id;
+      std::cout<<url<<'\n';if(!url_only)open_browser(url);return 0;
+    }
     if (launch.contains("tui_arguments")) {
       if (url_only) throw std::runtime_error("This is a terminal app, not a web app. Use app open in an interactive terminal.");
       if (!accept) throw std::runtime_error("Opening downloaded code requires --accept-code; review app show first");
@@ -392,7 +413,8 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
       const int result=app_command(start,root,config,executable); if(result)return result;
     }
     const auto server = local_server_status(root);
-    auto url="http://127.0.0.1:"+std::to_string(launch.at("port").get<int>())+launch.at("path").get<std::string>();
+    auto url=read_json(statepath).value("url",std::string());
+    if(url.empty())throw std::runtime_error("App service is not running; start it before requesting its URL");
     if (server.value("dashboard",false)) {
       url=server.at("dashboard_url").get<std::string>()+"?app="+id;
       if(!url_only)for(const auto& address:server.at("network_dashboard_urls"))std::cout<<"On another device: "<<address.get<std::string>()<<"?app="<<id<<'\n';
@@ -516,7 +538,7 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
     std::cout << "Connection saved; choose it with app start --connection " << connection_name << ". No local inference required.\n"; return 0;
   }
   if (action == "show") { auto shown = doc; shown["catalogue_id"] = positional[0]; shown["installed"] = true; shown["running"] = running(state); if (state.contains("url")) shown["url"] = state["url"]; shown["registered_workloads"] = read_json(dir / "receipt.json").at("workloads"); std::cout << shown.dump(2) << '\n'; return 0; }
-  if (action == "stop") { if (running(state) && kill(state.at("pid").get<int>(), SIGTERM)) throw std::runtime_error("cannot stop app"); save(statepath, json::object()); std::cout << "App stopped; model server remains unchanged.\n"; return 0; }
+  if (action == "stop") { if (!state.value("static",false) && running(state) && kill(state.at("pid").get<int>(), SIGTERM)) throw std::runtime_error("cannot stop app"); save(statepath, json::object()); std::cout << "App stopped; model server remains unchanged.\n"; return 0; }
   if (action == "setup") {
     const auto workloads = read_json(dir / "receipt.json").at("workloads");
     if (positional.size() != 2 || std::find(workloads.begin(), workloads.end(), json(positional[1])) == workloads.end()) throw std::invalid_argument("setup needs a bundled workload ID; inspect app show");
@@ -551,6 +573,9 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
   if (!accept) throw std::runtime_error("Launching downloaded code requires --accept-code; review app show first");
   if (running(state)) throw std::runtime_error("app is already running");
   verify_installed_app(dir, doc);
+  if(doc.at("launch").contains("static_entry")&&doc.at("requirements").at("operations").empty()){
+    save(statepath,{{"static",true}});std::cout<<"Static app enabled; no process or private port allocated.\n";return 0;
+  }
   const auto connections = read_json(connections_path);
   if (connection_name.empty()) connection_name = connections.value("default", "");
   fs::path client_config = root / "config/server.json";
@@ -586,14 +611,17 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
       if (interaction.at("operation") == endpoint.at("operation")) operations.insert(endpoint.at("operation").get<std::string>());
   for (const auto& op : doc.at("requirements").at("operations")) if (!operations.contains(op.get<std::string>())) throw std::runtime_error("requested workload lacks required operation: " + op.get<std::string>());
   }
-  const auto& launch = doc.at("launch"); auto program = launch.at("executable").get<std::string>();
+  const auto& launch = doc.at("launch");
+  if(launch.contains("static_entry")){save(statepath,{{"static",true},{"workload",workload_binding},{"remote_connection",remote_connection}});std::cout<<"Static app enabled; no private port allocated.\n";return 0;}
+  auto program = launch.at("executable").get<std::string>();
+  const auto port_lease = launch.contains("port") ? ports::acquire(true) : nullptr;
   if (program.starts_with("{app_dir}/")) program = (dir / program.substr(10)).string();
   if (!command_exists(program)) throw std::runtime_error("app dependency is missing: " + program + " (Mica never installs arbitrary app dependencies silently)");
   std::vector<std::string> argv{program};
   for (const auto& raw : launch.at("arguments")) {
     auto arg = raw.get<std::string>();
     if (arg.find("{port}") != std::string::npos && !launch.contains("port")) throw std::invalid_argument("headless app cannot use {port}");
-    for (const auto& [key, value] : std::vector<std::pair<std::string, std::string>>{{"{app_dir}", dir.string()}, {"{mica_config}", client_config.string()}, {"{port}", std::to_string(launch.value("port", 0))}, {"{workload}", workload_binding}}) {
+    for (const auto& [key, value] : std::vector<std::pair<std::string, std::string>>{{"{app_dir}", dir.string()}, {"{mica_config}", client_config.string()}, {"{port}", std::to_string(port_lease ? port_lease->port() : 0)}, {"{workload}", workload_binding}}) {
       std::size_t pos = 0; while ((pos = arg.find(key, pos)) != std::string::npos) { arg.replace(pos, key.size(), value); pos += value.size(); }
     }
     argv.push_back(arg);
@@ -603,12 +631,12 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
   const int output = open(log.c_str(), O_CREAT | O_WRONLY | O_APPEND | O_NOFOLLOW | O_CLOEXEC, 0600);
   if (output < 0) throw std::runtime_error("cannot open app log");
   const auto pid = fork();
-  if (pid == 0) { setsid(); chdir(dir.c_str()); dup2(output, STDOUT_FILENO); dup2(output, STDERR_FILENO); close(output); const int input = open("/dev/null", O_RDONLY); dup2(input, STDIN_FILENO); close(input); execvp(native[0], native.data()); _exit(127); }
+  if (pid == 0) { setsid(); if(chdir(dir.c_str()))_exit(126); dup2(output, STDOUT_FILENO); dup2(output, STDERR_FILENO); close(output); const int input = open("/dev/null", O_RDONLY); dup2(input, STDIN_FILENO); close(input); if(port_lease)port_lease->inherit_by_child(); execvp(native[0], native.data()); _exit(127); }
   close(output); if (pid < 0) throw std::runtime_error("cannot launch app");
   std::this_thread::sleep_for(std::chrono::milliseconds(300));
   const auto started = birth(pid); if (started.empty()) { waitpid(pid, nullptr, WNOHANG); throw std::runtime_error("app exited during launch; inspect its private log"); }
   state = {{"pid", pid}, {"birth", started}, {"workload", workload_binding}, {"remote_connection", remote_connection}};
-  if (launch.contains("port")) state["url"] = "http://127.0.0.1:" + std::to_string(launch.at("port").get<int>()) + launch.at("path").get<std::string>();
+  if (launch.contains("port")) state["url"] = "http://127.0.0.1:" + std::to_string(port_lease->port()) + launch.at("path").get<std::string>();
   save(statepath, state); std::cout << "App process launched: " << state.value("url", "headless") << " (check app list/log for readiness).\n"; return 0;
 }
 
