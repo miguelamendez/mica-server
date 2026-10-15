@@ -359,7 +359,8 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
       if (workload_binding.empty()) {
         auto registry=load_registry(config); merge_custom_models(registry,root); merge_installed_profiles(registry,root);
         const auto hardware=detect_hardware();
-        for (const auto& bundled:read_json(dir/"receipt.json").at("workloads"))
+        const auto bundled_workloads=read_json(dir/"receipt.json").at("workloads");
+        for (const auto& bundled:bundled_workloads)
           if(inspect_workload(registry,registry.profile(bundled.get<std::string>()),hardware,root).value("compatible",false)){workload_binding=bundled;break;}
       }
       auto program = launch.at("executable").get<std::string>();
@@ -565,7 +566,8 @@ int app_command(const std::vector<std::string>& arguments, const fs::path& defau
   if (workload_binding.empty()) {
     auto registry = load_registry(config); merge_installed_profiles(registry, root);
     const auto hardware = detect_hardware();
-    for (const auto& id : read_json(dir / "receipt.json").at("workloads"))
+    const auto bundled_workloads = read_json(dir / "receipt.json").at("workloads");
+    for (const auto& id : bundled_workloads)
       if (inspect_workload(registry, registry.profile(id.get<std::string>()), hardware, root).value("compatible", false)) { workload_binding = id; break; }
   }
   if (!workload_binding.empty() && (workload_binding.size() > 128 ||
