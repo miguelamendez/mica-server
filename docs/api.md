@@ -4,6 +4,48 @@ Mica exposes one OpenAI-compatible base URL for workload-selected models.
 Unless otherwise noted, routes require a bearer token. Requests can bind to
 different workloads on the same server; see [global scheduling](scheduling.md).
 
+## Pi model discovery
+
+The [Pi provider extension](../integrations/pi/mica/index.ts) discovers compatible
+workloads and their streaming chat models without changing the server default or
+loading workers. It registers a provider named `mica-WORKLOAD_ID` per workload,
+preserving `X-Mica-Workload` on every inference call. ASR, TTS and embeddings are
+not registered as chat models. Image input requires both model and engine support.
+
+On the device running Pi, copy the integration into its extension directory:
+
+```sh
+mkdir -p "$HOME/.pi/agent/extensions/mica"
+cp integrations/pi/mica/index.ts integrations/pi/mica/discovery.mjs \
+  "$HOME/.pi/agent/extensions/mica/"
+pi --list-models mica
+```
+
+Run those commands from a matching Mica checkout after updating the inference
+binary. No existing Pi provider configuration is overwritten. Startup discovery
+is automatic; `/mica-refresh` refreshes models and credentials, then `/model`
+selects an entry. A refresh outage retains the previous registrations.
+
+Local discovery reads `~/.mica/run/server.json` for the actual listener and
+inference-key path, preserving older configured ports such as 8092. Otherwise
+the default is `http://127.0.0.1:55000/v1` and `~/.mica/secrets/api-key`. Override
+with `MICA_BASE_URL`, `MICA_API_KEY_FILE` or `MICA_API_KEY`; `MICA_ROOT` selects a
+different local installation. Use `MICA_WORKLOAD=gpu_16g_coder` to restrict the
+provider to one workload. Only the inference key is needed, never the admin key.
+Remote endpoints must be explicitly configured and should use HTTPS or a trusted
+encrypted network. Discovery refuses redirects instead of forwarding credentials.
+
+`GET /v1/models` now reports each selected workload's `max_input_tokens`,
+`max_output_tokens`, `max_total_tokens`, `kv_cache_precision` and
+`max_concurrent_requests`. `context_window` aliases total tokens; `max_tokens`
+aliases the output ceiling. These are runtime allocations, not training limits.
+The extension skips models lacking valid budgets rather than guessing a context
+size, and does not install or download missing engines/models. Tool support is
+still the model/engine contract; discovery does not make an incompatible model
+tool-capable.
+
+## Authentication
+
 ```sh
 export MICA_BASE_URL=http://127.0.0.1:55000
 export MICA_API_KEY="$(< "$HOME/.mica/secrets/api-key")"
@@ -261,12 +303,22 @@ not present in the model's chat template. The current pinned templates provide:
 | Ternary Bonsai 2 27B | `none`, `low`, `medium`, `xhigh` | `xhigh` |
 | Spark-X2.5-4B | `none`, `on` | `on` |
 | MiniCPM-V 4.6 Thinking | `none`, `on` | `on` |
+| Qwen 3.8 27B (all target/drafter/projector bundles) | `none`, `on` | `on` |
+| Qwen 3.5 4B / 9B | `none`, `on` | `on` |
+
+Standard llama.cpp and its registered forks expose these controls too—not
+only Prism. For native llama.cpp, Mica translates binary `none`/`on` into
+the actual `chat_template_kwargs.enable_thinking` boolean. Conflicting
+explicit controls are rejected. Pi discovery advertises reasoning support
+and maps Pi's off setting to `none`; all enabled levels map to `on` for
+binary templates, not distinct low/medium/high reasoning strengths.
 
 Set `thinking_budget_tokens` to a nonnegative integer to cap thinking while
 leaving the remaining `max_tokens` for the visible answer. Mica maps it to
-Prism llama.cpp's `reasoning_budget_tokens` or MLX-VLM's `thinking_budget`.
+native llama.cpp's `reasoning_budget_tokens` or MLX-VLM's `thinking_budget`.
 The alias `reasoning_budget_tokens` is also accepted; do not send both. The
-budget is available on the pinned Prism and MLX-VLM workers, not on arbitrary
+budget is available on the pinned llama.cpp, Prism and MLX-VLM workers when
+declared by the model manifest, not on arbitrary
 vLLM or MLX-LM workers. `reasoning_effort: "none"` disables thinking and makes
 a budget unnecessary. An effort level changes the template instructions; only
 the token budget provides a hard thinking cap.

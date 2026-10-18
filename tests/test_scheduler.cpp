@@ -459,6 +459,11 @@ int main() {
   assert((bonsai_thinking.thinking_modes ==
           std::vector<std::string>{"none", "low", "medium", "xhigh"}));
   assert(bonsai_thinking.thinking_budget_supported);
+  for (const auto* id : {"qwen38-27b-text", "qwen38-27b-text-dflash",
+                         "qwen38-27b-vision-mtp", "qwen38-27b-gsq-rco"}) {
+    assert((registry.model(id).thinking_modes == std::vector<std::string>{"none", "on"}));
+    assert(registry.model(id).thinking_budget_supported);
+  }
   assert((registry.model("minicpm-v46-thinking").thinking_modes ==
           std::vector<std::string>{"none", "on"}));
   assert(coder.description.find("coding") != std::string::npos);

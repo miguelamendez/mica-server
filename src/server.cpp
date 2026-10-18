@@ -59,6 +59,10 @@ namespace {
 using json = nlohmann::json;
 using namespace std::chrono_literals;
 
+bool supports_thinking_controls(const EngineDefinition& engine) {
+  return engine.launcher == "llama-server" || engine.launcher == "mlx-vlm";
+}
+
 std::atomic<httplib::Server*> active_http_server{nullptr};
 
 double bytes_to_gib(std::uint64_t bytes) {
@@ -1692,17 +1696,6 @@ class WorkerManager {
                           {"tool_call_parsers", definition.tool_call_parsers},
                           {"supported_tasks", definition.supported_tasks},
                           {"supported_interactions", interactions},
-                          {"thinking_modes", artifact.engine == "prism-llama-cpp" ||
-                              (backend == Backend::mlx &&
-                               (definition.capability == "vision" ||
-                                definition.mlx_converter == "mlx_vlm.convert"))
-                                  ? definition.thinking_modes
-                                  : std::vector<std::string>{}},
-                          {"thinking_budget_supported", definition.thinking_budget_supported &&
-                              (artifact.engine == "prism-llama-cpp" ||
-                               (backend == Backend::mlx &&
-                                (definition.capability == "vision" ||
-                                 definition.mlx_converter == "mlx_vlm.convert")))},
                           {"backend", to_string(backend)},
                           {"quantization", to_string(quantization)},
                           {"engine", artifact.engine},
@@ -1723,6 +1716,19 @@ class WorkerManager {
                                              ? definition.repositories.at(backend)
                                              : artifact.files.front().repository},
                           {"state", loaded == workers_.end() || !compatible_worker(*loaded->second, profile.policy_for(id)) ? "stopped" : "ready"}};
+          // Client limits describe this workload's runtime allocation, not the
+          // architecture's theoretical context or a model-card recommendation.
+          const auto* limits = profile.policy_for(id);
+          const auto total_tokens = limits ? limits->max_total_tokens : profile.max_total_tokens;
+          const auto output_tokens = limits ? limits->max_output_tokens : profile.max_output_tokens;
+          item["workload"] = profile.name;
+          item["max_input_tokens"] = limits ? limits->max_input_tokens : profile.max_input_tokens;
+          item["max_output_tokens"] = output_tokens;
+          item["max_total_tokens"] = total_tokens;
+          item["context_window"] = total_tokens;
+          item["max_tokens"] = output_tokens;
+          item["kv_cache_precision"] = limits ? limits->kv_cache_precision : profile.kv_cache_precision;
+          item["max_concurrent_requests"] = limits ? limits->max_concurrent_requests : profile.max_concurrent_requests;
           if (const auto* policy = profile.policy_for(id)) {
             item["native_options"] = profile_native_options(*policy);
             item["engine"] = policy->engine;
@@ -1735,6 +1741,10 @@ class WorkerManager {
           }
           json contracts = json::array();
           const auto& engine = registry_.engine(item.at("engine").get<std::string>());
+          item["thinking_modes"] = supports_thinking_controls(engine)
+              ? definition.thinking_modes : std::vector<std::string>{};
+          item["thinking_budget_supported"] = definition.thinking_budget_supported &&
+              supports_thinking_controls(engine);
           for (const auto& endpoint : engine.endpoint_contracts) {
             contracts.push_back({{"operation", endpoint.operation},
                                  {"required_inputs", endpoint.required_inputs},
@@ -2666,8 +2676,7 @@ std::string rewrite_json_model(const std::string& body, const Worker& worker,
   const bool mlx_vlm_worker = worker.backend == Backend::mlx &&
       (worker.model->capability == "vision" ||
        worker.engine->launcher == "mlx-vlm");
-  const bool thinking_worker = worker.engine->id == "prism-llama-cpp" ||
-      mlx_vlm_worker;
+  const bool thinking_worker = supports_thinking_controls(*worker.engine);
   if (parsed.contains("reasoning_effort")) {
     if (!parsed["reasoning_effort"].is_string()) {
       throw std::invalid_argument("reasoning_effort must be a string");
@@ -2679,6 +2688,20 @@ std::string rewrite_json_model(const std::string& body, const Worker& worker,
         worker.model->thinking_modes.end()) {
       throw std::invalid_argument("unsupported thinking mode for " + worker.model->id +
                                   ": " + mode);
+    }
+    if (worker.engine->launcher == "llama-server") {
+      if (!parsed.contains("chat_template_kwargs")) parsed["chat_template_kwargs"] = json::object();
+      auto& kwargs = parsed["chat_template_kwargs"];
+      if (!kwargs.is_object()) throw std::invalid_argument("chat_template_kwargs must be an object");
+      const bool enabled = mode != "none";
+      if (kwargs.contains("enable_thinking") &&
+          (!kwargs["enable_thinking"].is_boolean() ||
+           kwargs["enable_thinking"].get<bool>() != enabled))
+        throw std::invalid_argument("reasoning_effort conflicts with chat_template_kwargs.enable_thinking");
+      kwargs["enable_thinking"] = enabled;
+      // Binary templates use enable_thinking, not an invented effort level.
+      // Keep real template effort levels (e.g. Bonsai's low/medium/xhigh).
+      if (mode == "on") parsed.erase("reasoning_effort");
     }
   }
   const bool has_reasoning_budget = parsed.contains("reasoning_budget_tokens");

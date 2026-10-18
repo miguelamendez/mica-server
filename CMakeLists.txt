@@ -165,6 +165,11 @@ if(MICA_SERVER_BUILD_TESTS)
   add_test(NAME mica-server-global-scheduler
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_global_scheduler.py
             $<TARGET_FILE:mica-server> ${CMAKE_CURRENT_SOURCE_DIR}/config)
+  find_program(MICA_NODE_EXECUTABLE node)
+  if(MICA_NODE_EXECUTABLE)
+    add_test(NAME mica-server-pi-discovery
+      COMMAND ${MICA_NODE_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_pi_discovery.mjs)
+  endif()
   add_test(NAME mica-server-app-packages
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_apps.py
             $<TARGET_FILE:mica-server> ${CMAKE_CURRENT_SOURCE_DIR}/config)
@@ -986,3 +991,4 @@ install(FILES schemas/app-v1.schema.json schemas/app-index-v1.schema.json
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/schemas)
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/docs
         FILES_MATCHING PATTERN "*.md")
+install(DIRECTORY integrations/pi/mica DESTINATION ${CMAKE_INSTALL_DATADIR}/mica-server/integrations/pi)

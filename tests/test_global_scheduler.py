@@ -38,7 +38,7 @@ class Handler(BaseHTTPRequestHandler):
     self.wfile.write(b'data: {"choices":[{"delta":{"content":"start"}}]}\\n\\n');self.wfile.flush();time.sleep(1)
     self.wfile.write(b'data: [DONE]\\n\\n');return
    if text=='hold':time.sleep(1)
-   data={'worker_pid':os.getpid(),'choices':[{'message':{'content':'MICA_OK_31415'}}]}
+   data={'worker_pid':os.getpid(),'forwarded':body,'choices':[{'message':{'content':'MICA_OK_31415'}}]}
   encoded=json.dumps(data).encode();self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(encoded)));self.end_headers();self.wfile.write(encoded)
 ThreadingHTTPServer(('127.0.0.1',args.port),Handler).serve_forever()
 '''
@@ -130,8 +130,9 @@ models:
         headers={"Authorization":"Bearer "+TOKEN} if auth else {}
         with urllib.request.urlopen(urllib.request.Request(f"http://127.0.0.1:{self.port}"+path,headers=headers),timeout=15) as r:return json.load(r)
 
-    def chat(self, workload, text="hello", stream=False, header=False):
+    def chat(self, workload, text="hello", stream=False, header=False, **extra):
         payload={"messages":[{"role":"user","content":text}],"max_tokens":16,"stream":stream}
+        payload.update(extra)
         headers={"Authorization":"Bearer "+TOKEN,"Content-Type":"application/json"}
         if header:headers["X-Mica-Workload"]=workload
         else:payload["workload"]=workload
@@ -164,6 +165,42 @@ models:
         self.chat("app-a");self.chat("app-b")
         self.assertEqual(len(self.workers()),1)
         self.assertIn("q8",self.workers()[0]["id"])
+
+    def test_discovery_limits_follow_requested_workload_without_loading(self):
+        self.start("single")
+        for workload, input_tokens in (("app-a", 512), ("different-context", 1024)):
+            payload = self.get("/v1/models?workload=" + workload)
+            self.assertEqual(payload["profile"], workload)
+            model = payload["data"][0]
+            self.assertEqual(model["workload"], workload)
+            self.assertEqual(model["max_input_tokens"], input_tokens)
+            self.assertEqual(model["max_output_tokens"], 128)
+            self.assertEqual(model["max_total_tokens"], input_tokens + 128)
+            self.assertEqual(model["context_window"], model["max_total_tokens"])
+            self.assertEqual(model["max_tokens"], model["max_output_tokens"])
+            self.assertEqual(model["kv_cache_precision"], "q8")
+            self.assertEqual(model["max_concurrent_requests"], 1)
+            self.assertEqual(model["thinking_modes"], ["none", "on"])
+            self.assertTrue(model["thinking_budget_supported"])
+        self.assertFalse(self.workers())
+        self.assertEqual(self.get("/v1/models")["profile"], "app-a")
+
+    def test_native_llama_thinking_controls_are_forwarded_and_validated(self):
+        self.start("single")
+        for mode, enabled in (("none", False), ("on", True)):
+            forwarded = self.chat("app-a", reasoning_effort=mode,
+                                  thinking_budget_tokens=8)["forwarded"]
+            self.assertEqual(forwarded["chat_template_kwargs"]["enable_thinking"], enabled)
+            self.assertEqual(forwarded["reasoning_budget_tokens"], 8)
+            self.assertNotIn("thinking_budget_tokens", forwarded)
+            if mode == "on": self.assertNotIn("reasoning_effort", forwarded)
+        for extra in ({"reasoning_effort": "high"},
+                      {"reasoning_effort": "on", "chat_template_kwargs": {"enable_thinking": False}},
+                      {"reasoning_effort": "on", "chat_template_kwargs": []},
+                      {"thinking_budget_tokens": -1},
+                      {"thinking_budget_tokens": 1, "reasoning_budget_tokens": 1}):
+            with self.assertRaises(urllib.error.HTTPError) as failure: self.chat("app-a", **extra)
+            self.assertEqual(failure.exception.code, 400)
 
     def test_single_waits_for_stream_then_offloads(self):
         self.start("single")
