@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package mica.assistant.v1;
+
+import "mica/common/v1/common.proto";
+
+message CreateSessionRequest {
+  mica.common.v1.RequestContext context = 1;
+  string title = 2;
+  string connection_id = 3;
+}
+
+message Session {
+  string id = 1;
+  string title = 2;
+  string connection_id = 3;
+  uint64 last_sequence = 4;
+}
+
+message SubmitMessageRequest {
+  mica.common.v1.RequestContext context = 1;
+  string session_id = 2;
+  repeated mica.common.v1.ContentPart content = 3;
+  bool spoken_reply = 4;
+}
+
+message AssistantEvent {
+  string session_id = 1;
+  uint64 sequence = 2;
+  oneof payload {
+    string text_delta = 3;
+    string current_step = 4;
+    mica.common.v1.BlobReference audio = 5;
+    mica.common.v1.AppError error = 6;
+    mica.common.v1.JobEvent job = 7;
+  }
+}
+
+message ImportSessionRequest {
+  mica.common.v1.RequestContext context = 1;
+  mica.common.v1.BlobReference archive = 2;
+}
+
+message ConfigureAssistantRequest {
+  mica.common.v1.RequestContext context = 1;
+  string session_id = 2;
+  string system_prompt = 3;
+  repeated string allowed_tools = 4;
+}
+
+service AssistantService {
+  rpc CreateSession(CreateSessionRequest) returns (Session);
+  rpc GetSession(mica.common.v1.ResourceRequest) returns (Session);
+  rpc SubmitMessage(SubmitMessageRequest) returns (mica.common.v1.Job);
+  rpc WatchSession(mica.common.v1.WatchRequest) returns (stream AssistantEvent);
+  rpc ExportSession(mica.common.v1.ResourceRequest) returns (mica.common.v1.BlobReference);
+  rpc ImportSession(ImportSessionRequest) returns (Session);
+}
+
+service AssistantControlService {
+  rpc ConfigureConnection(mica.common.v1.ConfigureConnectionRequest) returns (mica.common.v1.Connection);
+  rpc ConfigureAssistant(ConfigureAssistantRequest) returns (Session);
+}

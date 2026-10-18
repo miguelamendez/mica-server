@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package mica.common.v1;
+
+import "google/protobuf/timestamp.proto";
+import "mica/common/v1/common.proto";
+
+message Device {
+  string id = 1;
+  string kind = 2;
+  string vendor = 3;
+  string name = 4;
+  optional uint64 memory_bytes = 5;
+  bool unified_memory = 6;
+  repeated string runtimes = 7;
+  string driver_version = 8;
+  string probe_status = 9;
+}
+
+message HardwareSnapshot {
+  string node_id = 1;
+  google.protobuf.Timestamp observed_at = 2;
+  string os = 3;
+  string architecture = 4;
+  string environment = 5;
+  uint32 logical_cpus = 6;
+  optional uint64 physical_memory_bytes = 7;
+  optional uint64 available_memory_bytes = 8;
+  repeated Device devices = 9;
+  repeated string warnings = 10;
+}
+
+message HardwareRequest {
+  bool refresh = 1;
+}
+
+message MachinePolicy {
+  optional uint64 ram_limit_bytes = 1;
+  map<string, uint64> device_memory_limit_bytes = 2;
+  repeated string allowed_devices = 3;
+  optional uint64 build_memory_limit_bytes = 4;
+  optional uint32 build_jobs = 5;
+}
+
+message SetMachinePolicyRequest {
+  RequestContext context = 1;
+  MachinePolicy policy = 2;
+}
+
+// Implemented over a shared local discovery library, not calls through Mica.
+service HardwareService {
+  rpc GetHardware(HardwareRequest) returns (HardwareSnapshot);
+}

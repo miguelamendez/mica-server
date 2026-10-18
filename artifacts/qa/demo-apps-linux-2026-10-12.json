@@ -1,0 +1,254 @@
+{
+  "schema": 1,
+  "real_inference": true,
+  "microphone_hotkey_paste": "requires-desktop-user",
+  "audio_fixture": "q8_0-plain.wav",
+  "expected": "Daddy, can you read me a bedtime story before I go to sleep?",
+  "checks": [
+    {
+      "name": "workload-discovery",
+      "workload": "mica-assistant--cuda",
+      "models": [
+        "spark-x25-4b",
+        "granite-speech-5",
+        "audio8-tts-06b",
+        "minicpm-v46-thinking"
+      ]
+    },
+    {
+      "name": "workload-discovery",
+      "workload": "mica-dictation--cuda",
+      "models": [
+        "spark-x25-4b",
+        "granite-speech-5"
+      ]
+    },
+    {
+      "name": "native-dictation-asr",
+      "text": "daddy can you read me a bedtime story before i go to sleep",
+      "wall_seconds": 0.49203569399833214,
+      "cleanup_fallback": false,
+      "word_match": true,
+      "state": {
+        "default_workload": "mica-spark-small-gguf",
+        "scheduler": {
+          "active_app_workloads": [
+            "mica-assistant--cuda"
+          ],
+          "high_priority_minimum": 100,
+          "last_request_workload": "mica-dictation--cuda",
+          "memory_basis": "weights + components + context KV + batching + runtime overhead estimates",
+          "queued_requests": 0,
+          "strategy": "single"
+        },
+        "workers": [
+          {
+            "id": "granite-speech-5@gguf:q8",
+            "pid": 173582
+          }
+        ],
+        "reserved_ram_gib": 1.4,
+        "reserved_vram_gib": 0.0
+      }
+    },
+    {
+      "name": "assistant-through-app-route",
+      "answer": "MICA_APPS_OK",
+      "wall_seconds": 2.2678290580079192,
+      "state": {
+        "default_workload": "mica-spark-small-gguf",
+        "scheduler": {
+          "active_app_workloads": [
+            "mica-assistant--cuda"
+          ],
+          "high_priority_minimum": 100,
+          "last_request_workload": "mica-assistant--cuda",
+          "memory_basis": "weights + components + context KV + batching + runtime overhead estimates",
+          "queued_requests": 0,
+          "strategy": "single"
+        },
+        "workers": [
+          {
+            "id": "spark-x25-4b@gguf:q4",
+            "pid": 173628
+          }
+        ],
+        "reserved_ram_gib": 0.5,
+        "reserved_vram_gib": 10.7765625
+      }
+    },
+    {
+      "name": "native-dictation-asr-and-llm",
+      "text": "Daddy, can you read me a bedtime story before I go to sleep?",
+      "wall_seconds": 7.81504908700299,
+      "cleanup_fallback": false,
+      "state": {
+        "default_workload": "mica-spark-small-gguf",
+        "scheduler": {
+          "active_app_workloads": [
+            "mica-assistant--cuda"
+          ],
+          "high_priority_minimum": 100,
+          "last_request_workload": "mica-dictation--cuda",
+          "memory_basis": "weights + components + context KV + batching + runtime overhead estimates",
+          "queued_requests": 0,
+          "strategy": "single"
+        },
+        "workers": [
+          {
+            "id": "spark-x25-4b@gguf:q4",
+            "pid": 173693
+          }
+        ],
+        "reserved_ram_gib": 0.5,
+        "reserved_vram_gib": 5.2482421875
+      }
+    },
+    {
+      "name": "two-app-overlapping-requests-single-strategy",
+      "results": [
+        {
+          "answer": "MICA_APPS_OK",
+          "wall_seconds": 2.817070571007207
+        },
+        {
+          "text": "Daddy, can you read me a bedtime story before I go to sleep?",
+          "wall_seconds": 11.054737496000598,
+          "cleanup_fallback": false
+        }
+      ],
+      "state": {
+        "default_workload": "mica-spark-small-gguf",
+        "scheduler": {
+          "active_app_workloads": [
+            "mica-assistant--cuda"
+          ],
+          "high_priority_minimum": 100,
+          "last_request_workload": "mica-dictation--cuda",
+          "memory_basis": "weights + components + context KV + batching + runtime overhead estimates",
+          "queued_requests": 0,
+          "strategy": "single"
+        },
+        "workers": [
+          {
+            "id": "spark-x25-4b@gguf:q4",
+            "pid": 173789
+          }
+        ],
+        "reserved_ram_gib": 0.5,
+        "reserved_vram_gib": 5.2482421875
+      }
+    },
+    {
+      "name": "actual-mcp-mica-dictation",
+      "tool": "transcribe",
+      "passed": true
+    },
+    {
+      "name": "actual-mcp-mica-assistant",
+      "tool": "assistant_chat",
+      "passed": true
+    },
+    {
+      "name": "balanced-dictation",
+      "text": "daddy can you read me a bedtime story before i go to sleep",
+      "wall_seconds": 0.5022354529937729,
+      "cleanup_fallback": false,
+      "state": {
+        "default_workload": "mica-spark-small-gguf",
+        "scheduler": {
+          "active_app_workloads": [
+            "mica-assistant--cuda"
+          ],
+          "high_priority_minimum": 100,
+          "last_request_workload": "mica-dictation--cuda",
+          "memory_basis": "weights + components + context KV + batching + runtime overhead estimates",
+          "queued_requests": 0,
+          "strategy": "balanced"
+        },
+        "workers": [
+          {
+            "id": "granite-speech-5@gguf:q8",
+            "pid": 173904
+          },
+          {
+            "id": "spark-x25-4b@gguf:q4",
+            "pid": 173880
+          }
+        ],
+        "reserved_ram_gib": 1.9,
+        "reserved_vram_gib": 10.7765625
+      }
+    },
+    {
+      "name": "balanced-assistant",
+      "answer": "MICA_APPS_OK",
+      "wall_seconds": 1.0028763739974238,
+      "state": {
+        "default_workload": "mica-spark-small-gguf",
+        "scheduler": {
+          "active_app_workloads": [
+            "mica-assistant--cuda"
+          ],
+          "high_priority_minimum": 100,
+          "last_request_workload": "mica-assistant--cuda",
+          "memory_basis": "weights + components + context KV + batching + runtime overhead estimates",
+          "queued_requests": 0,
+          "strategy": "balanced"
+        },
+        "workers": [
+          {
+            "id": "granite-speech-5@gguf:q8",
+            "pid": 173904
+          },
+          {
+            "id": "spark-x25-4b@gguf:q4",
+            "pid": 173880
+          }
+        ],
+        "reserved_ram_gib": 1.9,
+        "reserved_vram_gib": 10.7765625
+      }
+    },
+    {
+      "name": "balanced-dictation-again",
+      "text": "daddy can you read me a bedtime story before i go to sleep",
+      "wall_seconds": 0.1182634249998955,
+      "cleanup_fallback": false,
+      "state": {
+        "default_workload": "mica-spark-small-gguf",
+        "scheduler": {
+          "active_app_workloads": [
+            "mica-assistant--cuda"
+          ],
+          "high_priority_minimum": 100,
+          "last_request_workload": "mica-dictation--cuda",
+          "memory_basis": "weights + components + context KV + batching + runtime overhead estimates",
+          "queued_requests": 0,
+          "strategy": "balanced"
+        },
+        "workers": [
+          {
+            "id": "granite-speech-5@gguf:q8",
+            "pid": 173904
+          },
+          {
+            "id": "spark-x25-4b@gguf:q4",
+            "pid": 173880
+          }
+        ],
+        "reserved_ram_gib": 1.9,
+        "reserved_vram_gib": 10.7765625
+      }
+    },
+    {
+      "name": "no-server-restart-or-default-change",
+      "pid_unchanged": true,
+      "default_unchanged": true
+    }
+  ],
+  "revision": "714a60680548",
+  "previous_strategy": "balanced",
+  "passed": true,
+  "strategy_restored": true
+}

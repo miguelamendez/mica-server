@@ -1,0 +1,167 @@
+syntax = "proto3";
+
+package mica.infer.v1;
+
+import "google/protobuf/struct.proto";
+import "mica/common/v1/common.proto";
+import "mica/common/v1/hardware.proto";
+
+message Model {
+  string id = 1;
+  string description = 2;
+  repeated mica.common.v1.Capability capabilities = 3;
+  repeated string supported_engines = 4;
+  repeated string artifact_ids = 5;
+  mica.common.v1.Compatibility compatibility = 6;
+  bool installed = 7;
+}
+
+message ListModelsRequest {
+  mica.common.v1.ListRequest page = 1;
+  string workload_id = 2;
+  repeated string required_operations = 3;
+  repeated string required_inputs = 4;
+}
+
+message ListModelsResponse {
+  repeated Model models = 1;
+  string next_page_token = 2;
+}
+
+message Message {
+  string role = 1;
+  repeated mica.common.v1.ContentPart content = 2;
+  string tool_call_id = 3;
+}
+
+message ToolDefinition {
+  string name = 1;
+  string description = 2;
+  google.protobuf.Struct input_schema = 3;
+}
+
+message ToolCall {
+  string id = 1;
+  string name = 2;
+  google.protobuf.Struct arguments = 3;
+}
+
+message GenerateRequest {
+  mica.common.v1.RequestContext context = 1;
+  string workload_id = 2;
+  string model_id = 3;
+  repeated Message messages = 4;
+  uint32 max_output_tokens = 5;
+  google.protobuf.Struct sampling = 6;
+  repeated ToolDefinition tools = 7;
+  // Bounded model-specific reasoning settings; validated by Infer.
+  google.protobuf.Struct reasoning = 8;
+}
+
+message Generation {
+  string request_id = 1;
+  string model_id = 2;
+  string text = 3;
+  repeated ToolCall tool_calls = 4;
+  string finish_reason = 5;
+  uint64 input_tokens = 6;
+  uint64 output_tokens = 7;
+}
+
+message GenerationEvent {
+  string request_id = 1;
+  uint64 sequence = 2;
+  oneof payload {
+    string text_delta = 3;
+    ToolCall tool_call = 4;
+    Generation result = 5;
+    mica.common.v1.AppError error = 6;
+  }
+}
+
+message EmbedRequest {
+  mica.common.v1.RequestContext context = 1;
+  string workload_id = 2;
+  string model_id = 3;
+  string task = 4;
+  repeated Message inputs = 5;
+}
+
+message Embedding {
+  repeated float values = 1;
+}
+
+message EmbedResponse {
+  string model_revision = 1;
+  repeated Embedding embeddings = 2;
+  string normalization = 3;
+}
+
+message TranscribeRequest {
+  mica.common.v1.RequestContext context = 1;
+  string workload_id = 2;
+  string model_id = 3;
+  mica.common.v1.BlobReference audio = 4;
+  string language = 5;
+  bool diarization = 6;
+}
+
+message TranscriptSegment {
+  string text = 1;
+  uint64 start_ms = 2;
+  uint64 end_ms = 3;
+  string speaker_id = 4;
+}
+
+message Transcript {
+  string text = 1;
+  repeated TranscriptSegment segments = 2;
+}
+
+message SynthesizeRequest {
+  mica.common.v1.RequestContext context = 1;
+  string workload_id = 2;
+  string model_id = 3;
+  string text = 4;
+  optional mica.common.v1.BlobReference voice_reference = 5;
+}
+
+message Workload {
+  string id = 1;
+  string description = 2;
+  repeated string model_ids = 3;
+  mica.common.v1.Compatibility compatibility = 4;
+  bool prepared = 5;
+}
+
+message ListWorkloadsResponse {
+  repeated Workload workloads = 1;
+  string next_page_token = 2;
+}
+
+message WorkloadActionRequest {
+  mica.common.v1.RequestContext context = 1;
+  string workload_id = 2;
+}
+
+message SetStrategyRequest {
+  mica.common.v1.RequestContext context = 1;
+  string strategy = 2;
+}
+
+service InferService {
+  rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
+  rpc Generate(GenerateRequest) returns (Generation);
+  rpc GenerateStream(GenerateRequest) returns (stream GenerationEvent);
+  rpc Embed(EmbedRequest) returns (EmbedResponse);
+  rpc Transcribe(TranscribeRequest) returns (Transcript);
+  rpc Synthesize(SynthesizeRequest) returns (mica.common.v1.BlobReference);
+}
+
+service InferControlService {
+  rpc ListWorkloads(mica.common.v1.ListRequest) returns (ListWorkloadsResponse);
+  rpc PrepareWorkload(WorkloadActionRequest) returns (mica.common.v1.Job);
+  rpc SetDefaultWorkload(WorkloadActionRequest) returns (Workload);
+  rpc SetMachinePolicy(mica.common.v1.SetMachinePolicyRequest) returns (mica.common.v1.MachinePolicy);
+  rpc SetStrategy(SetStrategyRequest) returns (mica.common.v1.Job);
+}

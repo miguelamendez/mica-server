@@ -1,0 +1,142 @@
+syntax = "proto3";
+
+package mica.common.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// Draft contracts: no current Mica binary claims to implement these services.
+// Credentials are transport metadata, never fields in catalogue responses.
+message RequestContext {
+  string request_id = 1;
+  string idempotency_key = 2;
+}
+
+message EmptyRequest {}
+
+message ResourceRequest {
+  string id = 1;
+}
+
+message ListRequest {
+  uint32 page_size = 1;
+  string page_token = 2;
+  bool show_all = 3;
+}
+
+message Compatibility {
+  // compatible, incompatible, unknown, unprepared or degraded.
+  string status = 1;
+  repeated string reasons = 2;
+}
+
+message Capability {
+  string operation = 1;
+  repeated string input_modalities = 2;
+  repeated string output_modalities = 3;
+  bool streaming = 4;
+  Compatibility compatibility = 5;
+}
+
+message Node {
+  string id = 1;
+  string app_id = 2;
+  string app_version = 3;
+  string schema_version = 4;
+  string readiness = 5;
+  repeated Capability capabilities = 6;
+  repeated string protocols = 7;
+}
+
+message AppError {
+  string code = 1;
+  string message = 2;
+  bool retryable = 3;
+  google.protobuf.Struct details = 4;
+}
+
+message Job {
+  string id = 1;
+  string state = 2;
+  uint64 last_sequence = 3;
+  AppError error = 4;
+}
+
+message WatchRequest {
+  string resource_id = 1;
+  uint64 after_sequence = 2;
+}
+
+message JobEvent {
+  string job_id = 1;
+  uint64 sequence = 2;
+  google.protobuf.Timestamp time = 3;
+  string state = 4;
+  string message = 5;
+  optional double progress = 6;
+  AppError error = 7;
+}
+
+message CancelRequest {
+  RequestContext context = 1;
+  string job_id = 2;
+}
+
+message Connection {
+  string id = 1;
+  string node_id = 2;
+  string endpoint = 3;
+  string workload_id = 4;
+  // Local secret-store handle; never the credential value.
+  string credential_reference = 5;
+  string addressing_mode = 6;
+}
+
+message ConfigureConnectionRequest {
+  RequestContext context = 1;
+  Connection connection = 2;
+}
+
+message BlobReference {
+  // Scoped to an app/node. No arbitrary filesystem path dereference.
+  string id = 1;
+  string media_type = 2;
+  uint64 size_bytes = 3;
+  string sha256 = 4;
+}
+
+message PutBlobRequest {
+  RequestContext context = 1;
+  string media_type = 2;
+  bytes data = 3;
+  string sha256 = 4;
+}
+
+message BlobData {
+  BlobReference reference = 1;
+  bytes data = 2;
+}
+
+message ContentPart {
+  oneof content {
+    string text = 1;
+    BlobReference media = 2;
+  }
+}
+
+// Every app registers the same common node contract, with its own identity.
+service NodeService {
+  rpc Describe(EmptyRequest) returns (Node);
+}
+
+// Blob size/range limits and resumable transfer are capability-negotiated.
+service BlobService {
+  rpc PutBlob(PutBlobRequest) returns (BlobReference);
+  rpc GetBlob(ResourceRequest) returns (BlobData);
+}
+
+service JobService {
+  rpc GetJob(ResourceRequest) returns (Job);
+  rpc WatchJob(WatchRequest) returns (stream JobEvent);
+  rpc CancelJob(CancelRequest) returns (Job);
+}

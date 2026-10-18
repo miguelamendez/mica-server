@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package mica.search.v1;
+
+import "mica/common/v1/common.proto";
+
+message Collection {
+  string id = 1;
+  string description = 2;
+  string embedding_model_revision = 3;
+  uint32 dimensions = 4;
+  string metric = 5;
+  string normalization = 6;
+  string chunking_version = 7;
+  string task_format_version = 8;
+}
+
+message CreateCollectionRequest {
+  mica.common.v1.RequestContext context = 1;
+  Collection collection = 2;
+  string connection_id = 3;
+}
+
+message AddSourceRequest {
+  mica.common.v1.RequestContext context = 1;
+  string collection_id = 2;
+  // Local authorized root or Android document-tree grant, never remote access.
+  string source_uri = 3;
+  bool recursive = 4;
+  repeated string include_types = 5;
+  repeated string exclude_patterns = 6;
+}
+
+message IngestRequest {
+  mica.common.v1.RequestContext context = 1;
+  string collection_id = 2;
+  string source_id = 3;
+  bool rebuild = 4;
+}
+
+message QueryRequest {
+  mica.common.v1.RequestContext context = 1;
+  string collection_id = 2;
+  repeated mica.common.v1.ContentPart content = 3;
+  uint32 top_n = 4;
+  repeated string source_ids = 5;
+  repeated string media_types = 6;
+}
+
+message Locator {
+  string file_id = 1;
+  string display_path = 2;
+  optional uint32 page = 3;
+  optional uint64 start_ms = 4;
+  optional uint64 end_ms = 5;
+  optional uint64 start_offset = 6;
+  optional uint64 end_offset = 7;
+  string section = 8;
+}
+
+message Match {
+  string chunk_id = 1;
+  double score = 2;
+  Locator locator = 3;
+  string snippet = 4;
+  optional mica.common.v1.BlobReference preview = 5;
+}
+
+message QueryResponse {
+  repeated Match matches = 1;
+  string embedding_model_revision = 2;
+  string metric = 3;
+}
+
+message Source {
+  string id = 1;
+  string collection_id = 2;
+  string source_uri = 3;
+  bool recursive = 4;
+}
+
+message RemoveSourceRequest {
+  mica.common.v1.RequestContext context = 1;
+  string collection_id = 2;
+  string source_id = 3;
+}
+
+service SearchService {
+  rpc Query(QueryRequest) returns (QueryResponse);
+  rpc Ingest(IngestRequest) returns (mica.common.v1.Job);
+}
+
+service SearchControlService {
+  rpc ConfigureConnection(mica.common.v1.ConfigureConnectionRequest) returns (mica.common.v1.Connection);
+  rpc CreateCollection(CreateCollectionRequest) returns (Collection);
+  rpc AddSource(AddSourceRequest) returns (Source);
+  rpc RemoveSource(RemoveSourceRequest) returns (mica.common.v1.Job);
+}

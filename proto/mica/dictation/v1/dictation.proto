@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package mica.dictation.v1;
+
+import "mica/common/v1/common.proto";
+
+message RecordingActionRequest {
+  mica.common.v1.RequestContext context = 1;
+  string recording_id = 2;
+}
+
+message Recording {
+  string id = 1;
+  string state = 2;
+  string transcript = 3;
+  string cleaned_text = 4;
+}
+
+message TranscribeFileRequest {
+  mica.common.v1.RequestContext context = 1;
+  mica.common.v1.BlobReference audio = 2;
+  bool cleanup = 3;
+  bool diarization = 4;
+}
+
+message ConfigureDictationRequest {
+  mica.common.v1.RequestContext context = 1;
+  bool cleanup = 2;
+  bool copy_to_clipboard = 3;
+  bool auto_paste = 4;
+  string shortcut = 5;
+}
+
+service DictationService {
+  // Local authorized device calls; never activated by opening configuration.
+  rpc StartRecording(RecordingActionRequest) returns (Recording);
+  rpc StopRecording(RecordingActionRequest) returns (mica.common.v1.Job);
+  rpc CancelRecording(RecordingActionRequest) returns (Recording);
+  rpc GetRecording(mica.common.v1.ResourceRequest) returns (Recording);
+  rpc TranscribeFile(TranscribeFileRequest) returns (mica.common.v1.Job);
+}
+
+service DictationControlService {
+  rpc ConfigureConnection(mica.common.v1.ConfigureConnectionRequest) returns (mica.common.v1.Connection);
+  rpc ConfigureDictation(ConfigureDictationRequest) returns (mica.common.v1.Node);
+  rpc Activate(mica.common.v1.EmptyRequest) returns (mica.common.v1.Node);
+  rpc Deactivate(mica.common.v1.EmptyRequest) returns (mica.common.v1.Node);
+}

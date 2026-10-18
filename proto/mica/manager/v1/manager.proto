@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package mica.manager.v1;
+
+import "mica/common/v1/common.proto";
+
+message App {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string version = 4;
+  repeated string interfaces = 5;
+  mica.common.v1.Compatibility compatibility = 6;
+  string installation_state = 7;
+  string lifecycle_state = 8;
+}
+
+message ListAppsResponse {
+  repeated App apps = 1;
+  string next_page_token = 2;
+}
+
+message Source {
+  string id = 1;
+  string repository = 2;
+  string revision = 3;
+  string manifest_sha256 = 4;
+}
+
+message AddSourceRequest {
+  mica.common.v1.RequestContext context = 1;
+  Source source = 2;
+}
+
+message InstallAppRequest {
+  mica.common.v1.RequestContext context = 1;
+  string app_id = 2;
+  string source_id = 3;
+  repeated string interfaces = 4;
+  string approved_package_digest = 5;
+}
+
+message AppActionRequest {
+  mica.common.v1.RequestContext context = 1;
+  string app_id = 2;
+  string action = 3;
+}
+
+message BindAppRequest {
+  mica.common.v1.RequestContext context = 1;
+  string app_id = 2;
+  mica.common.v1.Connection connection = 3;
+}
+
+// Installation targets this manager's device, not the browsing device.
+service ManagerService {
+  rpc ListApps(mica.common.v1.ListRequest) returns (ListAppsResponse);
+  rpc GetApp(mica.common.v1.ResourceRequest) returns (App);
+  rpc InstallApp(InstallAppRequest) returns (mica.common.v1.Job);
+  rpc BindApp(BindAppRequest) returns (App);
+  rpc RunAppAction(AppActionRequest) returns (mica.common.v1.Job);
+}
+
+service ManagerControlService {
+  rpc AddSource(AddSourceRequest) returns (Source);
+  rpc RemoveSource(mica.common.v1.ResourceRequest) returns (mica.common.v1.Job);
+}
