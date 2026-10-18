@@ -2,6 +2,8 @@
 
 Design baseline, 2026-10-17. These are five independent server–client applications, not frontend modes of one inference daemon. Their common structure and dependency choices follow the [generic blueprint](01-generic-app-blueprint.md). Product names below are working names; no existing executable is renamed by this document.
 
+Implementation order, agreed 2026-10-18: Infer first, Mica manager second, then consumer apps. Per-app drafts are linked from the [suite index](README.md); [Android runtime choices](04-android-runtime-options.md) apply to every app.
+
 | App | ID | Owns | Depends on |
 | --- | --- | --- | --- |
 | Mica | `mica` | App discovery, trusted sources, installation, updates, connections and lifecycle management | App package sources and authorized app control services |

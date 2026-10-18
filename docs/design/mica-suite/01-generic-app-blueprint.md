@@ -113,4 +113,4 @@ Produce separate artifacts for OS, CPU architecture and interface family. Packag
 
 Tests cover core operations without a UI, generated schema validation, main/fallback equivalence, authorization, reconnect/cancellation, state recovery, old/new clients, concurrent load and minimum per-platform UI/device acceptance. Linux and Android builds run on Linux; macOS builds run on Mac. Build jobs and memory are derived from available headroom, with explicit upper caps.
 
-See [Mica app designs](02-mica-app-designs.md) for the five apps and [implementation adaptation](03-implementation-adaptation.md) for migration of existing code. The accompanying draft contracts live in `../../../proto/mica/`.
+See the [draft index and per-app plans](README.md), [Mica app designs](02-mica-app-designs.md) and [implementation adaptation](03-implementation-adaptation.md). Android's local server and interface targets include [native and Linux-runtime options](04-android-runtime-options.md). The accompanying draft contracts live in `../../../proto/mica/`.

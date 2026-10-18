@@ -239,6 +239,8 @@ Application state defaults to `~/.mica` (`MICA_HOME` or `--root` overrides it).
 
 ## Roadmap
 
+The [application-suite drafts](docs/design/mica-suite/README.md) define the monorepo target: independent Inference, Mica manager, Assistant, Dictation and Search applications. Migration starts with Inference, then Mica manager. All apps target local servers and appropriate clients on macOS, Linux and Android; these are planned targets, not current platform certifications.
+
 - [ ] Native macOS/Linux desktop app for Mica management.
 - [ ] Expand desktop dictation permission, shortcut and Wayland testing.
 - [ ] Signed app publishers, app upgrades and trusted distribution recipes.

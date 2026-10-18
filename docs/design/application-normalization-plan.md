@@ -1,5 +1,7 @@
 # Mica application normalization plan
 
+Historical draft. The active [five-application plan](mica-suite/README.md) supersedes this four-application outline. Implement Inference first, Mica manager second, then consumer applications. Keep this document as background, not the current migration sequence.
+
 Status: Planned. Application migration has not started.
 Date: 2026-10-17
 

@@ -1,6 +1,6 @@
 # Adapting the current implementation to the Mica application suite
 
-Migration plan, 2026-10-17. Baseline checkout: `ee10eee` on the Linux host. The [generic blueprint](01-generic-app-blueprint.md) and [five app designs](02-mica-app-designs.md) describe the target independently of current code. This document alone maps existing implementation to that target. Writing designs and setting up development tools do not rename or restart installed apps.
+Migration plan, updated 2026-10-18. Working runtime baseline: `11aa488`; pre-migration design/contracts checkpoint: `7fa9095`. The [generic blueprint](01-generic-app-blueprint.md) and [five app designs](02-mica-app-designs.md) describe the target independently of current code. Implementation order is Infer first, Mica manager second, then consumer apps. Writing designs and setting up development tools do not rename or restart installed apps.
 
 ## Existing implementation and target ownership
 
@@ -39,29 +39,31 @@ Create a Rust workspace for each app's core/server/SDK and interface crates, wit
 
 Gate: Linux host build and descriptor validation pass; main/fallback produce equivalent results. The UI does not duplicate business logic or shell out to the CLI.
 
-### Phase 3 Separate Infer and Assistant
+### Phase 3 Migrate Infer
 
 Put inference control/data behavior behind the Infer core boundary. Preserve OpenAI-compatible HTTP/SSE routes as adapters. Make workload lookup, worker identity, hardware filtering and reservation logic directly testable.
 
-Move conversations, uploaded media, exports/imports, agent tools and ASR/LLM/TTS sequencing into Assistant. Bindings use Infer node/connection and workload IDs. Import old sessions into Assistant storage through a versioned migration with a rollback copy; do not delete original data automatically.
+Deliver Infer's CLI, TUI, dashboard, desktop, Android and MCP targets against the same core. Start Android with a native supported CPU engine and an optional Linux-runtime compatibility path; [runtime evaluation and real-device gates](04-android-runtime-options.md) remain separate from cross-compilation. Do not remove the current Assistant integration while its independent app is pending.
 
-Gate: an Assistant on one device completes text/media workflows against a separate Infer host. Restarting Infer loses no Assistant session, and Infer never executes consumer filesystem tools.
+Gate: existing clients still complete text/media/tool workflows, thinking on/off and request-bound workloads work, and the new Infer interfaces exercise one core. Validate real inference and installation rollback before promoting a platform package.
 
-### Phase 4 Normalize Dictation and implement Search
+### Phase 4 Migrate Mica manager and packaging
+
+Separate Mica's installer/manager from the inference executable. Define independently released app/interface artifacts, digests, compatibility and dependency requirements. Mica can install those artifacts from this monorepo or verified external sources; it does not require all applications to be installed together.
+
+Use shared hardware code locally in Mica and Infer; keep inference memory policy on Infer. Distinguish local package compatibility from remote model/workload compatibility. Add local Infer discovery/reuse, approved installation and remote-node configuration to consumer setup.
+
+Gate: discover/install/open/stop/update apps independently; closing Mica leaves apps usable. Remote-only apps install without local models or an inference binary. Routine package/engine installation does not restart unrelated services. Validate manager clients and Android installation approval on their own platforms.
+
+### Phase 5 Migrate consumer applications
+
+Move conversations, uploaded media, archives, agent tools and speech sequencing into Assistant. Bindings use Infer node/connection and workload IDs. Import existing sessions with a rollback copy; do not automatically delete original data.
 
 Port Dictation workflow logic behind its local protocol server/SDK, keeping device capture/clipboard integrations explicit. Test manual controls before background shortcuts. Add model-supported diarization separately from basic ASR.
 
 Build Search with embedded storage, a small representative ingestion set and exact retrieval before optimizing vector search. Test query/document formatting against the chosen embedding model, source locators, incremental update/delete and no mixing of embedding versions.
 
-Gate: both apps use local/remote Infer exclusively through its SDK; source paths and microphone permissions cannot escape the app's authorized device scope.
-
-### Phase 5 Normalize Mica and packaging
-
-Separate Mica's installer/manager from the inference executable. Add the five app packages and their UI/binary matrix. Every consumer setup discovers local Infer, offers approved installation or a remote connection, and verifies workload operations and remote node hardware compatibility.
-
-Use shared hardware code locally in Mica and Infer; do not route all detection through the running manager. Keep machine budget policy on Infer. Distinguish local artifact compatibility from remote model/workload compatibility in all filters.
-
-Gate: install/open/stop/update apps independently; closing Mica leaves apps usable. Remote-only apps install without local models or an inference binary. No routine app operation restarts unrelated services.
+Gate: all three consumer apps use local/remote Infer through its SDK. Restarting Infer loses no conversation or search index. Source paths and microphone permissions remain within the app's authorized device scope; Infer never executes consumer filesystem tools.
 
 ### Phase 6 Complete interfaces and operating systems
 
@@ -91,7 +93,7 @@ Set up the Linux build host after these designs/contracts are saved. Use user-ow
 | Project Gradle wrapper and Kotlin/Compose/UniFFI dependencies | Android UI and Rust bindings | Pinned project build dependencies, not a global desktop IDE |
 | Optional emulator and test image | Android integration checks | Separate opt-in download; real hardware still required for device certification |
 
-The package manager currently reports Java 8, existing GCC/G++/CMake and native UI development libraries; Rust, Buf, protoc, Android SDK/NDK and Ninja are not on the checked PATH. Recheck exact locations before installing duplicates.
+The initial pre-setup probe reported Java 8 and missing tools on PATH; that is historical, not the current inventory. User-local development tools have since been prepared on Linux. Inspect the existing `mica-dev` environment and verify Android SDK/NDK packages and licenses before installing duplicates or claiming Android build readiness.
 
 Install a separate developer environment file rather than overwriting global shell files, existing toolchains or server settings. Record versions and locations in a setup report. A distro package installation needing sudo is an explicit interactive step; never read a stored password or change drivers as a side effect.
 
@@ -101,4 +103,4 @@ Keep one compiler job by default. Derive available headroom before starting and 
 
 Validate the complete Protobuf descriptor set, generated contract bindings and links between the three docs. Smoke-test host Rust and an NDK-linked Android native library. If Android licenses, sudo, network access or a platform device blocks a step, record the exact pending action rather than claiming the setup is complete.
 
-Save docs, schemas and an environment validation report on the Linux host. Runtime migration, production restart, commits/pushes, public releases and app implementation are separate later actions.
+Keep the drafts/contracts in the repository and synchronize them to the Linux development checkout. Runtime migration, production restarts and public releases require their own acceptance gates. The documentation checkpoint does not install or migrate any application.
